@@ -1,0 +1,6 @@
+{
+  "name": "KFC Chakwal Delivery",
+  "description": "Order authentic KFC items delivered hot and fresh across Chakwal with live customization, exact KFC Pakistan favorites, and swift delivery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
