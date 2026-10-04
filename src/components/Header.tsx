@@ -1,459 +1,674 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { KFC_CATEGORIES } from '../data/kfcMenu';
-import { CategoryId } from '../types';
+import { CategoryId, MenuItem } from '../types';
 import {
   ShoppingBag,
   Search,
-  Settings2,
   MapPin,
   Heart,
-  Clock,
   X,
   Menu,
-  ChevronDown,
   Sun,
   Moon,
   User,
+  Smartphone,
+  Bike,
   Sparkles,
+  Phone,
+  FileText,
+  Flame,
+  ArrowRight
 } from 'lucide-react';
+
+const MEAL_BOX_SUGGESTIONS = [
+  'Krunch Combo',
+  'Zinger Box',
+  'Family Festival',
+  'Hot Wings',
+  'Mighty Zinger',
+];
 
 export const Header: React.FC = () => {
   const {
     settings,
+    menuItems,
     cartCount,
     cartTotal,
     formatPKR,
-    orderType,
-    setOrderType,
-    selectedArea,
-    setSelectedArea,
-    chakwalAreas,
+    getItemEffectivePrice,
     setIsCartOpen,
-    setIsCustomizerOpen,
     searchQuery,
     setSearchQuery,
     wishlist,
-    isAdmin,
     openWishlist,
     goHome,
+    viewProduct,
     setActiveCategory,
     themeMode,
     toggleTheme,
     currentUser,
     setIsCustomerAuthModalOpen,
+    openPolicyModal,
   } = useStore();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
-  const [isMenuDropdownOpen, setIsMenuDropdownOpen] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [showTopBanner, setShowTopBanner] = useState(true);
 
   const isDark = themeMode === 'dark';
 
   const handleSelectCategory = (catId: CategoryId) => {
     setActiveCategory(catId);
-    setIsMenuDropdownOpen(false);
+    setIsMobileDrawerOpen(false);
     goHome();
     const el = document.getElementById('kfc-menu-section');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
-  return (
-    <header className={`sticky top-0 z-40 border-b transition-colors shadow-lg ${
-      isDark ? 'bg-[#121214] border-[#27272a] text-white' : 'bg-white border-zinc-200 text-zinc-900 shadow-sm'
-    }`}>
-      {/* Optional customizable announcement strip */}
-      {settings.showAnnouncement && showTopBanner && (
-        <div className="bg-[#e4002b] text-white text-xs sm:text-sm font-semibold py-1.5 px-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 mx-auto tracking-wide font-medium">
-            <span className="animate-pulse">🍗</span>
-            <span>{settings.announcementText}</span>
-          </div>
-          <button
-            onClick={() => setShowTopBanner(false)}
-            className="text-white/80 hover:text-white p-0.5 rounded cursor-pointer"
-            aria-label="Dismiss banner"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
+  // Live instant search matches
+  const matchingItems = searchQuery.trim().length > 0
+    ? menuItems.filter((item) =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.categoryId.toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, 5)
+    : [];
 
-      {/* Main KFC Top Navigation Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 gap-4">
-          
-          {/* Zone 1: Logo / Wordmark + Menu Dropdown */}
-          <div className="flex items-center gap-3 sm:gap-4">
+  return (
+    <>
+      <header className={`sticky top-0 z-40 border-b transition-colors shadow-md w-full overflow-x-hidden ${
+        isDark ? 'bg-[#121214] border-[#27272a] text-white' : 'bg-white border-zinc-200 text-zinc-900 shadow-sm'
+      }`}>
+        {/* Announcement Strip */}
+        {settings.showAnnouncement && showTopBanner && (
+          <div className="bg-[#e4002b] text-white text-[10px] sm:text-xs font-semibold py-1.5 px-3 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 mx-auto tracking-wide font-medium truncate">
+              <span className="animate-pulse shrink-0">🍗</span>
+              <span className="truncate">
+                {settings.announcementText || 'KFC Picked from Kallar Kahar Motorway! Order before 4 PM for Delivery by 8 PM.'}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowTopBanner(false)}
+              className="text-white/80 hover:text-white p-0.5 rounded cursor-pointer shrink-0 ml-1.5"
+              aria-label="Dismiss banner"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MOBILE HEADER: Logo Middle, Menu & Signup Left, Wishlist, Search, Day/Night, Cart Right */}
+        {/* Guaranteed ZERO overflow outside mobile screen! */}
+        {/* ========================================================================= */}
+        <div className="md:hidden max-w-full px-2 py-2">
+          <div className="flex items-center justify-between gap-1 w-full flex-nowrap">
             
-            {/* Logo and Store Name */}
+            {/* 1. LEFT SIDE: Menu (☰) + Signup (👤) */}
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Menu (Hamburger) */}
+              <button
+                type="button"
+                onClick={() => setIsMobileDrawerOpen(true)}
+                className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-white' : 'bg-zinc-100 border-zinc-300 text-zinc-800'
+                }`}
+                title="Open Navigation Menu"
+                aria-label="Open menu"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
+
+              {/* Signup / Profile (With Logged-in Visual Indicator) */}
+              <button
+                type="button"
+                onClick={() => setIsCustomerAuthModalOpen(true)}
+                className={`p-1.5 rounded-lg border transition-colors cursor-pointer relative flex items-center justify-center ${
+                  currentUser
+                    ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400'
+                    : isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-white' : 'bg-zinc-100 border-zinc-300 text-zinc-800'
+                }`}
+                title={currentUser ? `${currentUser.fullName} (Logged In · ${currentUser.loyaltyPoints || 0} pts)` : 'Sign In / Register'}
+                aria-label="Customer account"
+              >
+                <User className={`w-4 h-4 ${currentUser ? 'text-emerald-400' : 'text-[#e4002b]'}`} />
+                {currentUser && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 absolute top-0.5 right-0.5 animate-pulse" />
+                )}
+              </button>
+            </div>
+
+            {/* 2. MIDDLE: Logo & Store Name (Perfect Center) */}
             <button
               onClick={goHome}
-              className="flex items-center gap-3 group focus:outline-none text-left cursor-pointer"
+              className="flex-1 min-w-0 mx-0.5 flex items-center justify-center gap-1 focus:outline-none cursor-pointer overflow-hidden"
             >
-              {/* If user uploaded custom logo, show it; else show iconic KFC 3 red stripes */}
-              {settings.headerFooter?.logoUrl ? (
-                <img
-                  src={settings.headerFooter.logoUrl}
-                  alt={settings.storeName}
-                  className="h-10 sm:h-12 w-auto max-w-[120px] object-contain shrink-0"
-                />
-              ) : (
-                <div className="flex gap-1 h-9 items-center shrink-0">
-                  <span className="w-2.5 h-9 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
-                  <span className="w-2.5 h-7 bg-white border border-zinc-300 rounded-sm transform -skew-x-6"></span>
-                  <span className="w-2.5 h-9 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
-                </div>
-              )}
-              
-              <div className="flex flex-col">
-                <span className={`font-kfc text-2xl sm:text-3xl font-black tracking-wider leading-none uppercase ${
-                  isDark ? 'text-white' : 'text-zinc-900'
-                }`}>
-                  {settings.headerFooter?.headerTitle || settings.storeName}
+              {/* KFC 3 Iconic Stripes */}
+              <div className="flex gap-0.5 h-5 items-center shrink-0">
+                <span className="w-1.5 h-5 bg-[#e4002b] rounded-[1px] transform -skew-x-6"></span>
+                <span className="w-1.5 h-4 bg-white border border-zinc-300 rounded-[1px] transform -skew-x-6"></span>
+                <span className="w-1.5 h-5 bg-[#e4002b] rounded-[1px] transform -skew-x-6"></span>
+              </div>
+
+              <div className="flex flex-col text-center min-w-0 truncate">
+                <span 
+                  style={{ fontFamily: settings.headingFont || 'Barlow Condensed' }}
+                  className={`text-xs sm:text-sm font-black uppercase tracking-tight leading-none truncate ${
+                    isDark ? 'text-white' : 'text-zinc-900'
+                  }`}
+                >
+                  {settings.storeName}
                 </span>
-                <span className="text-[11px] font-medium text-[#e4002b] tracking-wider uppercase flex items-center gap-1 mt-0.5">
-                  <MapPin className="w-3 h-3 text-[#e4002b]" />
-                  Chakwal, Punjab
+                <span className="text-[7.5px] text-zinc-400 font-bold uppercase tracking-wider truncate">
+                  Within 3 KM
                 </span>
               </div>
             </button>
 
-            {/* HEADER MENU DROPDOWN (Requested: Header mein Menu ka dropdown hona chahye) */}
-            <div className="relative">
+            {/* 3. RIGHT SIDE: Wishlist, Search, Day/Night, Cart icons */}
+            <div className="flex items-center gap-1 shrink-0">
+              
+              {/* Wishlist Icon */}
               <button
                 type="button"
-                onClick={() => setIsMenuDropdownOpen(!isMenuDropdownOpen)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase transition-all cursor-pointer border ${
-                  isMenuDropdownOpen
+                onClick={openWishlist}
+                className={`relative p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-zinc-300' : 'bg-zinc-100 border-zinc-300 text-zinc-700'
+                }`}
+                title="Wishlist"
+                aria-label="Wishlist"
+              >
+                <Heart className={`w-4 h-4 ${wishlist.length > 0 ? 'text-[#e4002b] fill-[#e4002b]' : ''}`} />
+                {wishlist.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-[#e4002b] text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                    {wishlist.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Search Toggle Icon */}
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                  isSearchOpen
                     ? 'bg-[#e4002b] text-white border-[#e4002b]'
-                    : isDark
-                    ? 'bg-[#1c1c1f] hover:bg-[#25252a] text-zinc-300 border-[#2e2e33]'
-                    : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
+                    : isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-zinc-300' : 'bg-zinc-100 border-zinc-300 text-zinc-700'
                 }`}
-                title="Browse Full Menu & Categories"
+                title="Search items"
+                aria-label="Toggle search"
               >
-                <Menu className="w-4 h-4" />
-                <span className="hidden sm:inline">Menu</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isMenuDropdownOpen ? 'rotate-180' : ''}`} />
+                <Search className="w-4 h-4" />
               </button>
 
-              {/* Dropdown Menu Panel */}
-              {isMenuDropdownOpen && (
-                <div className={`absolute left-0 mt-2 w-72 rounded-2xl shadow-2xl border p-2 z-50 animate-in fade-in zoom-in-95 duration-150 ${
-                  isDark ? 'bg-[#18181c] border-[#2e2e38] text-white' : 'bg-white border-zinc-200 text-zinc-900'
-                }`}>
-                  <div className="p-2 border-b border-zinc-700/30 mb-1 flex items-center justify-between">
-                    <span className="text-[11px] font-black uppercase text-[#e4002b] tracking-wider">
-                      KFC Pakistan Menu
-                    </span>
-                    <span className="text-[10px] text-zinc-400">Chakwal Portal</span>
-                  </div>
-
-                  {/* Categories list */}
-                  <div className="space-y-1">
-                    {KFC_CATEGORIES.map((cat) => (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => handleSelectCategory(cat.id)}
-                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
-                          isDark ? 'hover:bg-[#25252d] text-zinc-200' : 'hover:bg-zinc-100 text-zinc-800'
-                        }`}
-                      >
-                        <span className="truncate">{cat.name}</span>
-                        <span className="text-[10px] text-zinc-400">View</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Dropdown Footer Quick Links */}
-                  <div className="mt-2 pt-2 border-t border-zinc-700/30 grid grid-cols-2 gap-1.5 text-xs font-bold">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMenuDropdownOpen(false);
-                        openWishlist();
-                      }}
-                      className={`p-2 rounded-xl flex items-center gap-1.5 justify-center cursor-pointer ${
-                        isDark ? 'bg-[#22222a] hover:bg-[#2b2b35] text-zinc-300' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800'
-                      }`}
-                    >
-                      <Heart className="w-3.5 h-3.5 text-[#e4002b]" />
-                      <span>Wishlist ({wishlist.length})</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMenuDropdownOpen(false);
-                        setIsCustomerAuthModalOpen(true);
-                      }}
-                      className={`p-2 rounded-xl flex items-center gap-1.5 justify-center cursor-pointer ${
-                        isDark ? 'bg-[#22222a] hover:bg-[#2b2b35] text-zinc-300' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800'
-                      }`}
-                    >
-                      <User className="w-3.5 h-3.5 text-[#e4002b]" />
-                      <span>{currentUser ? 'My Account' : 'Sign In'}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Order Type Toggle: Delivery vs Pickup */}
-            <div className={`hidden xl:flex items-center p-1 rounded-full border ${
-              isDark ? 'bg-[#1c1c1f] border-[#2e2e33]' : 'bg-zinc-100 border-zinc-300'
-            }`}>
+              {/* Day / Night Theme Switch */}
               <button
                 type="button"
-                onClick={() => setOrderType('delivery')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold uppercase transition-all duration-200 cursor-pointer ${
-                  orderType === 'delivery'
-                    ? 'bg-[#e4002b] text-white shadow-md'
-                    : 'text-zinc-500 hover:text-zinc-900'
+                onClick={toggleTheme}
+                className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-amber-400' : 'bg-zinc-100 border-zinc-300 text-indigo-600'
                 }`}
+                title={isDark ? 'Day Mode' : 'Night Mode'}
+                aria-label="Toggle Day/Night"
               >
-                Delivery (Rs {settings.deliveryFee})
+                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
+
+              {/* Cart / Bucket Icon */}
               <button
                 type="button"
-                onClick={() => setOrderType('pickup')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold uppercase transition-all duration-200 cursor-pointer ${
-                  orderType === 'pickup'
-                    ? 'bg-[#e4002b] text-white shadow-md'
-                    : 'text-zinc-500 hover:text-zinc-900'
-                }`}
+                onClick={() => setIsCartOpen(true)}
+                className="relative p-1.5 rounded-lg bg-[#e4002b] text-white border border-[#c30025] transition-transform active:scale-90 cursor-pointer shadow-sm"
+                title="Shopping Bucket"
+                aria-label="View bucket"
               >
-                Takeaway
+                <ShoppingBag className="w-4 h-4" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-white text-[#e4002b] text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow">
+                    {cartCount}
+                  </span>
+                )}
               </button>
+
             </div>
           </div>
 
-          {/* Zone 2: Chakwal Location Selector & Search */}
-          <div className="flex-1 max-w-md hidden lg:flex items-center gap-2.5">
-            {/* Location Selector */}
-            <div className="relative flex-1">
-              <button
-                type="button"
-                onClick={() => setIsAreaDropdownOpen(!isAreaDropdownOpen)}
-                className={`w-full flex items-center justify-between border px-3 py-2 rounded-xl text-left transition-colors cursor-pointer ${
-                  isDark ? 'bg-[#1c1c1f] hover:bg-[#25252a] border-[#2e2e33]' : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200'
-                }`}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <MapPin className="w-4 h-4 text-[#e4002b] shrink-0" />
-                  <div className="truncate">
-                    <p className="text-[9px] uppercase font-bold text-zinc-400 leading-tight">Delivering to</p>
-                    <p className={`text-xs font-semibold truncate ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-                      {selectedArea.name}
-                    </p>
+          {/* Slide-down Mobile Search Input with Meal Box Suggestions & Live Results */}
+          {isSearchOpen && (
+            <div className="pt-2 pb-1 border-t border-zinc-700/20 mt-1 space-y-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search Zingers, Krunch, Burgers..."
+                  autoFocus
+                  className={`w-full border text-xs rounded-xl pl-8 pr-8 py-2 focus:outline-none focus:border-[#e4002b] ${
+                    isDark ? 'bg-[#18181c] border-[#292933] text-white placeholder-zinc-500' : 'bg-zinc-50 border-zinc-300 text-zinc-900 placeholder-zinc-400'
+                  }`}
+                />
+                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-2.5 pointer-events-none" />
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setIsSearchOpen(false);
+                  }}
+                  className="absolute right-2 top-2 text-zinc-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Suggested Meal Boxes Chips */}
+              {!searchQuery && (
+                <div className="space-y-1 pt-1">
+                  <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                    <Flame className="w-3 h-3 text-[#e4002b]" />
+                    <span>Suggested Meal Boxes:</span>
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {MEAL_BOX_SUGGESTIONS.map((box) => (
+                      <button
+                        key={box}
+                        type="button"
+                        onClick={() => setSearchQuery(box)}
+                        className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition ${
+                          isDark ? 'bg-[#1e1e24] border-zinc-700 text-zinc-300 hover:border-[#e4002b]' : 'bg-zinc-100 border-zinc-300 text-zinc-700 hover:border-[#e4002b]'
+                        }`}
+                      >
+                        {box}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <span className="text-[10px] text-zinc-400 ml-1.5 shrink-0">{selectedArea.estimatedTime}</span>
-              </button>
+              )}
 
-              {/* Area Dropdown */}
-              {isAreaDropdownOpen && (
-                <div className={`absolute left-0 right-0 mt-2 border rounded-2xl shadow-2xl p-2 z-50 max-h-72 overflow-y-auto ${
-                  isDark ? 'bg-[#1c1c1f] border-[#2e2e33] text-white' : 'bg-white border-zinc-200 text-zinc-900'
+              {/* Live Instant Search Dropdown on Mobile */}
+              {matchingItems.length > 0 && (
+                <div className={`rounded-xl border divide-y overflow-hidden shadow-lg ${
+                  isDark ? 'bg-[#18181f] border-zinc-800 divide-zinc-800' : 'bg-white border-zinc-200 divide-zinc-100'
                 }`}>
-                  <div className="p-2 border-b border-zinc-700/30 mb-1">
-                    <p className="text-xs font-bold text-[#e4002b] uppercase tracking-wider">Select Chakwal Location</p>
-                    <p className="text-[10px] text-zinc-400">Express delivery to your home or office</p>
-                  </div>
-                  {chakwalAreas.map((area) => (
-                    <button
-                      key={area.id}
+                  {matchingItems.map((item) => (
+                    <div
+                      key={item.id}
                       onClick={() => {
-                        setSelectedArea(area);
-                        setIsAreaDropdownOpen(false);
+                        viewProduct(item);
+                        setIsSearchOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                        selectedArea.id === area.id
-                          ? 'bg-[#e4002b] text-white font-bold'
-                          : isDark ? 'text-zinc-300 hover:bg-[#28282e]' : 'text-zinc-700 hover:bg-zinc-100'
-                      }`}
+                      className="p-2 flex items-center justify-between gap-2 hover:bg-zinc-500/10 cursor-pointer"
                     >
-                      <span className="truncate">{area.name}</span>
-                      <span className="text-[10px] opacity-80 ml-2 shrink-0">{area.estimatedTime}</span>
-                    </button>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-8 h-8 rounded-lg object-cover bg-black/30 shrink-0"
+                          onError={(e) => {
+                            e.currentTarget.src = '/src/assets/images/kfc_krunch_burger_1791015834419.jpg';
+                          }}
+                        />
+                        <div className="truncate">
+                          <p className={`text-xs font-bold truncate ${isDark ? 'text-white' : 'text-zinc-900'}`}>{item.name}</p>
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold">
+                            {formatPKR(getItemEffectivePrice(item))}
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                    </div>
                   ))}
                 </div>
               )}
             </div>
-
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search Zingers, Wings..."
-                className={`w-full border text-xs rounded-xl pl-8 pr-7 py-2.5 focus:outline-none focus:border-[#e4002b] transition-colors ${
-                  isDark ? 'bg-[#1c1c1f] border-[#2e2e33] text-white placeholder-zinc-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder-zinc-400'
-                }`}
-              />
-              <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-3 pointer-events-none" />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-2.5 text-zinc-400 hover:text-white"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Zone 3: Day/Night Theme, Wishlist, Account, Bucket */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
-            
-            {/* Mobile Search Button */}
-            <button
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className={`lg:hidden p-2.5 border rounded-xl cursor-pointer ${
-                isDark ? 'bg-[#1c1c1f] border-[#2e2e33] text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
-              }`}
-              aria-label="Toggle search"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-
-            {/* Day / Night Theme Toggle (Theme k both options day and night hony chahye) */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
-                isDark
-                  ? 'bg-[#1c1c1f] hover:bg-[#25252a] border-[#2e2e33] text-amber-400'
-                  : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-amber-600'
-              }`}
-              title={isDark ? 'Switch to Day Mode (Light)' : 'Switch to Night Mode (Dark)'}
-              aria-label="Toggle Day/Night mode"
-            >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-indigo-600" />}
-            </button>
-
-            {/* Wishlist Button (wishlist page bhi hona chahye) */}
-            <button
-              type="button"
-              onClick={openWishlist}
-              className={`relative p-2.5 rounded-xl border transition-all cursor-pointer ${
-                isDark
-                  ? 'bg-[#1c1c1f] hover:bg-[#25252a] border-[#2e2e33] text-zinc-300 hover:text-white'
-                  : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-700'
-              }`}
-              title="Saved Wishlist Items"
-            >
-              <Heart className={`w-4 h-4 ${wishlist.length > 0 ? 'text-[#e4002b] fill-[#e4002b]' : ''}`} />
-              {wishlist.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-[#e4002b] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow">
-                  {wishlist.length}
-                </span>
-              )}
-            </button>
-
-            {/* Customer Account / Sign Up Button (Customer ka signup option bhi banao) */}
-            <button
-              type="button"
-              onClick={() => setIsCustomerAuthModalOpen(true)}
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                currentUser
-                  ? 'border-emerald-600/40 bg-emerald-950/30 text-emerald-400'
-                  : isDark
-                  ? 'bg-[#1c1c1f] hover:bg-[#25252a] border-[#2e2e33] text-zinc-300 hover:text-white'
-                  : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-800'
-              }`}
-              title="Customer Login / Signup"
-            >
-              <User className="w-3.5 h-3.5 text-[#e4002b]" />
-              <span className="truncate max-w-[80px]">
-                {currentUser ? currentUser.fullName.split(' ')[0] : 'Sign In'}
-              </span>
-            </button>
-
-            {/* Customizer / Settings Button (Only for Admin) */}
-            {isAdmin && (
-              <button
-                onClick={() => setIsCustomizerOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-[#221808] hover:bg-[#2f210a] text-amber-300 border border-amber-800/60 rounded-xl text-xs font-bold transition-all cursor-pointer group"
-                title="Customize App: Markup %, Delivery charges, items & settings"
-              >
-                <Settings2 className="w-4 h-4 text-amber-400 group-hover:rotate-45 transition-transform" />
-                <span className="hidden sm:inline">Admin</span>
-              </button>
-            )}
-
-            {/* Bucket / Cart Button */}
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="flex items-center gap-2.5 bg-[#e4002b] hover:bg-[#c30025] text-white px-3.5 sm:px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-red-900/30 cursor-pointer"
-            >
-              <div className="relative">
-                <ShoppingBag className="w-5 h-5" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-white text-[#e4002b] text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow">
-                    {cartCount}
-                  </span>
-                )}
-              </div>
-              <div className="hidden sm:flex flex-col text-left">
-                <span className="text-[10px] uppercase font-bold text-red-200 leading-tight">Bucket</span>
-                <span className="text-xs font-extrabold tabular-nums">
-                  {cartTotal > 0 ? formatPKR(cartTotal) : 'Rs. 0'}
-                </span>
-              </div>
-            </button>
-          </div>
+          )}
         </div>
 
-        {/* Mobile Search input expander */}
-        {isSearchOpen && (
-          <div className="lg:hidden pb-3">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search Zingers, Krunch, Buckets, Wings..."
-                className={`w-full border text-sm rounded-xl pl-10 pr-10 py-2.5 focus:outline-none focus:border-[#e4002b] ${
-                  isDark ? 'bg-[#1c1c1f] border-[#2e2e33] text-white placeholder-zinc-500' : 'bg-white border-zinc-300 text-zinc-900 placeholder-zinc-400'
-                }`}
-                autoFocus
-              />
-              <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-3.5" />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-3 text-zinc-400"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+        {/* ========================================================================= */}
+        {/* DESKTOP HEADER (MD & LG SCREENS) */}
+        {/* ========================================================================= */}
+        <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20 gap-4">
             
-            {/* Mobile Area Selector Row */}
-            <div className={`mt-2 flex items-center justify-between text-xs border p-2 rounded-xl ${
-              isDark ? 'bg-[#1c1c1f] border-[#2e2e33]' : 'bg-zinc-100 border-zinc-200'
-            }`}>
-              <div className="flex items-center gap-1.5 truncate">
-                <MapPin className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />
-                <span className="text-zinc-400">Area:</span>
-                <span className={`font-medium truncate ${isDark ? 'text-white' : 'text-zinc-900'}`}>{selectedArea.name}</span>
+            {/* Logo and Brand */}
+            <button
+              onClick={goHome}
+              className="flex items-center gap-3 group focus:outline-none text-left cursor-pointer shrink-0"
+            >
+              <div className="flex gap-1 h-8 items-center shrink-0">
+                <span className="w-2.5 h-8 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
+                <span className="w-2.5 h-7 bg-white border border-zinc-300 rounded-sm transform -skew-x-6"></span>
+                <span className="w-2.5 h-8 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
               </div>
+
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span 
+                    style={{ fontFamily: settings.headingFont || 'Barlow Condensed' }}
+                    className={`text-2xl font-black uppercase tracking-tight leading-none ${
+                      isDark ? 'text-white' : 'text-zinc-900'
+                    }`}
+                  >
+                    {settings.storeName}
+                  </span>
+                  <span className="bg-[#e4002b] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded tracking-wider shrink-0">
+                    Within 3 KM
+                  </span>
+                </div>
+                <span className="text-[11px] text-zinc-400 font-medium tracking-tight mt-0.5">
+                  Fresh from Kallar Kahar Motorway · Order by 4 PM for 8 PM Delivery
+                </span>
+              </div>
+            </button>
+
+            {/* Desktop Center: Delivery Coverage & Search with Live Dropdown & Meal Box Suggestions */}
+            <div className="flex items-center gap-3 flex-1 max-w-xl mx-4">
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold shrink-0 ${
+                isDark ? 'bg-[#18181c] border-[#292933] text-zinc-200' : 'bg-zinc-50 border-zinc-200 text-zinc-800'
+              }`}>
+                <MapPin className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />
+                <span>Coverage: Within 3 KM (Chakwal)</span>
+              </div>
+
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search Zingers, Krunch, Family Deals..."
+                  className={`w-full border text-xs rounded-xl pl-8 pr-7 py-2.5 focus:outline-none focus:border-[#e4002b] transition-colors ${
+                    isDark ? 'bg-[#18181c] border-[#292933] text-white placeholder-zinc-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder-zinc-400'
+                  }`}
+                />
+                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-3 pointer-events-none" />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-white"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {/* Desktop Live Instant Search Dropdown */}
+                {matchingItems.length > 0 && (
+                  <div className={`absolute top-full left-0 right-0 mt-1 rounded-2xl border shadow-2xl z-50 overflow-hidden divide-y ${
+                    isDark ? 'bg-[#16161c] border-[#2b2b35] divide-zinc-800' : 'bg-white border-zinc-200 divide-zinc-100'
+                  }`}>
+                    {matchingItems.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => {
+                          viewProduct(item);
+                          setSearchQuery('');
+                        }}
+                        className="p-3 flex items-center justify-between gap-3 hover:bg-zinc-500/10 cursor-pointer transition"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-10 h-10 rounded-xl object-cover bg-black/40 shrink-0"
+                            onError={(e) => {
+                              e.currentTarget.src = '/src/assets/images/kfc_krunch_burger_1791015834419.jpg';
+                            }}
+                          />
+                          <div className="truncate">
+                            <h4 className={`font-bold text-xs truncate ${isDark ? 'text-white' : 'text-zinc-900'}`}>{item.name}</h4>
+                            <p className="text-[11px] text-zinc-400 truncate">{item.description}</p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="font-mono font-bold text-xs text-emerald-400">
+                            {formatPKR(getItemEffectivePrice(item))}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Desktop Right Actions */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              
+              {/* Day / Night Theme */}
               <button
-                onClick={() => setIsAreaDropdownOpen(!isAreaDropdownOpen)}
-                className="text-[#e4002b] font-bold text-[11px] shrink-0 ml-2 cursor-pointer"
+                type="button"
+                onClick={toggleTheme}
+                className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
+                  isDark ? 'bg-[#1c1c1f] hover:bg-[#25252a] border-[#2e2e33] text-amber-400' : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-amber-600'
+                }`}
+                title={isDark ? 'Switch to Day Mode' : 'Switch to Night Mode'}
               >
-                Change
+                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-indigo-600" />}
               </button>
+
+              {/* Wishlist */}
+              <button
+                type="button"
+                onClick={openWishlist}
+                className={`relative p-2.5 rounded-xl border transition-all cursor-pointer ${
+                  isDark ? 'bg-[#1c1c1f] hover:bg-[#25252a] border-[#2e2e33] text-zinc-300 hover:text-white' : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-700'
+                }`}
+                title="Wishlist"
+              >
+                <Heart className={`w-4 h-4 ${wishlist.length > 0 ? 'text-[#e4002b] fill-[#e4002b]' : ''}`} />
+                {wishlist.length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-[#e4002b] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                    {wishlist.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Customer Account / Loyalty Points (With shortcut indicating logged-in status) */}
+              <button
+                type="button"
+                onClick={() => setIsCustomerAuthModalOpen(true)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                  currentUser
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                    : isDark ? 'bg-[#1c1c1f] hover:bg-[#25252a] border-[#2e2e33] text-zinc-300' : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-800'
+                }`}
+              >
+                <div className="relative">
+                  <User className={`w-4 h-4 ${currentUser ? 'text-emerald-400' : 'text-[#e4002b]'}`} />
+                  {currentUser && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 absolute -top-0.5 -right-0.5 border border-white" />
+                  )}
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="truncate max-w-[110px] font-bold">
+                    {currentUser ? `${currentUser.fullName.split(' ')[0]} (Logged In)` : 'Sign In / Register'}
+                  </span>
+                  {currentUser && (
+                    <span className="text-[10px] text-amber-400 font-bold">
+                      {currentUser.loyaltyPoints || 0} Pts (10 / 300 Rs)
+                    </span>
+                  )}
+                </div>
+              </button>
+
+              {/* Bucket / Cart Button */}
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="flex items-center gap-2.5 bg-[#e4002b] hover:bg-[#c30025] text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+              >
+                <div className="relative">
+                  <ShoppingBag className="w-5 h-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-white text-[#e4002b] text-[10px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center shadow">
+                      {cartCount}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-[9px] uppercase font-bold text-red-200 leading-tight">Bucket</span>
+                  <span className="text-xs font-extrabold tabular-nums">
+                    {cartTotal > 0 ? formatPKR(cartTotal) : 'Rs. 0'}
+                  </span>
+                </div>
+              </button>
+
             </div>
           </div>
-        )}
-      </div>
-    </header>
+        </div>
+      </header>
+
+      {/* ========================================================================= */}
+      {/* MOBILE SLIDE-OUT DRAWER */}
+      {/* ========================================================================= */}
+      {isMobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex lg:hidden">
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsMobileDrawerOpen(false)}
+          />
+
+          <div className={`relative w-4/5 max-w-xs h-full shadow-2xl flex flex-col justify-between overflow-y-auto ${
+            isDark ? 'bg-[#151518] text-white border-r border-[#26262e]' : 'bg-white text-zinc-900 border-r border-zinc-200'
+          }`}>
+            <div className="p-4 space-y-4">
+              
+              {/* Drawer Top Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-700/20">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1 h-5 items-center shrink-0">
+                    <span className="w-1.5 h-5 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
+                    <span className="w-1.5 h-4 bg-white border border-zinc-300 rounded-sm transform -skew-x-6"></span>
+                    <span className="w-1.5 h-5 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
+                  </div>
+                  <span className="font-kfc text-lg font-black uppercase tracking-tight">
+                    {settings.storeName}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setIsMobileDrawerOpen(false)}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Kallar Kahar Notice & Delivery Coverage */}
+              <div className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                isDark ? 'bg-[#1b1b22] border-[#292934]' : 'bg-red-50/60 border-red-200'
+              }`}>
+                <div className="flex items-center gap-1.5 text-[#e4002b] font-bold text-[11px] uppercase">
+                  <Bike className="w-3.5 h-3.5 shrink-0" />
+                  <span>Kallar Kahar ➔ Chakwal (Within 3 KM)</span>
+                </div>
+                <p className={`text-[11px] leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
+                  {settings.kallarKaharNotice || 'Hum Kallar Kahar Motorway wali KFC branch se KFC pick kar ky Chakwal mein daily deliver karty hein.'}
+                </p>
+                <p className={`text-[10px] font-bold pt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                  ⏰ Order before 4:00 PM for Same-Day Delivery by 8:00 PM!
+                </p>
+              </div>
+
+              {/* Loyalty Points Status (if signed in) */}
+              {currentUser && (
+                <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                  isDark ? 'bg-gradient-to-r from-amber-500/15 to-orange-500/15 border-amber-500/30' : 'bg-amber-50 border-amber-300'
+                }`}>
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-amber-500">Loyalty Rewards</span>
+                    <p className={`text-sm font-black ${isDark ? 'text-white' : 'text-zinc-900'}`}>{currentUser.loyaltyPoints || 0} Points</p>
+                    <p className={`text-[10px] ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Har Rs. 300 par 10 points (Worth Rs. {currentUser.loyaltyPoints || 0} discount)</p>
+                  </div>
+                  <Sparkles className="w-6 h-6 text-amber-500" />
+                </div>
+              )}
+
+              {/* Menu Categories */}
+              <div className="space-y-1">
+                <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
+                  Menu Categories
+                </p>
+                {KFC_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleSelectCategory(cat.id)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-between cursor-pointer ${
+                      isDark ? 'hover:bg-[#202026] text-zinc-200' : 'hover:bg-zinc-100 text-zinc-800'
+                    }`}
+                  >
+                    <span>{cat.name}</span>
+                    <span className="text-[10px] text-zinc-500 font-normal">→</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Customer Account / Policies / WhatsApp Action */}
+              <div className="pt-2 border-t border-zinc-700/20 space-y-2 text-xs">
+                <button
+                  onClick={() => {
+                    setIsCustomerAuthModalOpen(true);
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl border font-bold cursor-pointer ${
+                    currentUser
+                      ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-400'
+                      : isDark ? 'bg-[#1a1a20] border-zinc-800 text-white' : 'bg-zinc-50 border-zinc-200 text-zinc-800'
+                  }`}
+                >
+                  <User className="w-4 h-4 text-[#e4002b]" />
+                  <span>{currentUser ? `${currentUser.fullName} (Profile & ${currentUser.loyaltyPoints || 0} Pts)` : 'Sign In / Register'}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    openPolicyModal();
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl border font-bold cursor-pointer ${
+                    isDark ? 'bg-[#1a1a20] border-zinc-800 text-zinc-300' : 'bg-zinc-50 border-zinc-200 text-zinc-700'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 text-[#e4002b]" />
+                  <span>Delivery & Loyalty Policies</span>
+                </button>
+
+                {/* Direct WhatsApp Contact */}
+                <a
+                  href={`https://wa.me/923252777574?text=${encodeURIComponent('Assalam o Alaikum KFC Chakwal Delivery, I have an order query.')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    <span>WhatsApp Contact</span>
+                  </div>
+                  <span className="text-[11px] font-mono">+92 325 2777574</span>
+                </a>
+
+                {/* Install App Button */}
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('open-install-app-modal'));
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[#e4002b] text-white font-bold cursor-pointer"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  <span>Install App (Android & iPhone)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Drawer Bottom */}
+            <div className={`p-4 border-t text-[11px] ${
+              isDark ? 'border-zinc-800 text-zinc-500' : 'border-zinc-200 text-zinc-500'
+            }`}>
+              <p className={`font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>KFC Chakwal Delivery</p>
+              <p className="text-[10px] mt-0.5">Phone: +92 325 2777574</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
-

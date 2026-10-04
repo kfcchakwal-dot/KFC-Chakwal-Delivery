@@ -11,16 +11,18 @@ import { ItemCustomizeModal } from './components/ItemCustomizeModal';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
 import { OrderConfirmationModal } from './components/OrderConfirmationModal';
-import { CustomizerModal } from './components/CustomizerModal';
-import { AdminBar } from './components/AdminBar';
 import { AdminLoginModal } from './components/AdminLoginModal';
-import { AdminOrdersModal } from './components/AdminOrdersModal';
 import { FloatingCartBar } from './components/FloatingCartBar';
 import { Footer } from './components/Footer';
 import { PageSectionsRenderer } from './components/PageSectionsRenderer';
+import { InstallAppModal } from './components/InstallAppModal';
+import { ShopifyAdminApp } from './components/admin/ShopifyAdminApp';
+import { Preloader } from './components/Preloader';
+import { DailyDealsSection } from './components/DailyDealsSection';
+import { PoliciesModal } from './components/PoliciesModal';
 import { KFC_CATEGORIES } from './data/kfcMenu';
 import { CategoryId } from './types';
-import { SearchX, Percent, Bike, Sparkles, Clock } from 'lucide-react';
+import { SearchX, Bike } from 'lucide-react';
 
 const MainShop: React.FC = () => {
   const {
@@ -28,8 +30,8 @@ const MainShop: React.FC = () => {
     searchQuery,
     setSearchQuery,
     settings,
-    setIsCustomizerOpen,
     isAdmin,
+    isSellerMode,
     currentView,
     activeCategory,
     setActiveCategory,
@@ -38,6 +40,11 @@ const MainShop: React.FC = () => {
 
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
   const isDark = themeMode === 'dark';
+
+  // If in Admin Mode or Seller Mode (?app=seller), render KCD Seller Portal
+  if (isAdmin || isSellerMode) {
+    return <ShopifyAdminApp />;
+  }
 
   // Filter items based on search query
   const searchedItems = menuItems.filter((item) => {
@@ -53,17 +60,17 @@ const MainShop: React.FC = () => {
   return (
     <div 
       style={{ fontFamily: settings.bodyFont || 'Plus Jakarta Sans' }}
-      className={`min-h-screen flex flex-col transition-colors ${
+      className={`min-h-screen flex flex-col transition-colors overflow-x-hidden ${
         isDark ? 'bg-[#0e0e11] text-[#f4f4f5]' : 'bg-[#f8f9fa] text-[#1a1a1f]'
       }`}
     >
-      {/* Admin Quick Control Bar (Only visible when logged into Admin) */}
-      <AdminBar />
+      {/* Brand Animated Preloader */}
+      <Preloader />
 
-      {/* Persistent KFC Top Header */}
+      {/* 100% Customer Facing Header (Mobile Optimized, Zero Overflow) */}
       <Header />
 
-      {/* VIEW ROUTING: PRODUCT PAGE */}
+      {/* VIEW ROUTING: PRODUCT DETAIL PAGE */}
       {currentView === 'product' && <ProductPage />}
 
       {/* VIEW ROUTING: WISHLIST PAGE */}
@@ -73,6 +80,9 @@ const MainShop: React.FC = () => {
       {(currentView === 'home' || currentView === 'collection') && (
         <>
           <HeroBanner />
+
+          {/* Daily 5 Random Meal Box Specials with Flat 4% OFF */}
+          <DailyDealsSection />
 
           {/* Dynamic Page Sections - e.g. Image with Text placeholders placed by Admin */}
           <PageSectionsRenderer page="home" />
@@ -87,51 +97,26 @@ const MainShop: React.FC = () => {
               }}
             />
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-6 sm:pt-8">
               
               {/* Customizable Delivery Announcement Section */}
               {(settings.deliverySection?.enabled ?? true) && (
-                <div className={`mb-8 border p-3 sm:p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                <div className={`mb-6 sm:mb-8 border p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
                   isDark ? 'bg-[#18181d] border-[#2b2b35]' : 'bg-white border-zinc-200 shadow-sm'
                 }`}>
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-[#e4002b]/15 text-[#e4002b] flex items-center justify-center shrink-0">
-                      {isAdmin ? <Percent className="w-4 h-4" /> : <Bike className="w-4 h-4" />}
+                      <Bike className="w-4 h-4" />
                     </div>
                     <div>
-                      {isAdmin ? (
-                        <>
-                          <p className={`font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-                            Admin Portal: <span className="text-[#e4002b]">+{settings.markupPercentage}% Markup Active</span> · Delivery <span className="font-bold">Rs. {settings.deliveryFee}</span>
-                          </p>
-                          <p className="text-zinc-500 text-[11px]">
-                            {settings.deliverySection?.headline || 'KFC Chakwal Delivery Active'} · ETA: {settings.deliverySection?.estimatedTime || '30-40 Mins'}
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className={`font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-                            {settings.deliverySection?.badgeText || '⚡ KFC Chakwal Express Delivery'} · <span className="text-[#e4002b] font-black">{settings.deliverySection?.deliveryFeeText || `Rs. ${settings.deliveryFee}`}</span>
-                          </p>
-                          <p className="text-zinc-500 text-[11px]">
-                            {settings.deliverySection?.description || 'Hot, crispy & piping fresh meals delivered straight to your doorstep across Chakwal.'}
-                          </p>
-                        </>
-                      )}
+                      <p className={`font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                        {settings.deliverySection?.badgeText || '⚡ KFC Chakwal Express Delivery'} · <span className="text-[#e4002b] font-black">{settings.deliverySection?.deliveryFeeText || `Rs. ${settings.deliveryFee}`}</span>
+                      </p>
+                      <p className="text-zinc-500 text-[11px] mt-0.5">
+                        {settings.deliverySection?.description || 'Hot, crispy & piping fresh meals delivered straight to your doorstep across Chakwal.'}
+                      </p>
                     </div>
                   </div>
-
-                  {isAdmin && (
-                    <button
-                      onClick={() => setIsCustomizerOpen(true)}
-                      className={`px-3 py-1.5 rounded-lg border text-[11px] font-bold flex items-center gap-1.5 self-start sm:self-auto cursor-pointer transition-colors ${
-                        isDark ? 'bg-[#23232b] hover:bg-[#2c2c36] text-zinc-300 hover:text-white border-[#373744]' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-300'
-                      }`}
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Customize Store</span>
-                    </button>
-                  )}
                 </div>
               )}
 
@@ -154,20 +139,20 @@ const MainShop: React.FC = () => {
 
               {/* If No Items match search */}
               {searchedItems.length === 0 ? (
-                <div className={`py-20 text-center space-y-4 border rounded-3xl p-8 max-w-md mx-auto ${
+                <div className={`py-16 text-center space-y-4 border rounded-3xl p-6 sm:p-8 max-w-md mx-auto ${
                   isDark ? 'bg-[#141417] border-[#24242b]' : 'bg-white border-zinc-200'
                 }`}>
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${
+                  <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto ${
                     isDark ? 'bg-[#1f1f26] text-zinc-500' : 'bg-zinc-100 text-zinc-400'
                   }`}>
-                    <SearchX className="w-8 h-8" />
+                    <SearchX className="w-7 h-7" />
                   </div>
                   <div className="space-y-1">
                     <h3 className={`font-kfc text-2xl font-black uppercase ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                       No Menu Items Found
                     </h3>
                     <p className="text-zinc-500 text-xs">
-                      We couldn't find any items matching "{searchQuery}". Try searching for Zingers, Krunch, or Wings.
+                      We couldn't find any items matching "{searchQuery}".
                     </p>
                   </div>
                   <button
@@ -179,9 +164,9 @@ const MainShop: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  {/* If "All Items" is selected AND no search query is active, render category by category */}
+                  {/* Category by Category View (2 items per row on mobile) */}
                   {selectedCategory === 'all' && !searchQuery ? (
-                    <div className="space-y-12">
+                    <div className="space-y-10 sm:space-y-12">
                       {KFC_CATEGORIES.map((category) => {
                         const categoryItems = searchedItems.filter(
                           (item) => item.categoryId === category.id
@@ -189,9 +174,9 @@ const MainShop: React.FC = () => {
                         if (categoryItems.length === 0) return null;
 
                         return (
-                          <div key={category.id} className="space-y-4">
-                            {/* Category Section Header */}
-                            <div className={`border-b pb-3 flex items-end justify-between ${
+                          <div key={category.id} className="space-y-3.5 sm:space-y-4">
+                            {/* Category Header */}
+                            <div className={`border-b pb-2.5 flex items-end justify-between ${
                               isDark ? 'border-[#25252c]' : 'border-zinc-200'
                             }`}>
                               <div>
@@ -200,13 +185,13 @@ const MainShop: React.FC = () => {
                                 </span>
                                 <h2 
                                   style={{ fontFamily: settings.headingFont || 'Barlow Condensed' }}
-                                  className={`text-2xl sm:text-3xl font-black uppercase tracking-tight ${
+                                  className={`text-xl sm:text-3xl font-black uppercase tracking-tight ${
                                     isDark ? 'text-white' : 'text-zinc-900'
                                   }`}
                                 >
                                   {category.name}
                                 </h2>
-                                <p className="text-zinc-500 text-xs mt-0.5">
+                                <p className="text-zinc-500 text-[11px] sm:text-xs mt-0.5">
                                   {category.subtitle}
                                 </p>
                               </div>
@@ -216,8 +201,8 @@ const MainShop: React.FC = () => {
                               </span>
                             </div>
 
-                            {/* Responsive Items Grid: 2 items per row on mobile as requested! */}
-                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+                            {/* Responsive Grid: strictly 2 products per row on mobile! */}
+                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
                               {categoryItems.map((item) => (
                                 <MenuItemCard key={item.id} item={item} />
                               ))}
@@ -227,7 +212,7 @@ const MainShop: React.FC = () => {
                       })}
                     </div>
                   ) : (
-                    /* Specific Category or Search Filtered View */
+                    /* Specific Category View (2 items per row on mobile) */
                     <div className="space-y-6">
                       {selectedCategory !== 'all' && (
                         <div className={`border-b pb-3 ${isDark ? 'border-[#25252c]' : 'border-zinc-200'}`}>
@@ -236,7 +221,7 @@ const MainShop: React.FC = () => {
                           </span>
                           <h2 
                             style={{ fontFamily: settings.headingFont || 'Barlow Condensed' }}
-                            className={`text-2xl sm:text-3xl font-black uppercase tracking-tight ${
+                            className={`text-xl sm:text-3xl font-black uppercase tracking-tight ${
                               isDark ? 'text-white' : 'text-zinc-900'
                             }`}
                           >
@@ -248,8 +233,7 @@ const MainShop: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Responsive Items Grid: 2 items per row on mobile as requested! */}
-                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
                         {searchedItems
                           .filter((item) =>
                             selectedCategory === 'all' ? true : item.categoryId === selectedCategory
@@ -271,6 +255,7 @@ const MainShop: React.FC = () => {
         </>
       )}
 
+      {/* 100% Customer Facing Footer */}
       <Footer />
 
       {/* Floating Modals and Drawers */}
@@ -279,11 +264,11 @@ const MainShop: React.FC = () => {
       <CartDrawer />
       <CheckoutModal />
       <OrderConfirmationModal />
-      <CustomizerModal />
-      <AdminOrdersModal />
       <AdminLoginModal />
       <CustomerAuthModal />
+      <PoliciesModal />
       <FloatingCartBar />
+      <InstallAppModal />
     </div>
   );
 };

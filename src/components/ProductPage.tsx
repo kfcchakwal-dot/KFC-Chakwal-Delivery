@@ -160,12 +160,32 @@ export const ProductPage: React.FC = () => {
             <div className={`relative aspect-square rounded-3xl overflow-hidden border shadow-2xl ${
               isDark ? 'bg-[#161619] border-[#292932]' : 'bg-white border-zinc-200'
             }`}>
-              <img
-                src={item.image}
-                alt={item.name}
-                className="w-full h-full object-cover object-center"
-                referrerPolicy="no-referrer"
-              />
+              {item.image ? (
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="w-full h-full object-cover object-center"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.src = '/src/assets/images/kfc_hero_zinger_combo_1791015805739.jpg';
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-[#1c1c24] to-[#121216]">
+                  <div className="flex gap-1.5 h-10 items-center opacity-80 mb-3">
+                    <span className="w-2.5 h-10 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
+                    <span className="w-2.5 h-8 bg-white rounded-sm transform -skew-x-6"></span>
+                    <span className="w-2.5 h-10 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
+                  </div>
+                  <span className="text-base font-bold text-white uppercase tracking-wider">
+                    {item.name}
+                  </span>
+                  <span className="text-xs text-zinc-400 mt-1">
+                    No image uploaded · Admin can add product image anytime
+                  </span>
+                </div>
+              )}
 
               {/* Customizable Badge */}
               <div className={`absolute ${badgeClasses} z-10 flex gap-2`}>
@@ -291,7 +311,7 @@ export const ProductPage: React.FC = () => {
                       onClick={() => setSpiceLevel('Hot & Crispy')}
                       className={`p-3 rounded-xl border text-left text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
                         spiceLevel === 'Hot & Crispy'
-                          ? 'border-[#e4002b] bg-[#e4002b]/15 text-white'
+                          ? isDark ? 'border-[#e4002b] bg-[#e4002b]/15 text-white' : 'border-[#e4002b] bg-red-50 text-[#e4002b]'
                           : isDark ? 'border-[#2d2d38] bg-[#121214] text-zinc-400' : 'border-zinc-200 bg-zinc-50 text-zinc-600'
                       }`}
                     >
@@ -307,7 +327,7 @@ export const ProductPage: React.FC = () => {
                       onClick={() => setSpiceLevel('Original Recipe')}
                       className={`p-3 rounded-xl border text-left text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
                         spiceLevel === 'Original Recipe'
-                          ? 'border-[#e4002b] bg-[#e4002b]/15 text-white'
+                          ? isDark ? 'border-[#e4002b] bg-[#e4002b]/15 text-white' : 'border-[#e4002b] bg-red-50 text-[#e4002b]'
                           : isDark ? 'border-[#2d2d38] bg-[#121214] text-zinc-400' : 'border-zinc-200 bg-zinc-50 text-zinc-600'
                       }`}
                     >
@@ -332,7 +352,7 @@ export const ProductPage: React.FC = () => {
                         onClick={() => setDrink(d)}
                         className={`p-2.5 rounded-xl border text-left text-xs font-medium transition-all cursor-pointer flex items-center justify-between ${
                           drink === d
-                            ? 'border-[#e4002b] bg-[#e4002b]/15 text-white font-bold'
+                            ? isDark ? 'border-[#e4002b] bg-[#e4002b]/15 text-white font-bold' : 'border-[#e4002b] bg-red-50 text-[#e4002b] font-bold'
                             : isDark ? 'border-[#2d2d38] bg-[#121214] text-zinc-400' : 'border-zinc-200 bg-zinc-50 text-zinc-600'
                         }`}
                       >
@@ -360,7 +380,7 @@ export const ProductPage: React.FC = () => {
                           onClick={() => toggleAddon(addon)}
                           className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer text-left text-xs ${
                             isChecked
-                              ? 'border-[#e4002b] bg-[#e4002b]/10 text-white font-bold'
+                              ? isDark ? 'border-[#e4002b] bg-[#e4002b]/10 text-white font-bold' : 'border-[#e4002b] bg-red-50 text-zinc-900 font-bold'
                               : isDark ? 'border-[#2d2d38] bg-[#121214] text-zinc-300' : 'border-zinc-200 bg-zinc-50 text-zinc-700'
                           }`}
                         >

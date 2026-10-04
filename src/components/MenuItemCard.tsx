@@ -81,18 +81,32 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
       }`}
     >
       {/* Card Top: Image & Badges */}
-      <div className="relative aspect-[4/3] w-full bg-[#111113] overflow-hidden">
-        <img
-          src={item.image}
-          alt={item.name}
-          className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          onError={(e) => {
-            const target = e.currentTarget;
-            target.src = '/src/assets/images/kfc_hero_zinger_combo_1791015805739.jpg';
-          }}
-        />
+      <div className="relative aspect-[4/3] w-full bg-[#111113] overflow-hidden flex items-center justify-center">
+        {item.image ? (
+          <img
+            src={item.image}
+            alt={item.name}
+            className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              const target = e.currentTarget;
+              target.src = '/src/assets/images/kfc_hero_zinger_combo_1791015805739.jpg';
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-gradient-to-br from-[#1c1c24] to-[#121216] border-b border-zinc-800">
+            <div className="flex gap-1 h-6 items-center opacity-70 mb-1.5">
+              <span className="w-1.5 h-6 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
+              <span className="w-1.5 h-5 bg-white rounded-sm transform -skew-x-6"></span>
+              <span className="w-1.5 h-6 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
+            </div>
+            <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-wider truncate max-w-full">
+              {item.name}
+            </span>
+            <span className="text-[9px] text-zinc-500 mt-0.5">No image · Add in Admin</span>
+          </div>
+        )}
 
         {/* Gradient shadow for legibility */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />

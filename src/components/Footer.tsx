@@ -1,14 +1,14 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
-import { MapPin, Phone, Clock, ShieldCheck, Bike, Lock } from 'lucide-react';
+import { MapPin, Phone, Clock, ShieldCheck, Bike, Lock, Share2, FileText, Smartphone } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { settings, chakwalAreas, setIsAdminLoginModalOpen, isAdmin, themeMode } = useStore();
+  const { settings, setIsAdminLoginModalOpen, isAdmin, themeMode, openPolicyModal } = useStore();
 
   const isDark = themeMode === 'dark';
   const logoUrl = settings.headerFooter?.logoUrl;
   const aboutText = settings.headerFooter?.footerAboutText ||
-    'Bringing authentic KFC Pakistan crispy chicken, Zingers, Krunch burgers, and family sharing meals straight to homes and workplaces across Chakwal.';
+    'Ye KFC Chakwal Delivery ek alag se delivery service hai hamari, Hum Kallar Kahar Motorway wali KFC branch se KFC pick kar ky Chakwal mein daily deliver karty hein.';
   const copyrightText = settings.headerFooter?.footerCopyrightText ||
     `© ${new Date().getFullYear()} ${settings.storeName}. All rights reserved.`;
 
@@ -112,31 +112,95 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Chakwal Delivery Sectors */}
-          <div className="md:col-span-4 space-y-2">
+          {/* Chakwal Delivery Coverage (Strictly Within 3 KM) */}
+          <div className="md:col-span-4 space-y-3">
             <h4 className={`font-bold uppercase text-xs tracking-wider ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-              Chakwal Delivery Coverage
+              Chakwal Delivery Coverage (Within 3 KM)
             </h4>
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {chakwalAreas.slice(0, 10).map((area) => (
-                <span
-                  key={area.id}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] border ${
-                    isDark ? 'bg-[#18181c] border-[#26262e] text-zinc-300' : 'bg-white border-zinc-200 text-zinc-700 shadow-sm'
-                  }`}
-                >
-                  {area.name}
-                </span>
-              ))}
+            <div className={`p-3 rounded-2xl border text-xs space-y-1.5 ${
+              isDark ? 'bg-[#151519] border-[#25252e]' : 'bg-white border-zinc-200 shadow-sm'
+            }`}>
+              <div className="flex items-center gap-1.5 text-[#e4002b] font-bold text-[11px]">
+                <Bike className="w-3.5 h-3.5 shrink-0" />
+                <span>Kallar Kahar ➔ Chakwal Service</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-zinc-400">
+                Delivery Area: <strong className="text-zinc-200">Within 3 KM of Chakwal City</strong>.
+              </p>
+              <p className="text-[10px] text-amber-400 font-semibold">
+                ⏰ Daily 4:00 PM se pehly order karein, sham 8:00 PM tak fresh delivery receive karein.
+              </p>
             </div>
+
+            {/* Policies Button */}
+            <button
+              type="button"
+              onClick={() => openPolicyModal()}
+              className={`w-full py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                isDark ? 'bg-[#1b1b22] hover:bg-[#23232c] border-zinc-800 text-zinc-200' : 'bg-white hover:bg-zinc-50 border-zinc-300 text-zinc-800'
+              }`}
+            >
+              <FileText className="w-4 h-4 text-[#e4002b]" />
+              <span>Read Store & Loyalty Policies</span>
+            </button>
           </div>
 
-          {/* Payment Methods */}
+          {/* Social Links & Payment Methods */}
           <div className="md:col-span-3 space-y-3">
             <h4 className={`font-bold uppercase text-xs tracking-wider ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-              Accepted Payments
+              Connect & Social Media
             </h4>
-            <div className="space-y-1.5 text-xs">
+            
+            {/* Social Media Links */}
+            <div className="flex flex-wrap gap-2">
+              {settings.socialLinks?.whatsapp && (
+                <a
+                  href={settings.socialLinks.whatsapp}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>WhatsApp</span>
+                </a>
+              )}
+              {settings.socialLinks?.facebook && (
+                <a
+                  href={settings.socialLinks.facebook}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-[#1877F2] hover:bg-[#166fe5] text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Facebook</span>
+                </a>
+              )}
+              {settings.socialLinks?.instagram && (
+                <a
+                  href={settings.socialLinks.instagram}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Instagram</span>
+                </a>
+              )}
+              {settings.socialLinks?.tiktok && (
+                <a
+                  href={settings.socialLinks.tiktok}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-zinc-800 hover:bg-zinc-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>TikTok</span>
+                </a>
+              )}
+            </div>
+
+            <div className="pt-1 space-y-1.5 text-xs">
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Payment Methods</span>
               {activePayments.map((p) => (
                 <div
                   key={p.id}
@@ -144,8 +208,8 @@ export const Footer: React.FC = () => {
                     isDark ? 'bg-[#16161a] border-[#25252c] text-zinc-300' : 'bg-white border-zinc-200 text-zinc-800'
                   }`}
                 >
-                  <span className="font-medium">{p.name}</span>
-                  <span className="text-[10px] text-emerald-500 font-bold">Enabled</span>
+                  <span className="font-medium text-[11px]">{p.name}</span>
+                  <span className="text-[9px] text-emerald-500 font-bold uppercase">Accepted</span>
                 </div>
               ))}
             </div>
@@ -153,24 +217,32 @@ export const Footer: React.FC = () => {
 
         </div>
 
-        {/* Legal & Notice */}
+        {/* Legal & Notice (100% Customer Facing) */}
         <div className={`mt-8 pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] ${
           isDark ? 'border-[#1c1c22] text-zinc-500' : 'border-zinc-200 text-zinc-500'
         }`}>
-          <p>{copyrightText}</p>
+          <p 
+            onClick={() => {
+              // Secret 5-click gesture to access admin if needed
+              const now = Date.now();
+              const lastClick = (window as any).__lastAdminClick || 0;
+              const count = (now - lastClick < 2000) ? ((window as any).__adminClickCount || 0) + 1 : 1;
+              (window as any).__lastAdminClick = now;
+              (window as any).__adminClickCount = count;
+              if (count >= 5) {
+                (window as any).__adminClickCount = 0;
+                setIsAdminLoginModalOpen(true);
+              }
+            }}
+            className="cursor-default select-none"
+            title="KFC Chakwal Delivery"
+          >
+            {copyrightText}
+          </p>
           <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 text-center sm:text-right">
             <p>
-              Independent Chakwal delivery portal · Delivery fee Rs {settings.deliveryFee} · PKR only.
+              Independent Chakwal express food delivery · Flat Rs {settings.deliveryFee} · Hot & Fresh.
             </p>
-            <span>·</span>
-            <button
-              onClick={() => setIsAdminLoginModalOpen(true)}
-              className="text-zinc-500 hover:text-[#e4002b] flex items-center gap-1 cursor-pointer transition-colors"
-              title="Store Manager Login"
-            >
-              <Lock className="w-3 h-3 text-[#e4002b]" />
-              <span>{isAdmin ? 'Admin Mode Active' : 'Store Admin'}</span>
-            </button>
           </div>
         </div>
       </div>

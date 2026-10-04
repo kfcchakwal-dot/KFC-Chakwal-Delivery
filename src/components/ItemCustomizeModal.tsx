@@ -74,17 +74,28 @@ export const ItemCustomizeModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#18181c] border border-[#2e2e36] rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <div className={`border rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 ${
+        isDark ? 'bg-[#18181c] border-[#2e2e36] text-white' : 'bg-white border-zinc-200 text-zinc-900'
+      }`}>
         
         {/* Modal Header with Food Picture */}
-        <div className="relative h-48 sm:h-56 bg-[#111113] overflow-hidden">
-          <img
-            src={item.image}
-            alt={item.name}
-            className="w-full h-full object-cover object-center"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#18181c] via-[#18181c]/40 to-transparent" />
+        <div className="relative h-48 sm:h-56 bg-zinc-900 overflow-hidden">
+          {item.image ? (
+            <img
+              src={item.image}
+              alt={item.name}
+              className="w-full h-full object-cover object-center"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.currentTarget.src = '/src/assets/images/kfc_hero_zinger_combo_1791015805739.jpg';
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-white font-bold text-sm">
+              {item.name}
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
           
           {/* Close button */}
           <button
@@ -97,13 +108,13 @@ export const ItemCustomizeModal: React.FC = () => {
 
           {/* Title & Price Header */}
           <div className="absolute bottom-3 left-4 right-4">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#e4002b] bg-black/60 px-2 py-0.5 rounded">
-              KFC Chakwal Delivery (+{settings.markupPercentage}% Markup Applied)
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#e4002b] bg-black/70 px-2 py-0.5 rounded">
+              KFC Chakwal Delivery · (+{settings.markupPercentage}% Markup Applied)
             </span>
-            <h2 className="font-kfc text-2xl sm:text-3xl font-black text-white uppercase mt-1 leading-tight">
+            <h2 className="font-kfc text-2xl sm:text-3xl font-black text-white uppercase mt-1 leading-tight drop-shadow-md">
               {item.name}
             </h2>
-            <p className="text-zinc-300 text-xs line-clamp-1">{item.description}</p>
+            <p className="text-zinc-200 text-xs line-clamp-1 drop-shadow">{item.description}</p>
           </div>
         </div>
 
@@ -114,11 +125,11 @@ export const ItemCustomizeModal: React.FC = () => {
           {item.customizableOptions?.allowSpiceLevel && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
+                <label className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
                   <Flame className="w-3.5 h-3.5 text-[#e4002b]" />
                   <span>Choose Flavor / Coating</span>
                 </label>
-                <span className="text-[10px] text-zinc-500 uppercase font-semibold">Required</span>
+                <span className="text-[10px] text-zinc-400 uppercase font-semibold">Required</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -127,8 +138,10 @@ export const ItemCustomizeModal: React.FC = () => {
                   onClick={() => setSpiceLevel('Hot & Crispy')}
                   className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                     spiceLevel === 'Hot & Crispy'
-                      ? 'border-[#e4002b] bg-[#e4002b]/10 text-white'
-                      : 'border-[#2e2e36] bg-[#1c1c20] text-zinc-400 hover:text-white'
+                      ? isDark 
+                        ? 'border-[#e4002b] bg-[#e4002b]/15 text-white' 
+                        : 'border-[#e4002b] bg-red-50 text-[#e4002b]'
+                      : isDark ? 'border-[#2e2e36] bg-[#1c1c20] text-zinc-400 hover:text-white' : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
                   }`}
                 >
                   <div>
@@ -150,8 +163,10 @@ export const ItemCustomizeModal: React.FC = () => {
                   onClick={() => setSpiceLevel('Original Recipe')}
                   className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                     spiceLevel === 'Original Recipe'
-                      ? 'border-[#e4002b] bg-[#e4002b]/10 text-white'
-                      : 'border-[#2e2e36] bg-[#1c1c20] text-zinc-400 hover:text-white'
+                      ? isDark 
+                        ? 'border-[#e4002b] bg-[#e4002b]/15 text-white' 
+                        : 'border-[#e4002b] bg-red-50 text-[#e4002b]'
+                      : isDark ? 'border-[#2e2e36] bg-[#1c1c20] text-zinc-400 hover:text-white' : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
                   }`}
                 >
                   <div>
@@ -172,10 +187,10 @@ export const ItemCustomizeModal: React.FC = () => {
           {item.customizableOptions?.allowDrinkChoice && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                <label className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
                   Select Chilled Beverage
                 </label>
-                <span className="text-[10px] text-zinc-500 uppercase font-semibold">Included</span>
+                <span className="text-[10px] text-zinc-400 uppercase font-semibold">Included</span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -186,8 +201,10 @@ export const ItemCustomizeModal: React.FC = () => {
                     onClick={() => setDrink(d)}
                     className={`p-2.5 rounded-lg border text-left text-xs transition-all cursor-pointer flex items-center justify-between ${
                       drink === d
-                        ? 'border-[#e4002b] bg-[#e4002b]/10 text-white font-bold'
-                        : 'border-[#2e2e36] bg-[#1c1c20] text-zinc-400 hover:text-zinc-200'
+                        ? isDark 
+                          ? 'border-[#e4002b] bg-[#e4002b]/15 text-white font-bold' 
+                          : 'border-[#e4002b] bg-red-50 text-[#e4002b] font-bold'
+                        : isDark ? 'border-[#2e2e36] bg-[#1c1c20] text-zinc-400 hover:text-zinc-200' : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
                     }`}
                   >
                     <span className="truncate">{d}</span>
@@ -202,11 +219,11 @@ export const ItemCustomizeModal: React.FC = () => {
           {item.customizableOptions?.availableAddons && item.customizableOptions.availableAddons.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
+                <label className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   <span>Customize & Upgrade</span>
                 </label>
-                <span className="text-[10px] text-zinc-500 uppercase">Optional</span>
+                <span className="text-[10px] text-zinc-400 uppercase">Optional</span>
               </div>
 
               <div className="space-y-2">
@@ -219,8 +236,10 @@ export const ItemCustomizeModal: React.FC = () => {
                       onClick={() => toggleAddon(addon)}
                       className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer text-left ${
                         isChecked
-                          ? 'border-[#e4002b] bg-[#e4002b]/10 text-white'
-                          : 'border-[#2e2e36] bg-[#1c1c20] text-zinc-300 hover:border-zinc-700'
+                          ? isDark 
+                            ? 'border-[#e4002b] bg-[#e4002b]/15 text-white' 
+                            : 'border-[#e4002b] bg-red-50 text-zinc-900 font-bold'
+                          : isDark ? 'border-[#2e2e36] bg-[#1c1c20] text-zinc-300 hover:border-zinc-700' : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -228,7 +247,7 @@ export const ItemCustomizeModal: React.FC = () => {
                           className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
                             isChecked
                               ? 'bg-[#e4002b] border-[#e4002b]'
-                              : 'border-zinc-600 bg-transparent'
+                              : isDark ? 'border-zinc-600 bg-transparent' : 'border-zinc-400 bg-white'
                           }`}
                         >
                           {isChecked && <Check className="w-3 h-3 text-white" />}
@@ -245,7 +264,7 @@ export const ItemCustomizeModal: React.FC = () => {
                         )}
                         <span className="text-xs font-semibold">{addon.name}</span>
                       </div>
-                      <span className="text-xs font-bold text-red-400 tabular-nums">
+                      <span className="text-xs font-bold text-[#e4002b] tabular-nums">
                         +{formatPKR(addon.price)}
                       </span>
                     </button>
@@ -257,7 +276,7 @@ export const ItemCustomizeModal: React.FC = () => {
 
           {/* Special instructions */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+            <label className={`block text-xs font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
               Special Kitchen Instructions
             </label>
             <input
@@ -265,31 +284,43 @@ export const ItemCustomizeModal: React.FC = () => {
               value={specialInstructions}
               onChange={(e) => setSpecialInstructions(e.target.value)}
               placeholder="e.g. Extra mayo, make it extra crispy, cutlery needed..."
-              className="w-full bg-[#1c1c20] border border-[#2e2e36] text-white text-xs rounded-xl px-3.5 py-2.5 placeholder-zinc-500 focus:outline-none focus:border-[#e4002b]"
+              className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${
+                isDark ? 'bg-[#1c1c20] border-[#2e2e36] text-white placeholder-zinc-500' : 'bg-zinc-50 border-zinc-300 text-zinc-900 placeholder-zinc-400'
+              }`}
             />
           </div>
         </div>
 
         {/* Modal Sticky Footer with Quantity & Add Button */}
-        <div className="p-4 sm:p-5 bg-[#141417] border-t border-[#2a2a32] flex items-center justify-between gap-4">
+        <div className={`p-4 sm:p-5 border-t flex items-center justify-between gap-4 ${
+          isDark ? 'bg-[#141417] border-[#2a2a32]' : 'bg-zinc-50 border-zinc-200'
+        }`}>
           
           {/* Quantity Stepper */}
-          <div className="flex items-center bg-[#1c1c20] border border-[#2e2e36] rounded-xl p-1">
+          <div className={`flex items-center rounded-xl p-1 border ${
+            isDark ? 'bg-[#1c1c20] border-[#2e2e36]' : 'bg-white border-zinc-300'
+          }`}>
             <button
               type="button"
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               disabled={quantity <= 1}
-              className="p-2 text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+              className={`p-2 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-500 hover:text-zinc-900'
+              }`}
             >
               <Minus className="w-4 h-4" />
             </button>
-            <span className="w-8 text-center text-sm font-extrabold text-white tabular-nums">
+            <span className={`w-8 text-center text-sm font-extrabold tabular-nums ${
+              isDark ? 'text-white' : 'text-zinc-900'
+            }`}>
               {quantity}
             </span>
             <button
               type="button"
               onClick={() => setQuantity((q) => q + 1)}
-              className="p-2 text-zinc-400 hover:text-white cursor-pointer"
+              className={`p-2 cursor-pointer ${
+                isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-500 hover:text-zinc-900'
+              }`}
             >
               <Plus className="w-4 h-4" />
             </button>

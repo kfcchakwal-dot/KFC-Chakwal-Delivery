@@ -3,150 +3,145 @@ import { useStore } from '../context/StoreContext';
 import { CheckCircle2, Clock, MapPin, Bike, Phone, X, Sparkles, ChefHat } from 'lucide-react';
 
 export const OrderConfirmationModal: React.FC = () => {
-  const { activeOrder, clearActiveOrder, formatPKR, settings } = useStore();
+  const { activeOrder, clearActiveOrder, formatPKR, settings, themeMode } = useStore();
 
   if (!activeOrder) return null;
 
+  const isDark = themeMode === 'dark';
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-[#161619] border border-[#2d2d36] rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+      <div className={`border rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl ${
+        isDark ? 'bg-[#15151a] border-[#2b2b35] text-white' : 'bg-white border-zinc-200 text-zinc-900'
+      }`}>
         
         {/* Top Header */}
-        <div className="bg-gradient-to-b from-[#22070a] to-[#161619] p-6 text-center border-b border-[#282830] relative">
+        <div className="bg-[#e4002b] p-6 text-center text-white relative shadow-md">
           <button
             onClick={clearActiveOrder}
-            className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-lg bg-black/40 cursor-pointer"
+            className="absolute top-4 right-4 text-white/80 hover:text-white p-1.5 rounded-full bg-black/20 hover:bg-black/30 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
 
-          <div className="w-16 h-16 bg-[#e4002b] rounded-full flex items-center justify-center text-white mx-auto shadow-xl shadow-red-950/60 mb-3 animate-bounce">
+          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-[#e4002b] mx-auto shadow-xl mb-3 animate-bounce">
             <CheckCircle2 className="w-9 h-9" />
           </div>
 
-          <span className="text-[11px] font-black uppercase tracking-widest text-[#e4002b] bg-red-950/60 px-3 py-1 rounded-full border border-red-900/60">
-            Order Confirmed & Sent to Kitchen
+          <span className="text-[11px] font-black uppercase tracking-widest bg-black/20 px-3 py-1 rounded-full">
+            Order Confirmed & Sent to Kallar Kahar Fleet
           </span>
 
-          <h2 className="font-kfc text-3xl sm:text-4xl font-black text-white uppercase mt-2">
+          <h2 className="font-kfc text-3xl sm:text-4xl font-black uppercase mt-2">
             THANK YOU FOR YOUR ORDER!
           </h2>
 
-          <p className="text-zinc-400 text-xs mt-1">
-            Order Reference: <strong className="text-white font-mono text-sm">{activeOrder.id}</strong>
+          <p className="text-white/90 text-xs mt-1">
+            Order Reference: <strong className="font-mono text-sm">{activeOrder.id}</strong>
           </p>
         </div>
 
         {/* Order Status Stepper */}
-        <div className="p-4 sm:p-6 space-y-6">
-          <div className="bg-[#121214] border border-[#26262e] p-4 rounded-xl">
+        <div className="p-4 sm:p-6 space-y-5">
+          <div className={`border p-4 rounded-2xl ${
+            isDark ? 'bg-[#111115] border-[#25252e]' : 'bg-zinc-50 border-zinc-200'
+          }`}>
             <div className="flex items-center justify-between text-xs mb-3">
-              <span className="font-bold text-white flex items-center gap-1.5">
+              <span className="font-bold flex items-center gap-1.5">
                 <ChefHat className="w-4 h-4 text-[#e4002b]" />
-                Estimated Chakwal Delivery
+                <span>KFC Pickup & Delivery Timing</span>
               </span>
-              <span className="text-[#e4002b] font-black">35 - 45 Mins</span>
+              <span className="text-[#e4002b] font-black">Before 8:00 PM</span>
             </div>
 
             {/* Stepper visual */}
             <div className="grid grid-cols-4 gap-2 text-center text-[10px]">
               <div className="space-y-1">
                 <div className="h-1.5 bg-[#e4002b] rounded-full"></div>
-                <span className="font-bold text-white">Received</span>
+                <span className="font-bold text-[#e4002b]">Confirmed</span>
               </div>
               <div className="space-y-1">
                 <div className="h-1.5 bg-[#e4002b] rounded-full animate-pulse"></div>
-                <span className="font-bold text-red-400">Cooking</span>
+                <span className="font-bold text-amber-500">Kallar Kahar</span>
               </div>
               <div className="space-y-1">
-                <div className="h-1.5 bg-zinc-700 rounded-full"></div>
-                <span className="text-zinc-500">Rider Dispatched</span>
+                <div className="h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full"></div>
+                <span className="text-zinc-400">On Highway</span>
               </div>
               <div className="space-y-1">
-                <div className="h-1.5 bg-zinc-700 rounded-full"></div>
-                <span className="text-zinc-500">Delivered</span>
+                <div className="h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full"></div>
+                <span className="text-zinc-400">Delivered</span>
               </div>
             </div>
           </div>
 
           {/* Delivery Details Card */}
-          <div className="bg-[#1c1c20] border border-[#2a2a33] p-4 rounded-xl space-y-2 text-xs">
-            <div className="flex items-center gap-2 text-zinc-300 font-bold border-b border-[#2e2e38] pb-2">
+          <div className={`border p-4 rounded-2xl space-y-2 text-xs ${
+            isDark ? 'bg-[#1a1a21] border-[#292934]' : 'bg-zinc-50 border-zinc-200'
+          }`}>
+            <div className="flex items-center gap-2 font-bold border-b border-zinc-700/20 pb-2">
               <MapPin className="w-4 h-4 text-[#e4002b]" />
-              <span>Delivery Details</span>
+              <span>Chakwal Delivery Information (Within 3 KM)</span>
             </div>
-            <div className="text-zinc-400 space-y-1 pt-1">
-              <p><strong className="text-white">Customer:</strong> {activeOrder.customer.fullName} ({activeOrder.customer.phone})</p>
-              <p><strong className="text-white">Chakwal Area:</strong> {activeOrder.customer.area}</p>
-              <p><strong className="text-white">Address:</strong> {activeOrder.customer.address}</p>
-              {activeOrder.customer.landmark && (
-                <p><strong className="text-white">Landmark:</strong> {activeOrder.customer.landmark}</p>
-              )}
-              <p><strong className="text-white">Payment Method:</strong> {activeOrder.paymentMethod.toUpperCase()}</p>
+            <div className="space-y-1 pt-1 text-zinc-400">
+              <p><strong className={isDark ? 'text-white' : 'text-zinc-900'}>Customer:</strong> {activeOrder.customer.fullName} ({activeOrder.customer.phone})</p>
+              <p><strong className={isDark ? 'text-white' : 'text-zinc-900'}>Address:</strong> {activeOrder.customer.address}</p>
+              <p><strong className={isDark ? 'text-white' : 'text-zinc-900'}>Payment Method:</strong> {activeOrder.paymentMethod.toUpperCase()}</p>
             </div>
           </div>
 
-          {/* Itemized Summary */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-              Ordered Items
-            </h4>
-            <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
-              {activeOrder.items.map((i) => (
-                <div key={i.cartItemId} className="flex justify-between text-xs text-zinc-300 bg-[#121214] p-2.5 rounded-lg border border-[#222228]">
-                  <div>
-                    <span className="font-bold text-white">{i.quantity}x {i.menuItem.name}</span>
-                    {i.options.spiceLevel && (
-                      <span className="text-[10px] text-amber-400 block">· {i.options.spiceLevel}</span>
-                    )}
-                    {i.options.drink && (
-                      <span className="text-[10px] text-zinc-400 block">· {i.options.drink}</span>
-                    )}
-                  </div>
-                  <span className="font-bold text-white tabular-nums">
-                    {formatPKR(i.unitPrice * i.quantity)}
-                  </span>
+          {/* Ordered Items Summary */}
+          <div className={`border p-4 rounded-2xl space-y-2 text-xs ${
+            isDark ? 'bg-[#1a1a21] border-[#292934]' : 'bg-zinc-50 border-zinc-200'
+          }`}>
+            <div className="flex justify-between items-center font-bold border-b border-zinc-700/20 pb-2">
+              <span>Items in Order ({activeOrder.items.length})</span>
+              <span className="font-mono text-[#e4002b]">{formatPKR(activeOrder.total)}</span>
+            </div>
+            <div className="space-y-1.5 max-h-36 overflow-y-auto">
+              {activeOrder.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center text-[11px]">
+                  <span>{item.quantity}x {item.menuItem.name}</span>
+                  <span className="font-mono">{formatPKR(item.unitPrice * item.quantity)}</span>
                 </div>
               ))}
             </div>
-
-            {/* Bill Totals */}
-            <div className="bg-[#121214] border border-[#24242c] p-3 rounded-xl space-y-1.5 text-xs text-zinc-400">
-              <div className="flex justify-between">
-                <span>Items Subtotal</span>
-                <span className="text-white font-bold tabular-nums">{formatPKR(activeOrder.subtotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Chakwal Delivery Fee</span>
-                <span className="text-white font-bold tabular-nums">{formatPKR(activeOrder.deliveryFee)}</span>
-              </div>
-              <div className="flex justify-between text-base font-extrabold text-white pt-2 border-t border-[#26262e]">
-                <span>Total Amount (PKR)</span>
-                <span className="text-[#e4002b] text-lg font-black tabular-nums">
-                  {formatPKR(activeOrder.total)}
-                </span>
-              </div>
-            </div>
           </div>
 
-        </div>
+          {/* Direct WhatsApp Confirmation & Notification Banner */}
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-xs space-y-1 text-center">
+            <p className="font-bold text-emerald-600 flex items-center justify-center gap-1.5">
+              <span>✓ Order Confirmation Message Ready</span>
+            </p>
+            <p className={`text-[11px] ${isDark ? 'text-zinc-300' : 'text-zinc-600'}`}>
+              Aapka order receive ho chuka hai. WhatsApp par live receipt dekhne ya rider coordinate karne ke liye neechay button dabayein:
+            </p>
+          </div>
 
-        {/* Footer */}
-        <div className="p-4 sm:p-5 bg-[#121214] border-t border-[#282830] flex items-center justify-between gap-3">
           <a
-            href={`tel:${settings.phone}`}
-            className="flex items-center gap-1.5 text-xs font-bold text-zinc-300 hover:text-white px-3 py-2 rounded-lg bg-[#1c1c20] border border-[#2e2e36]"
+            href={`https://wa.me/923252777574?text=${encodeURIComponent(
+              `🍗 *KFC CHAKWAL DELIVERY - ORDER CONFIRMATION*\n` +
+              `Assalam o Alaikum, mera order receive ho gaya hai!\n` +
+              `Order ID: #${activeOrder.id}\n` +
+              `Name: ${activeOrder.customer.fullName}\n` +
+              `Phone: ${activeOrder.customer.phone}\n` +
+              `Address: ${activeOrder.customer.address}\n` +
+              `Total Bill: ${formatPKR(activeOrder.total)}\n` +
+              `Please confirm rider dispatch timing from Kallar Kahar.`
+            )}`}
+            target="_blank"
+            rel="noreferrer"
+            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg cursor-pointer transition active:scale-95"
           >
-            <Phone className="w-3.5 h-3.5 text-[#e4002b]" />
-            <span>Call Branch ({settings.phone})</span>
+            <Phone className="w-4 h-4" />
+            <span>Open WhatsApp Live Receipt (+92 325 2777574)</span>
           </a>
 
           <button
-            type="button"
             onClick={clearActiveOrder}
-            className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold uppercase px-5 py-2.5 rounded-xl cursor-pointer transition-colors"
+            className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white font-bold text-xs py-3 rounded-2xl cursor-pointer"
           >
-            Back to Menu
+            Back to Home
           </button>
         </div>
 

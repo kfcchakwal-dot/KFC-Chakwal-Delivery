@@ -215,7 +215,8 @@ export const CsvProductImporter: React.FC = () => {
         : undefined;
 
       const desc = descIdx > -1 && row[descIdx] ? row[descIdx].replace(/<[^>]*>?/gm, '') : 'Fresh authentic KFC preparation.';
-      const img = imageIdx > -1 && row[imageIdx] ? row[imageIdx] : '/src/assets/images/kfc_hero_zinger_combo_1791015805739.jpg';
+      // If CSV has image, use it; if no image, leave blank so images can be added later in Admin!
+      const img = imageIdx > -1 && row[imageIdx] && row[imageIdx].trim().length > 0 ? row[imageIdx].trim() : '';
       const category = typeIdx > -1 ? mapToCategoryId(row[typeIdx]) : 'everyday-value';
       const handle = handleIdx > -1 && row[handleIdx] 
         ? row[handleIdx].toLowerCase().replace(/[^a-z0-9]/g, '-')

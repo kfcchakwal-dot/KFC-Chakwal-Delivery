@@ -136,6 +136,13 @@ export interface DeliverySectionConfig {
   buttonText: string;
 }
 
+export interface StorePolicy {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+}
+
 export interface StoreSettings {
   storeName: string;
   tagline: string;
@@ -161,9 +168,57 @@ export interface StoreSettings {
   paymentMethods: PaymentMethodConfig[];
   defaultBadgePosition: BadgePosition;
   shopify?: ShopifyConfig;
+  deliveryRadiusText?: string; // e.g. "Within 3 KM of Chakwal City"
+  kallarKaharNotice?: string; // Delivery from Kallar Kahar Motorway branch
+  sameDayOrderCutoff?: string; // "4:00 PM"
+  sameDayDeliveryBy?: string; // "8:00 PM"
+  socialLinks?: {
+    facebook?: string;
+    instagram?: string;
+    tiktok?: string;
+    whatsapp?: string;
+  };
+  policies?: StorePolicy[];
+  deliveryMethods?: DeliveryMethod[];
+  dailyDeal?: DailyDealConfig;
+  customAppIconUrl?: string;
+  customPreloaderLogoUrl?: string;
+  orderNotificationSound?: boolean;
 }
 
-export type OrderType = 'delivery' | 'pickup';
+export interface DeliveryMethod {
+  id: string;
+  name: string;
+  description: string;
+  price: number; // PKR
+  estimatedTime: string;
+  minOrderAmount?: number;
+  enabled: boolean;
+  isDefault?: boolean;
+}
+
+export interface DailyDealConfig {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  discountPercentage: number; // default 4%
+  itemCount: number; // 5
+}
+
+export interface CustomerLoyaltyRecord {
+  id: string;
+  fullName: string;
+  phone: string;
+  address: string;
+  email?: string;
+  loyaltyPoints: number;
+  totalOrdersCount: number;
+  totalSpent: number;
+  createdAt: string;
+  lastOrderDate?: string;
+}
+
+export type OrderType = 'delivery'; // Self pickup removed as requested
 
 export type PaymentMethod = 'cod' | 'jazzcash' | 'easypaisa' | 'bank_transfer';
 
@@ -186,6 +241,9 @@ export interface Order {
   markupAmount: number;
   deliveryFee: number;
   discount: number;
+  loyaltyPointsEarned?: number;
+  loyaltyPointsRedeemed?: number;
+  loyaltyDiscount?: number;
   total: number;
   customer: CustomerDetails;
   paymentMethod: PaymentMethod;
@@ -207,5 +265,24 @@ export interface CustomerUser {
   phone: string;
   address: string;
   email?: string;
+  loyaltyPoints: number; // 10 points per Rs 100 spent
   createdAt: string;
 }
+
+export type DiscountType = 'percentage' | 'fixed_amount' | 'free_shipping';
+
+export interface Discount {
+  id: string;
+  code: string; // e.g. "KFC10" or empty for automatic
+  title: string; // Description e.g. "10% Off Orders Above Rs. 1500"
+  type: DiscountType;
+  value: number; // e.g. 10 (%) or 200 (PKR)
+  minOrderAmount?: number;
+  isAutomatic: boolean; // if true, auto-applied to eligible carts
+  usageLimit?: number;
+  usedCount: number;
+  status: 'active' | 'scheduled' | 'expired';
+  startDate: string;
+  endDate?: string;
+}
+

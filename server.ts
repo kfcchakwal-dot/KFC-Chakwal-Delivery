@@ -9,13 +9,53 @@ const PORT = Number(process.env.PORT) || 3000;
 app.use(express.json({ limit: '10mb' }));
 
 const ORDERS_FILE = path.resolve(process.cwd(), 'orders.json');
+const STORE_DATA_FILE = path.resolve(process.cwd(), 'store-data.json');
+const CUSTOMERS_FILE = path.resolve(process.cwd(), 'customers.json');
 
 // Initialize orders file if not exists
 if (!fs.existsSync(ORDERS_FILE)) {
   fs.writeFileSync(ORDERS_FILE, JSON.stringify([]));
 }
 
+// Initialize store-data file if not exists
+if (!fs.existsSync(STORE_DATA_FILE)) {
+  fs.writeFileSync(STORE_DATA_FILE, JSON.stringify({}));
+}
+
+// Initialize customers file if not exists
+if (!fs.existsSync(CUSTOMERS_FILE)) {
+  fs.writeFileSync(CUSTOMERS_FILE, JSON.stringify([]));
+}
+
 // API Routes
+app.get('/api/store-data', (_req, res) => {
+  try {
+    const raw = fs.readFileSync(STORE_DATA_FILE, 'utf-8');
+    res.json(JSON.parse(raw || '{}'));
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to read store data' });
+  }
+});
+
+app.post('/api/store-data', (req, res) => {
+  try {
+    let existing = {};
+    if (fs.existsSync(STORE_DATA_FILE)) {
+      const raw = fs.readFileSync(STORE_DATA_FILE, 'utf-8');
+      existing = JSON.parse(raw || '{}');
+    }
+    const updated = {
+      ...existing,
+      ...req.body,
+      lastUpdated: new Date().toISOString(),
+    };
+    fs.writeFileSync(STORE_DATA_FILE, JSON.stringify(updated, null, 2));
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update store data' });
+  }
+});
+
 app.get('/api/orders', (_req, res) => {
   try {
     const data = fs.readFileSync(ORDERS_FILE, 'utf-8');
@@ -53,6 +93,34 @@ app.patch('/api/orders/:id/status', (req, res) => {
     res.json(orders[orderIndex]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update order status' });
+  }
+});
+
+// Customers Loyalty API
+app.get('/api/customers', (_req, res) => {
+  try {
+    const raw = fs.readFileSync(CUSTOMERS_FILE, 'utf-8');
+    res.json(JSON.parse(raw || '[]'));
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to read customers' });
+  }
+});
+
+app.post('/api/customers', (req, res) => {
+  try {
+    const raw = fs.readFileSync(CUSTOMERS_FILE, 'utf-8');
+    let customers = JSON.parse(raw || '[]');
+    const customer = req.body;
+    const index = customers.findIndex((c: any) => c.phone === customer.phone || c.id === customer.id);
+    if (index > -1) {
+      customers[index] = { ...customers[index], ...customer };
+    } else {
+      customers.unshift(customer);
+    }
+    fs.writeFileSync(CUSTOMERS_FILE, JSON.stringify(customers, null, 2));
+    res.json(customer);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save customer' });
   }
 });
 
