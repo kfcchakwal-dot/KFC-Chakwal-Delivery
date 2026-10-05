@@ -12,6 +12,7 @@ export const FloatingCartBar: React.FC = () => {
       <button
         type="button"
         onClick={() => setIsCartOpen(true)}
+        aria-label="View shopping bucket and proceed to checkout"
         className="w-full bg-[#e4002b] text-white p-3.5 rounded-2xl shadow-2xl shadow-red-950/80 flex items-center justify-between font-bold cursor-pointer active:scale-98 transition-transform"
       >
         <div className="flex items-center gap-3">

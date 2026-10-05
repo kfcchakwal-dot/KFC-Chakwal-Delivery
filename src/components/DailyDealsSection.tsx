@@ -1,33 +1,53 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
-import { MenuItem } from '../types';
+import { MenuItem, DailyDealConfig } from '../types';
 import { Sparkles, Flame, ShoppingBag, Clock, Percent } from 'lucide-react';
 
-// Deterministic daily random picker based on date string YYYY-MM-DD
-function getDailyDealItems(items: MenuItem[], count: number = 5): MenuItem[] {
-  if (items.length <= count) return items;
+// Deterministic daily picker: picks collection, random, or manual products that auto-rotates at 12:00 AM midnight
+function getDailyDealItems(items: MenuItem[], config: DailyDealConfig): MenuItem[] {
+  const count = config.itemCount || 5;
 
-  // Filter combo/box items first, or fallback to all items
-  const mealBoxes = items.filter(
-    (item) =>
-      item.categoryId === 'ala-carte-combos' ||
-      item.categoryId === 'everyday-value' ||
-      item.name.toLowerCase().includes('box') ||
-      item.name.toLowerCase().includes('combo') ||
-      item.name.toLowerCase().includes('meal') ||
-      item.name.toLowerCase().includes('deal')
-  );
+  // 1. Manual Selection Mode
+  if (config.selectionMode === 'manual' && config.selectedProductIds && config.selectedProductIds.length > 0) {
+    const selected = items.filter((it) => config.selectedProductIds!.includes(it.id));
+    if (selected.length > 0) return selected.slice(0, count);
+  }
 
-  const pool = mealBoxes.length >= count ? mealBoxes : items;
+  // 2. Collection Selection Mode
+  let pool = items;
+  if (config.selectionMode === 'collection' && config.collectionCategory && config.collectionCategory !== 'all') {
+    const collectionItems = items.filter((it) => it.categoryId === config.collectionCategory);
+    if (collectionItems.length > 0) {
+      pool = collectionItems;
+    }
+  } else if (!config.selectionMode || config.selectionMode === 'random') {
+    // Random meal boxes mode
+    const mealBoxes = items.filter(
+      (item) =>
+        item.categoryId === 'ala-carte-combos' ||
+        item.categoryId === 'everyday-value' ||
+        item.categoryId === 'family-sharing' ||
+        item.categoryId === 'midnight-deals' ||
+        item.name.toLowerCase().includes('box') ||
+        item.name.toLowerCase().includes('combo') ||
+        item.name.toLowerCase().includes('meal') ||
+        item.name.toLowerCase().includes('deal')
+    );
+    if (mealBoxes.length >= count) {
+      pool = mealBoxes;
+    }
+  }
 
-  // Date seed e.g. "2026-10-04"
+  if (pool.length <= count) return pool;
+
+  // Date seed based on today's calendar date string YYYY-MM-DD (changes automatically at 12:00 AM midnight)
   const today = new Date().toISOString().split('T')[0];
   let seed = 0;
   for (let i = 0; i < today.length; i++) {
     seed = (seed * 31 + today.charCodeAt(i)) >>> 0;
   }
 
-  // Shuffle copy using seeded PRNG
+  // Shuffle copy using deterministic seeded PRNG
   const poolCopy = [...pool];
   for (let i = poolCopy.length - 1; i > 0; i--) {
     seed = (seed * 9301 + 49297) % 233280;
@@ -57,11 +77,13 @@ export const DailyDealsSection: React.FC = () => {
     subtitle: 'Freshly selected daily combos at flat 4% OFF (Limited Daily Offer)',
     discountPercentage: 4,
     itemCount: 5,
+    selectionMode: 'random',
+    autoMidnightRotate: true,
   };
 
   if (!dealConfig.enabled) return null;
 
-  const dailyItems = getDailyDealItems(menuItems, dealConfig.itemCount || 5);
+  const dailyItems = getDailyDealItems(menuItems, dealConfig);
   if (dailyItems.length === 0) return null;
 
   const discountPercent = dealConfig.discountPercentage || 4;
@@ -186,7 +208,8 @@ export const DailyDealsSection: React.FC = () => {
                     <button
                       type="button"
                       onClick={(e) => handleAddDailyDeal(item, e)}
-                      className="w-full mt-2 bg-[#e4002b] hover:bg-[#c30025] text-white text-[11px] font-bold py-1.5 px-2 rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow cursor-pointer"
+                      className="w-full mt-2 min-h-[40px] bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-black uppercase py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-red-950/40 cursor-pointer"
+                      aria-label={`Add deal ${item.name} to bucket`}
                     >
                       <ShoppingBag className="w-3.5 h-3.5" />
                       <span>Add to Bucket</span>

@@ -22,6 +22,16 @@ export interface MenuItemAddon {
 
 export type BadgePosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
+export interface ProductVariant {
+  id: string;
+  name: string; // e.g. "Regular", "Large", "3 Pcs Feast"
+  price: number;
+  compareAtPrice?: number;
+  sku?: string;
+  stockQuantity?: number;
+  trackInventory?: boolean;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -31,9 +41,14 @@ export interface MenuItem {
   sellingPrice?: number; // Custom direct selling price (overrides base price + markup if provided)
   compareAtPrice?: number; // Original strike-through price (e.g. Rs 1200)
   image: string;
+  galleryImages?: string[]; // Multiple product images
   isSpicy?: boolean;
   isPopular?: boolean;
   isAvailable: boolean;
+  trackInventory?: boolean; // Flexible inventory toggle: track or un-tracked
+  stockQuantity?: number; // Quantity in stock
+  lowStockThreshold?: number;
+  variants?: ProductVariant[]; // Flexible product variants
   customBadgeText?: string;
   customBadgePosition?: BadgePosition;
   customizableOptions?: {
@@ -91,6 +106,7 @@ export interface HeroConfig {
   subtext: string;
   ctaButtonText: string;
   deliveryBadgeText: string;
+  enabled?: boolean; // Can be toggled on or hidden / removed completely
 }
 
 export interface HeaderFooterConfig {
@@ -184,6 +200,109 @@ export interface StoreSettings {
   customAppIconUrl?: string;
   customPreloaderLogoUrl?: string;
   orderNotificationSound?: boolean;
+  customDomain?: CustomDomainConfig;
+  metaCommerce?: MetaCommerceConfig;
+  autoReview?: AutoReviewConfig;
+}
+
+export interface CustomDomainConfig {
+  domain: string;
+  status: 'connected' | 'pending_verification' | 'unconfigured';
+  aRecord: string; // e.g., 34.120.54.21
+  cnameRecord: string; // e.g., app.kfcchakwaldelivery.com
+  txtVerification: string; // e.g., kfc-verify=c794408e
+  sslActive: boolean;
+  connectedAt?: string;
+}
+
+export interface MetaCommerceConfig {
+  pixelId: string;
+  conversionsApiToken?: string;
+  catalogFeedUrl: string;
+  testEventCode?: string;
+  instagramShoppingEnabled: boolean;
+  facebookShopEnabled: boolean;
+  trackAddToCart: boolean;
+  trackInitiateCheckout: boolean;
+  trackPurchase: boolean;
+}
+
+export type VipTierId = 'silver' | 'gold' | 'platinum';
+
+export interface VipTier {
+  id: VipTierId;
+  name: string;
+  discountPercentage: number; // 3%, 6%, 8%
+  price: number; // 499, 899, 999
+  description: string;
+  badgeColor: string;
+  perks: string[];
+}
+
+export interface VipMembershipRequest {
+  id: string;
+  customerId: string;
+  customerName: string;
+  phone: string;
+  tierId: VipTierId;
+  amount: number;
+  paymentMethod: 'jazzcash' | 'easypaisa' | 'bank_transfer';
+  transactionId: string;
+  screenshot?: string;
+  requestedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  approvedAt?: string;
+  notes?: string;
+}
+
+export interface LoyaltyTransaction {
+  id: string;
+  customerId: string;
+  type: 'earned' | 'redeemed' | 'bonus' | 'adjusted';
+  points: number;
+  description: string;
+  orderId?: string;
+  date: string;
+}
+
+export interface AbandonedCheckout {
+  id: string;
+  customerName: string;
+  phone: string;
+  address?: string;
+  items: CartItem[];
+  cartTotal: number;
+  createdAt: string;
+  recoveryStatus: 'pending' | 'recovered' | 'message_sent';
+  lastMessageSentAt?: string;
+}
+
+export interface LiveStoreStats {
+  activeVisitors: number;
+  openCartsCount: number;
+  openCartsValue: number;
+  checkoutsInProgress: number;
+}
+
+export interface AutoReviewConfig {
+  enabled: boolean;
+  delayHours: number; // default 12 hours
+  rewardPoints: number; // default 20 bonus points
+  whatsappTemplate: string;
+  autoSendWhatsapp: boolean;
+}
+
+export interface MarketingCampaign {
+  id: string;
+  title: string;
+  channel: 'whatsapp' | 'email';
+  audience?: 'all' | 'vip' | 'inactive' | 'high_spenders' | string;
+  targetAudience?: string;
+  message: string;
+  includedProduct?: MenuItem;
+  sentCount?: number;
+  recipientCount?: number;
+  sentAt: string;
 }
 
 export interface DeliveryMethod {
@@ -203,6 +322,10 @@ export interface DailyDealConfig {
   subtitle: string;
   discountPercentage: number; // default 4%
   itemCount: number; // 5
+  selectionMode?: 'random' | 'collection' | 'manual'; // Auto daily random at 12:00 AM, collection, or manual products
+  selectedProductIds?: string[];
+  collectionCategory?: CategoryId | 'all';
+  autoMidnightRotate?: boolean;
 }
 
 export interface CustomerLoyaltyRecord {
@@ -212,6 +335,7 @@ export interface CustomerLoyaltyRecord {
   address: string;
   email?: string;
   loyaltyPoints: number;
+  vipTier?: VipTierId;
   totalOrdersCount: number;
   totalSpent: number;
   createdAt: string;
@@ -232,6 +356,13 @@ export interface CustomerDetails {
   notes?: string;
 }
 
+export interface CustomerAddress {
+  id: string;
+  label: string; // e.g. "Home", "Office", "Shop"
+  address: string;
+  isDefault?: boolean;
+}
+
 export interface Order {
   id: string;
   date: string;
@@ -244,8 +375,11 @@ export interface Order {
   loyaltyPointsEarned?: number;
   loyaltyPointsRedeemed?: number;
   loyaltyDiscount?: number;
+  vipDiscount?: number;
+  vipTierApplied?: VipTierId;
   total: number;
   customer: CustomerDetails;
+  specialInstructions?: string; // Kitchen notes
   paymentMethod: PaymentMethod;
   status: 'confirmed' | 'kitchen' | 'dispatched' | 'delivered';
 }
@@ -264,8 +398,11 @@ export interface CustomerUser {
   fullName: string;
   phone: string;
   address: string;
+  savedAddresses?: CustomerAddress[];
   email?: string;
-  loyaltyPoints: number; // 10 points per Rs 100 spent
+  loyaltyPoints: number; // 10 points per Rs 300 spent
+  vipTier?: VipTierId;
+  vipStatus?: 'active' | 'pending' | 'none';
   createdAt: string;
 }
 

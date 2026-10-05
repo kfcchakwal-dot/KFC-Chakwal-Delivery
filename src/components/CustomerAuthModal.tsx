@@ -1,18 +1,24 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
+import { CustomerAddress, Order } from '../types';
 import { 
   X, 
   User, 
   Phone, 
   MapPin, 
-  Mail, 
   ShieldCheck, 
   ArrowRight, 
   Sparkles, 
   Award, 
   HelpCircle,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Trash2,
+  RotateCcw,
+  ShoppingBag,
+  Home,
+  LogOut
 } from 'lucide-react';
 
 export const CustomerAuthModal: React.FC = () => {
@@ -23,15 +29,31 @@ export const CustomerAuthModal: React.FC = () => {
     signupUser,
     loginUser,
     logoutUser,
+    addSavedAddress,
+    deleteSavedAddress,
+    repeatOrder,
+    allOrders,
+    formatPKR,
     themeMode,
   } = useStore();
 
-  const [tab, setTab] = useState<'login' | 'signup'>('signup');
+  const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const [profileSubTab, setProfileSubTab] = useState<'rewards' | 'addresses' | 'orders'>('rewards');
+  
+  // Registration form
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [email, setEmail] = useState('');
+  
+  // Login form
   const [loginPhone, setLoginPhone] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  // Add Address form
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [newLabel, setNewLabel] = useState('Home');
+  const [newAddressText, setNewAddressText] = useState('');
 
   if (!isCustomerAuthModalOpen) return null;
 
@@ -39,7 +61,8 @@ export const CustomerAuthModal: React.FC = () => {
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !phone.trim()) return;
+    if (!fullName.trim()) return;
+    if (!phone.trim() || phone.trim().length < 10) return;
 
     signupUser({
       fullName: fullName.trim(),
@@ -51,38 +74,50 @@ export const CustomerAuthModal: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginPhone.trim()) return;
+    if (!loginPhone.trim() || loginPhone.trim().length < 10) {
+      setLoginError('Please enter a valid mobile number (e.g. 03001234567)');
+      return;
+    }
+    setLoginError('');
     loginUser(loginPhone.trim());
   };
 
-  // Free 1-Click Social Sign-in
-  const handleSocialLogin = (provider: 'Google' | 'Facebook') => {
-    const demoName = provider === 'Google' ? 'Google Customer' : 'Facebook Customer';
-    signupUser({
-      fullName: demoName,
-      phone: '+92 300 0000000',
-      address: 'Within 3 KM (Chakwal City)',
-      email: `user@${provider.toLowerCase()}.com`,
-    });
+  const handleAddAddressSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAddressText.trim()) return;
+    addSavedAddress(newLabel, newAddressText.trim());
+    setNewAddressText('');
+    setIsAddingAddress(false);
   };
 
+  // Find customer's past orders
+  const customerOrders = currentUser
+    ? allOrders.filter(
+        (o) =>
+          o.customer.phone === currentUser.phone ||
+          (currentUser.fullName && o.customer.fullName.toLowerCase() === currentUser.fullName.toLowerCase())
+      )
+    : [];
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className={`w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden p-6 sm:p-7 space-y-5 ${
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+      <div className={`w-full max-w-lg rounded-3xl border shadow-2xl overflow-hidden p-5 sm:p-7 space-y-5 max-h-[92vh] flex flex-col ${
         isDark ? 'bg-[#18181c] border-[#2e2e38] text-white' : 'bg-white border-zinc-200 text-zinc-900'
       }`}>
         
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-[#e4002b] flex items-center justify-center text-white shadow-md">
               <User className="w-5 h-5" />
             </div>
             <div>
               <h2 className={`font-kfc text-2xl font-black uppercase tracking-tight leading-none ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-                Customer Account
+                {currentUser ? 'My Account & Rewards' : 'KFC Customer Login'}
               </h2>
-              <p className="text-zinc-400 text-xs mt-0.5">KFC Chakwal Loyalty & Rewards</p>
+              <p className="text-zinc-400 text-xs mt-0.5">
+                {currentUser ? `Welcome back, ${currentUser.fullName}!` : 'Chakwal Delivery Native Account'}
+              </p>
             </div>
           </div>
 
@@ -96,18 +131,20 @@ export const CustomerAuthModal: React.FC = () => {
           </button>
         </div>
 
-        {/* If Already Logged In */}
+        {/* ========================================================================= */}
+        {/* IF USER IS ALREADY LOGGED IN */}
+        {/* ========================================================================= */}
         {currentUser ? (
-          <div className="space-y-4">
+          <div className="overflow-y-auto space-y-4 flex-1 pr-1">
             
-            {/* Loyalty Points Card */}
+            {/* Top Loyalty Highlight */}
             <div className={`border p-4 rounded-2xl relative overflow-hidden space-y-2 ${
               isDark 
                 ? 'bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-red-500/20 border-amber-500/40 text-white' 
                 : 'bg-gradient-to-r from-amber-50 via-orange-50 to-red-50 border-amber-300 text-zinc-900'
             }`}>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 bg-amber-500/15 px-2.5 py-0.5 rounded-full">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 bg-amber-500/20 px-2.5 py-0.5 rounded-full">
                   KFC Chakwal Rewards
                 </span>
                 <Award className="w-5 h-5 text-amber-500" />
@@ -123,131 +160,302 @@ export const CustomerAuthModal: React.FC = () => {
               </div>
             </div>
 
-            {/* Profile Info */}
-            <div className={`p-4 rounded-2xl border space-y-1.5 text-xs ${
-              isDark ? 'bg-[#121214] border-[#282830]' : 'bg-zinc-50 border-zinc-200'
-            }`}>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-sm text-[#e4002b]">{currentUser.fullName}</span>
-                <span className="text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  Active Customer
-                </span>
-              </div>
-              <p className={isDark ? 'text-zinc-400' : 'text-zinc-600'}>
-                Mobile: <strong className={isDark ? 'text-white' : 'text-zinc-900'}>{currentUser.phone}</strong>
-              </p>
-              <p className={isDark ? 'text-zinc-400' : 'text-zinc-600'}>
-                Delivery Address: <strong className={isDark ? 'text-white' : 'text-zinc-900'}>{currentUser.address}</strong>
-              </p>
-            </div>
-
-            {/* Loyalty Points Rules & How It Works */}
-            <div className={`p-4 rounded-2xl border space-y-2 text-xs ${
-              isDark ? 'bg-[#141418] border-[#24242c]' : 'bg-amber-50/70 border-amber-200'
-            }`}>
-              <p className="font-bold text-amber-600 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
-                <Sparkles className="w-3.5 h-3.5" />
-                Loyalty Points Kaise Haasil Karein & Redeem Karein:
-              </p>
-
-              <ul className={`space-y-1.5 text-[11px] ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                  <span><strong>Earning Rate:</strong> Har <strong>Rs. 300 ki shopping par 10 Points</strong> miltay hain (1 Point = Rs. 1 Flat Discount).</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                  <span><strong>Redemption:</strong> Bucket/Cart mein 1-click se redeem hotay hain.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                  <span><strong>Condition:</strong> Points akele redeem nahi hotay, redeem karnay ke liye <strong>Minimum Rs. 500</strong> ki shopping lazmi hai.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                  <span><strong>No Stacking:</strong> Loyalty points kisi doosray discount coupon code ke sath combine nahi hotay.</span>
-                </li>
-              </ul>
-            </div>
-
-            <button
-              type="button"
-              onClick={logoutUser}
-              className={`w-full text-xs font-bold py-2.5 rounded-xl cursor-pointer transition ${
-                isDark ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
-              }`}
-            >
-              Sign Out (Logout)
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Loyalty Welcome Strip */}
-            <div className={`border p-3 rounded-2xl flex items-center gap-3 ${
-              isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'
-            }`}>
-              <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
-              <div className="text-xs">
-                <p className={`font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>50 Free Points on Signup!</p>
-                <p className={isDark ? 'text-zinc-400 text-[11px]' : 'text-zinc-600 text-[11px]'}>
-                  Har Rs. 300 par 10 points earn karein (Min order Rs. 500 to redeem).
-                </p>
-              </div>
-            </div>
-
-            {/* Social 1-Click Fast Sign-In */}
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => handleSocialLogin('Google')}
-                  className={`py-2.5 px-3 rounded-xl border flex items-center justify-center gap-2 cursor-pointer transition ${
-                    isDark ? 'bg-[#23232c] hover:bg-[#2c2c36] text-white border-[#333342]' : 'bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-200 shadow-sm'
-                  }`}
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                  </svg>
-                  <span>Google</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSocialLogin('Facebook')}
-                  className="bg-[#1877F2] hover:bg-[#166fe5] text-white py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-sm"
-                >
-                  <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
-                  <span>Facebook</span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2 text-zinc-400 text-[10px] uppercase font-bold my-1">
-                <span className={`flex-1 h-px ${isDark ? 'bg-zinc-700/40' : 'bg-zinc-200'}`}></span>
-                <span>Ya Phone Number Se Login Karein</span>
-                <span className={`flex-1 h-px ${isDark ? 'bg-zinc-700/40' : 'bg-zinc-200'}`}></span>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className={`grid grid-cols-2 gap-2 p-1 rounded-xl border text-xs font-bold ${
+            {/* Sub-Navigation Tabs: Rewards | Saved Addresses | Past Orders */}
+            <div className={`grid grid-cols-3 gap-1 p-1 rounded-xl border text-xs font-bold ${
               isDark ? 'bg-[#121214] border-zinc-800' : 'bg-zinc-100 border-zinc-200'
             }`}>
               <button
                 type="button"
-                onClick={() => setTab('signup')}
-                className={`py-2 rounded-lg transition-colors cursor-pointer ${
-                  tab === 'signup' 
-                    ? 'bg-[#e4002b] text-white shadow' 
+                onClick={() => setProfileSubTab('rewards')}
+                className={`py-2 rounded-lg transition-colors cursor-pointer text-center ${
+                  profileSubTab === 'rewards'
+                    ? 'bg-[#e4002b] text-white shadow'
                     : isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-900'
                 }`}
               >
-                New Account
+                Profile & Rules
               </button>
+              <button
+                type="button"
+                onClick={() => setProfileSubTab('addresses')}
+                className={`py-2 rounded-lg transition-colors cursor-pointer text-center flex items-center justify-center gap-1 ${
+                  profileSubTab === 'addresses'
+                    ? 'bg-[#e4002b] text-white shadow'
+                    : isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                <span>Addresses ({(currentUser.savedAddresses || []).length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setProfileSubTab('orders')}
+                className={`py-2 rounded-lg transition-colors cursor-pointer text-center flex items-center justify-center gap-1 ${
+                  profileSubTab === 'orders'
+                    ? 'bg-[#e4002b] text-white shadow'
+                    : isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Orders ({customerOrders.length})</span>
+              </button>
+            </div>
+
+            {/* SUB-TAB 1: REWARDS & PROFILE */}
+            {profileSubTab === 'rewards' && (
+              <div className="space-y-3">
+                <div className={`p-4 rounded-2xl border space-y-1.5 text-xs ${
+                  isDark ? 'bg-[#121214] border-[#282830]' : 'bg-zinc-50 border-zinc-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-[#e4002b]">{currentUser.fullName}</span>
+                    <span className="text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                      Logged In (Persistent)
+                    </span>
+                  </div>
+                  <p className={isDark ? 'text-zinc-400' : 'text-zinc-600'}>
+                    Mobile: <strong className={isDark ? 'text-white' : 'text-zinc-900'}>{currentUser.phone}</strong>
+                  </p>
+                  <p className={isDark ? 'text-zinc-400' : 'text-zinc-600'}>
+                    Current Default Address: <strong className={isDark ? 'text-white' : 'text-zinc-900'}>{currentUser.address}</strong>
+                  </p>
+                </div>
+
+                {/* Loyalty Rules & Policy */}
+                <div className={`p-4 rounded-2xl border space-y-2 text-xs ${
+                  isDark ? 'bg-[#121214] border-[#282830]' : 'bg-zinc-50 border-zinc-200'
+                }`}>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Official Loyalty Policy Rules</span>
+                  </h4>
+
+                  <ul className={`space-y-1.5 text-[11px] leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                    <li className="flex items-start gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <span><strong>10 Loyalty Points</strong> har Rs. 300 ki shopping par automatic credit hotay hain.</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <span><strong>1 Point = 1 Rupee (Rs. 1)</strong> flat direct discount in bucket checkout.</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <span>Points kabhi expire nahi hotay. Jab chahein direct redeem karein.</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      <span><strong>Rule:</strong> Loyalty points kisi doosray discount coupon ke sath combine nahi ho saktay. Cart mein ya toh coupon lagega ya points.</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 2: SAVED ADDRESSES */}
+            {profileSubTab === 'addresses' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-xs text-zinc-400 uppercase tracking-wider">
+                    My Saved Delivery Addresses
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingAddress(!isAddingAddress)}
+                    className="text-xs font-bold text-[#e4002b] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add New Address</span>
+                  </button>
+                </div>
+
+                {/* Add Address Form */}
+                {isAddingAddress && (
+                  <form onSubmit={handleAddAddressSubmit} className={`p-3.5 rounded-2xl border space-y-2.5 text-xs ${
+                    isDark ? 'bg-[#121215] border-zinc-700' : 'bg-zinc-50 border-zinc-300'
+                  }`}>
+                    <span className="font-bold text-xs text-[#e4002b] block">Add Address for Quick Checkout</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <select
+                        value={newLabel}
+                        onChange={(e) => setNewLabel(e.target.value)}
+                        className={`col-span-1 rounded-xl px-2.5 py-2 border text-xs ${
+                          isDark ? 'bg-[#1a1a20] border-zinc-700 text-white' : 'bg-white border-zinc-300'
+                        }`}
+                      >
+                        <option value="Home">Home</option>
+                        <option value="Office">Office</option>
+                        <option value="Shop">Shop</option>
+                        <option value="Hostel">Hostel</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      <input
+                        type="text"
+                        required
+                        placeholder="House / Street / Area in Chakwal"
+                        value={newAddressText}
+                        onChange={(e) => setNewAddressText(e.target.value)}
+                        className={`col-span-2 rounded-xl px-3 py-2 border text-xs ${
+                          isDark ? 'bg-[#1a1a20] border-zinc-700 text-white' : 'bg-white border-zinc-300'
+                        }`}
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingAddress(false)}
+                        className="px-3 py-1.5 rounded-xl text-zinc-400 hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-[#e4002b] hover:bg-[#c30025] text-white px-4 py-1.5 rounded-xl font-bold"
+                      >
+                        Save Address
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* List of saved addresses */}
+                <div className="space-y-2">
+                  {(currentUser.savedAddresses || []).length === 0 ? (
+                    <div className="p-4 text-center text-xs text-zinc-500 border border-dashed rounded-xl">
+                      Aapka koi saved address nahi hai. Upar button se naya address add karein!
+                    </div>
+                  ) : (
+                    (currentUser.savedAddresses || []).map((addr: CustomerAddress) => (
+                      <div
+                        key={addr.id}
+                        className={`p-3 rounded-2xl border flex items-center justify-between text-xs ${
+                          isDark ? 'bg-[#121214] border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                            <Home className="w-4 h-4 text-[#e4002b]" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-xs block text-zinc-900 dark:text-white">{addr.label}</span>
+                            <span className="text-zinc-500 text-[11px] block">{addr.address}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteSavedAddress(addr.id)}
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer"
+                          title="Delete address"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 3: PAST ORDERS & REPEAT ORDER */}
+            {profileSubTab === 'orders' && (
+              <div className="space-y-3">
+                <h4 className="font-bold text-xs text-zinc-400 uppercase tracking-wider">
+                  Past Orders & 1-Click Reorder
+                </h4>
+
+                {customerOrders.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-zinc-500 border border-dashed rounded-2xl space-y-2">
+                    <ShoppingBag className="w-8 h-8 mx-auto text-zinc-400 opacity-60" />
+                    <p>Abhi tak koi order record nahi mila.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {customerOrders.map((ord: Order) => (
+                      <div
+                        key={ord.id}
+                        className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
+                          isDark ? 'bg-[#121214] border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-mono font-bold text-xs text-[#e4002b]">#{ord.id}</span>
+                            <span className="text-[10px] text-zinc-500 ml-2">
+                              {new Date(ord.date).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded border border-emerald-500/20">
+                            {ord.status}
+                          </span>
+                        </div>
+
+                        <div className="text-[11px] text-zinc-400 space-y-0.5">
+                          {ord.items.map((i, idx) => (
+                            <p key={idx} className="truncate">
+                              • {i.quantity}x {i.menuItem.name}
+                            </p>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-zinc-700/20">
+                          <div>
+                            <span className="text-[10px] text-zinc-500">Bill: </span>
+                            <strong className="text-zinc-900 dark:text-white font-mono">{formatPKR(ord.total)}</strong>
+                          </div>
+
+                          {/* REPEAT ORDER BUTTON */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              repeatOrder(ord);
+                              setIsCustomerAuthModalOpen(false);
+                            }}
+                            className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-zinc-950 font-black text-xs px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer transition"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Repeat Order</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Logout Button */}
+            <div className="pt-2 border-t border-zinc-800/40">
+              <button
+                type="button"
+                onClick={logoutUser}
+                className="w-full py-2.5 rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500/10 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Log Out from this Device</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ========================================================================= */
+          /* NATIVE LOGIN / REGISTRATION (NO GOOGLE / NO FACEBOOK) */
+          /* ========================================================================= */
+          <div className="overflow-y-auto space-y-4 flex-1 pr-1">
+            
+            {/* Banner */}
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs space-y-1">
+              <p className="font-bold text-[#e4002b] flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4" />
+                <span>Apna Phone Number Enter Karein</span>
+              </p>
+              <p className={`text-[11px] ${isDark ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                Aap iss device par hamesha login rahenge. Aapke addresses aur loyalty points automatically save rahenge.
+              </p>
+            </div>
+
+            {/* Tabs: Sign In vs New Registration */}
+            <div className={`grid grid-cols-2 gap-2 p-1 rounded-xl border text-xs font-bold ${
+              isDark ? 'bg-[#121214] border-zinc-800' : 'bg-zinc-100 border-zinc-200'
+            }`}>
               <button
                 type="button"
                 onClick={() => setTab('login')}
@@ -259,13 +467,64 @@ export const CustomerAuthModal: React.FC = () => {
               >
                 Existing Sign In
               </button>
+              <button
+                type="button"
+                onClick={() => setTab('signup')}
+                className={`py-2 rounded-lg transition-colors cursor-pointer ${
+                  tab === 'signup' 
+                    ? 'bg-[#e4002b] text-white shadow' 
+                    : isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                New Account
+              </button>
             </div>
 
-            {/* Sign Up Form */}
+            {/* Form A: Native Sign In with Phone */}
+            {tab === 'login' && (
+              <form onSubmit={handleLogin} className="space-y-3.5 text-xs">
+                {loginError && (
+                  <div className="p-2.5 bg-red-500/10 border border-red-500/30 text-red-500 text-xs rounded-xl font-bold">
+                    {loginError}
+                  </div>
+                )}
+
+                <div>
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                    Mobile Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="03001234567"
+                    value={loginPhone}
+                    onChange={(e) => setLoginPhone(e.target.value)}
+                    className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${
+                      isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
+                    }`}
+                  />
+                  <p className="text-[10px] text-zinc-400 mt-1">
+                    Aapka saved profile aur points balance automatically load ho jayega.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer shadow-lg shadow-red-950/20 active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <span>Sign In & Continue</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+            )}
+
+            {/* Form B: Native New Account Registration */}
             {tab === 'signup' && (
               <form onSubmit={handleSignup} className="space-y-3 text-xs">
                 <div>
-                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Full Name *</label>
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                    Full Name *
+                  </label>
                   <input
                     type="text"
                     required
@@ -279,7 +538,9 @@ export const CustomerAuthModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Mobile Phone (WhatsApp) *</label>
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                    Mobile Phone (WhatsApp) *
+                  </label>
                   <input
                     type="tel"
                     required
@@ -293,7 +554,9 @@ export const CustomerAuthModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Delivery Address (Within 3 KM) *</label>
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                    Delivery Address (Within 3 KM) *
+                  </label>
                   <input
                     type="text"
                     required
@@ -306,43 +569,31 @@ export const CustomerAuthModal: React.FC = () => {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shadow-lg"
-                >
-                  <span>Register & Claim 50 Free Points</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </form>
-            )}
-
-            {/* Login Form */}
-            {tab === 'login' && (
-              <form onSubmit={handleLogin} className="space-y-3 text-xs">
-                <div>
-                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Registered Phone Number *</label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="03001234567"
-                    value={loginPhone}
-                    onChange={(e) => setLoginPhone(e.target.value)}
-                    className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${
-                      isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
-                    }`}
-                  />
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer shadow-lg shadow-red-950/20 active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <span>Create Account & Get 50 Bonus Points</span>
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                  </button>
                 </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shadow-lg"
-                >
-                  <span>Sign In</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
               </form>
             )}
-          </>
+
+            {/* Persistent Login Guarantee Info */}
+            <div className={`p-3 rounded-xl border text-[11px] space-y-1 ${
+              isDark ? 'bg-[#121214] border-[#22222a] text-zinc-400' : 'bg-zinc-50 border-zinc-200 text-zinc-600'
+            }`}>
+              <div className="flex items-center gap-1.5 font-bold text-emerald-500">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Device Persistent Session Active</span>
+              </div>
+              <p>
+                Jab bhi aap iss phone ya computer se app open karenge, aap bina baar baar password/login dale hamesha signed in rahenge jab tak aap khud "Log Out" na karein.
+              </p>
+            </div>
+          </div>
         )}
 
       </div>

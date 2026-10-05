@@ -16,7 +16,9 @@ import {
   AlertCircle,
   X,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Calendar,
+  Clock
 } from 'lucide-react';
 
 export const DiscountsManager: React.FC = () => {
@@ -37,6 +39,8 @@ export const DiscountsManager: React.FC = () => {
   const [isAutomatic, setIsAutomatic] = useState(false);
   const [usageLimit, setUsageLimit] = useState<number | undefined>(undefined);
   const [status, setStatus] = useState<'active' | 'scheduled' | 'expired'>('active');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const openCreateModal = () => {
     setEditingDiscountId(null);
@@ -48,6 +52,8 @@ export const DiscountsManager: React.FC = () => {
     setIsAutomatic(false);
     setUsageLimit(undefined);
     setStatus('active');
+    setStartDate(new Date().toISOString().slice(0, 16));
+    setEndDate('');
     setIsModalOpen(true);
   };
 
@@ -61,6 +67,8 @@ export const DiscountsManager: React.FC = () => {
     setIsAutomatic(d.isAutomatic);
     setUsageLimit(d.usageLimit);
     setStatus(d.status);
+    setStartDate(d.startDate ? d.startDate.slice(0, 16) : new Date().toISOString().slice(0, 16));
+    setEndDate(d.endDate ? d.endDate.slice(0, 16) : '');
     setIsModalOpen(true);
   };
 
@@ -83,6 +91,8 @@ export const DiscountsManager: React.FC = () => {
         isAutomatic,
         usageLimit: usageLimit ? Number(usageLimit) : undefined,
         status,
+        startDate: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
+        endDate: endDate ? new Date(endDate).toISOString() : undefined,
       });
     } else {
       addDiscount({
@@ -94,7 +104,8 @@ export const DiscountsManager: React.FC = () => {
         isAutomatic,
         usageLimit: usageLimit ? Number(usageLimit) : undefined,
         status,
-        startDate: new Date().toISOString().split('T')[0],
+        startDate: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
+        endDate: endDate ? new Date(endDate).toISOString() : undefined,
       });
     }
 
@@ -285,6 +296,24 @@ export const DiscountsManager: React.FC = () => {
                       {discount.minOrderAmount ? ` · Min order: ${formatPKR(discount.minOrderAmount)}` : ' · No min order'}
                       {` · Redemptions: ${discount.usedCount || 0} times`}
                     </p>
+
+                    {/* Start & End Date & Time Badges */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-zinc-400 font-medium">
+                      {discount.startDate && (
+                        <span className="flex items-center gap-1 bg-zinc-800/80 px-2 py-0.5 rounded-md text-emerald-400 border border-zinc-700/50">
+                          <Calendar className="w-3 h-3 text-emerald-400" />
+                          <span>Start: {new Date(discount.startDate).toLocaleDateString()} {new Date(discount.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </span>
+                      )}
+                      {discount.endDate ? (
+                        <span className="flex items-center gap-1 bg-zinc-800/80 px-2 py-0.5 rounded-md text-amber-400 border border-zinc-700/50">
+                          <Clock className="w-3 h-3 text-amber-400" />
+                          <span>End: {new Date(discount.endDate).toLocaleDateString()} {new Date(discount.endDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-zinc-500 italic">No expiry set</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -490,6 +519,49 @@ export const DiscountsManager: React.FC = () => {
                 <span className="text-[10px] text-zinc-500 mt-1 block">
                   Only carts with a subtotal equal to or above this amount will get the discount.
                 </span>
+              </div>
+
+              {/* Start & End Date and Time */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-[#101014] rounded-xl border border-zinc-800">
+                <div>
+                  <label className="block text-zinc-400 font-semibold mb-1 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Start Date & Time *</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full bg-[#16161c] border border-zinc-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#e4002b]"
+                    required
+                  />
+                  <span className="text-[10px] text-zinc-500 mt-1 block">Offer kab shuru hogi</span>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-400 font-semibold mb-1 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      <span>End Date & Time</span>
+                    </span>
+                    {endDate && (
+                      <button
+                        type="button"
+                        onClick={() => setEndDate('')}
+                        className="text-[10px] text-zinc-500 hover:text-red-400 cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full bg-[#16161c] border border-zinc-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#e4002b]"
+                  />
+                  <span className="text-[10px] text-zinc-500 mt-1 block">Khali rakhein agar expire na karni ho</span>
+                </div>
               </div>
 
               {/* Status */}

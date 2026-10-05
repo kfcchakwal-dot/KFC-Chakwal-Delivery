@@ -220,28 +220,30 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
             )}
           </div>
 
-          {/* Action Buttons: Customize & Add to Bucket */}
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+          {/* Action Buttons: Customize & Add to Bucket (Comfortable 44px Mobile Touch Targets) */}
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 pt-1">
             <button
               type="button"
               onClick={handleCustomizeUpgrade}
-              className={`text-[10px] sm:text-[11px] font-bold uppercase py-1.5 sm:py-2 px-1 rounded-xl flex items-center justify-center gap-1 border transition-all cursor-pointer ${
+              className={`min-h-[44px] text-[11px] sm:text-xs font-bold uppercase py-2 px-1.5 rounded-xl flex items-center justify-center gap-1 border transition-all cursor-pointer active:scale-95 ${
                 isDark
                   ? 'border-[#3a3a46] bg-[#22222a] hover:bg-[#2b2b35] text-zinc-200 hover:text-white'
                   : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-800'
               }`}
-              title="Customize items, spice & add-ons"
+              title={`Customize ${item.name}`}
+              aria-label={`Customize ${item.name}`}
             >
-              <SlidersHorizontal className="w-3 h-3 text-[#e4002b] shrink-0" />
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />
               <span className="truncate">Customize</span>
             </button>
 
             <button
               type="button"
               onClick={handleQuickAdd}
-              className="bg-[#e4002b] hover:bg-[#c30025] text-white text-[10px] sm:text-[11px] font-black uppercase py-1.5 sm:py-2 px-1 rounded-xl flex items-center justify-center gap-1 transition-all shadow-md shadow-red-950/40 hover:shadow-red-900/60 cursor-pointer active:scale-95 shrink-0"
+              className="min-h-[44px] bg-[#e4002b] hover:bg-[#c30025] text-white text-[11px] sm:text-xs font-black uppercase py-2 px-1.5 rounded-xl flex items-center justify-center gap-1 transition-all shadow-md shadow-red-950/40 hover:shadow-red-900/60 cursor-pointer active:scale-95 shrink-0"
+              aria-label={`Add ${item.name} to bucket`}
             >
-              <Plus className="w-3 h-3 stroke-[3] shrink-0" />
+              <Plus className="w-3.5 h-3.5 stroke-[3] shrink-0" />
               <span className="truncate">Add</span>
             </button>
           </div>

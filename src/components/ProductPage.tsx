@@ -136,7 +136,8 @@ export const ProductPage: React.FC = () => {
         <div className="max-w-6xl mx-auto flex items-center justify-between text-xs">
           <button
             onClick={goHome}
-            className="flex items-center gap-2 text-zinc-400 hover:text-[#e4002b] font-bold uppercase transition-colors cursor-pointer"
+            className="flex items-center gap-2 text-zinc-400 hover:text-[#e4002b] font-bold uppercase transition-colors cursor-pointer min-h-[44px] py-2 px-1 active:scale-95"
+            aria-label="Back to menu"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Menu</span>
@@ -431,13 +432,14 @@ export const ProductPage: React.FC = () => {
 
             {/* Quantity Stepper & Add to Bucket Button */}
             <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
-              <div className={`flex items-center border rounded-2xl p-1.5 shrink-0 ${
+              <div className={`flex items-center border rounded-2xl p-1 shrink-0 ${
                 isDark ? 'bg-[#161619] border-[#2d2d38]' : 'bg-white border-zinc-300'
               }`}>
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="p-2 text-zinc-400 hover:text-white cursor-pointer"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer active:scale-90"
+                  aria-label="Decrease quantity"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
@@ -447,7 +449,8 @@ export const ProductPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => q + 1)}
-                  className="p-2 text-zinc-400 hover:text-white cursor-pointer"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer active:scale-90"
+                  aria-label="Increase quantity"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -456,7 +459,8 @@ export const ProductPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className="w-full flex-1 bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-xl py-4 px-6 rounded-2xl font-black flex items-center justify-between shadow-2xl shadow-red-950/50 cursor-pointer transition-all active:scale-[0.98]"
+                className="w-full flex-1 min-h-[52px] bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-xl py-3.5 px-6 rounded-2xl font-black flex items-center justify-between shadow-2xl shadow-red-950/50 cursor-pointer transition-all active:scale-[0.98]"
+                aria-label="Add to bucket"
               >
                 <span className="flex items-center gap-2">
                   <ShoppingBag className="w-5 h-5" />

@@ -7,6 +7,11 @@ export const HeroBanner: React.FC = () => {
 
   const isDark = themeMode === 'dark';
 
+  // If admin has removed/disabled 1st section (Crispy. Juicy.)
+  if (settings.hero?.enabled === false) {
+    return null;
+  }
+
   const scrollToMenu = () => {
     const el = document.getElementById('kfc-menu-section');
     if (el) {
@@ -113,10 +118,11 @@ export const HeroBanner: React.FC = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
               <button
                 onClick={scrollToMenu}
-                className="bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-xl px-7 py-3 rounded-xl font-bold flex items-center gap-2.5 transition-all shadow-xl shadow-red-950/50 hover:shadow-red-900/60 cursor-pointer"
+                className="w-full sm:w-auto min-h-[48px] bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-xl px-7 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2.5 transition-all shadow-xl shadow-red-950/50 hover:shadow-red-900/60 cursor-pointer active:scale-98"
+                aria-label="Explore all KFC menu items"
               >
                 <span>{ctaText}</span>
                 <ArrowRight className="w-5 h-5" />

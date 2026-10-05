@@ -19,6 +19,19 @@ import {
   DeliveryMethod,
   DailyDealConfig,
   CustomerLoyaltyRecord,
+  CustomerAddress,
+  VipTierId,
+  VipTier,
+  VipMembershipRequest,
+  CustomDomainConfig,
+  MetaCommerceConfig,
+  LoyaltyTransaction,
+  AbandonedCheckout,
+  LiveStoreStats,
+  AutoReviewConfig,
+  MarketingCampaign,
+  Category,
+  ProductVariant,
 } from '../types';
 import {
   INITIAL_KFC_ITEMS,
@@ -29,6 +42,11 @@ import {
   DEFAULT_STORE_POLICIES,
   DEFAULT_DELIVERY_METHODS,
   DEFAULT_DAILY_DEAL,
+  DEFAULT_VIP_TIERS,
+  DEFAULT_CUSTOM_DOMAIN_CONFIG,
+  DEFAULT_META_COMMERCE_CONFIG,
+  DEFAULT_AUTO_REVIEW_CONFIG,
+  KFC_CATEGORIES,
 } from '../data/kfcMenu';
 import { playNewOrderChime } from '../utils/audioNotification';
 
@@ -135,7 +153,8 @@ interface StoreContextType {
 
   // Orders Management & Sound
   activeOrder: Order | null;
-  createOrder: (customer: CustomerDetails, paymentMethod: PaymentMethod) => Order;
+  createOrder: (customer: CustomerDetails, paymentMethod: PaymentMethod, specialInstructions?: string) => Order;
+  repeatOrder: (order: Order) => void;
   clearActiveOrder: () => void;
   allOrders: Order[];
   fetchOrders: () => Promise<void>;
@@ -168,6 +187,8 @@ interface StoreContextType {
   signupUser: (data: { fullName: string; phone: string; address: string; email?: string }) => void;
   loginUser: (phone: string) => boolean;
   logoutUser: () => void;
+  addSavedAddress: (label: string, address: string) => void;
+  deleteSavedAddress: (addressId: string) => void;
   isCustomerAuthModalOpen: boolean;
   setIsCustomerAuthModalOpen: (open: boolean) => void;
 
@@ -192,6 +213,56 @@ interface StoreContextType {
   logoutAdmin: () => void;
   isOrdersDashboardOpen: boolean;
   setIsOrdersDashboardOpen: (open: boolean) => void;
+
+  // VIP Club Program
+  vipTiers: VipTier[];
+  vipRequests: VipMembershipRequest[];
+  isVipModalOpen: boolean;
+  setIsVipModalOpen: (open: boolean) => void;
+  requestVipMembership: (tierId: VipTierId, paymentMethod: 'jazzcash' | 'easypaisa' | 'bank_transfer', transactionId: string) => void;
+  approveVipRequest: (requestId: string) => void;
+  rejectVipRequest: (requestId: string) => void;
+  vipDiscountAmount: number;
+
+  // Complete Loyalty Program Section
+  loyaltyTransactions: LoyaltyTransaction[];
+  isLoyaltyModalOpen: boolean;
+  setIsLoyaltyModalOpen: (open: boolean) => void;
+  pointsEarnedNotice: number | null;
+  clearPointsEarnedNotice: () => void;
+
+  // Daily Deals Open Popup
+  isDailyDealsPopupOpen: boolean;
+  setIsDailyDealsPopupOpen: (open: boolean) => void;
+
+  // Custom Domain Integration
+  updateCustomDomain: (config: Partial<CustomDomainConfig>) => void;
+
+  // Facebook & Instagram Meta Ads Manager
+  updateMetaCommerce: (config: Partial<MetaCommerceConfig>) => void;
+
+  // Real-time Visitors & Abandoned Checkout
+  liveStats: LiveStoreStats;
+  abandonedCheckouts: AbandonedCheckout[];
+  recordAbandonedCheckout: (customer: CustomerDetails) => void;
+  markAbandonedCheckoutRecovered: (id: string) => void;
+  sendAbandonedRecoveryWhatsapp: (checkout: AbandonedCheckout) => void;
+
+  // Automated 12-Hour Review Collection Flow
+  updateAutoReview: (config: Partial<AutoReviewConfig>) => void;
+  sendReviewCollectionWhatsapp: (order: Order) => void;
+
+  // Bulk Marketing Broadcast Center
+  marketingCampaigns: MarketingCampaign[];
+  createMarketingBroadcast: (campaign: Omit<MarketingCampaign, 'id' | 'sentAt'>) => void;
+
+  // Customers Import & Export
+  exportCustomersCSV: () => string;
+  importCustomersCSV: (csvText: string) => { imported: number; errors: number };
+
+  // Categories / Collections Management
+  categories: Category[];
+  addCategory: (cat: Category) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -209,6 +280,11 @@ const DISCOUNTS_KEY = 'kfc_chakwal_discounts_v5';
 const POLICIES_KEY = 'kfc_chakwal_policies_v5';
 const DELIVERY_METHODS_KEY = 'kfc_chakwal_delivery_methods_v5';
 const CUSTOMERS_KEY = 'kfc_chakwal_customers_v5';
+const VIP_REQUESTS_KEY = 'kfc_chakwal_vip_requests_v5';
+const LOYALTY_TX_KEY = 'kfc_chakwal_loyalty_tx_v5';
+const ABANDONED_CHECKOUTS_KEY = 'kfc_chakwal_abandoned_checkouts_v5';
+const MARKETING_KEY = 'kfc_chakwal_marketing_v5';
+const CATEGORIES_KEY = 'kfc_chakwal_categories_v5';
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Detect Seller mode from URL (e.g. ?app=seller or /seller)
@@ -382,7 +458,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('admin') === 'true') return true;
       if (window.location.pathname.startsWith('/admin')) return true;
-      return sessionStorage.getItem(ADMIN_AUTH_KEY) === 'true';
+      return localStorage.getItem(ADMIN_AUTH_KEY) === 'true';
     } catch {
       return false;
     }
@@ -401,6 +477,133 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const previousOrderCountRef = useRef<number>(allOrders.length);
   const [serverSyncStatus, setServerSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
+
+  // Categories / Collections
+  const [categories, setCategories] = useState<Category[]>(() => {
+    try {
+      const saved = localStorage.getItem(CATEGORIES_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return KFC_CATEGORIES;
+  });
+
+  const addCategory = (cat: Category) => {
+    const next = [...categories, cat];
+    setCategories(next);
+    localStorage.setItem(CATEGORIES_KEY, JSON.stringify(next));
+  };
+
+  // VIP Club
+  const [vipTiers] = useState<VipTier[]>(DEFAULT_VIP_TIERS);
+  const [vipRequests, setVipRequests] = useState<VipMembershipRequest[]>(() => {
+    try {
+      const saved = localStorage.getItem(VIP_REQUESTS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'vip-req-sample-1',
+        customerId: 'cust-demo-1',
+        customerName: 'Chaudhry Bilal (Civil Lines)',
+        phone: '03001234567',
+        tierId: 'platinum',
+        amount: 999,
+        paymentMethod: 'jazzcash',
+        transactionId: 'JC-8829104',
+        requestedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+        status: 'approved',
+        approvedAt: new Date().toISOString(),
+      },
+    ];
+  });
+  const [isVipModalOpen, setIsVipModalOpen] = useState(false);
+
+  // Loyalty Program Full Section
+  const [loyaltyTransactions, setLoyaltyTransactions] = useState<LoyaltyTransaction[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOYALTY_TX_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'tx-welcome-bonus',
+        customerId: 'all',
+        type: 'bonus',
+        points: 50,
+        description: 'KFC Chakwal Welcome Loyalty Bonus',
+        date: new Date(Date.now() - 86400000 * 3).toISOString(),
+      },
+    ];
+  });
+  const [isLoyaltyModalOpen, setIsLoyaltyModalOpen] = useState(false);
+  const [pointsEarnedNotice, setPointsEarnedNotice] = useState<number | null>(null);
+  const clearPointsEarnedNotice = () => setPointsEarnedNotice(null);
+
+  // Daily Deals Open Popup (auto open once per session unless dismissed)
+  const [isDailyDealsPopupOpen, setIsDailyDealsPopupOpen] = useState<boolean>(() => {
+    try {
+      return !sessionStorage.getItem('kfc_daily_deal_popup_dismissed');
+    } catch {
+      return true;
+    }
+  });
+
+  // Abandoned Checkouts & Real-time Live Stats
+  const [abandonedCheckouts, setAbandonedCheckouts] = useState<AbandonedCheckout[]>(() => {
+    try {
+      const saved = localStorage.getItem(ABANDONED_CHECKOUTS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'ab-sample-1',
+        customerName: 'Kamran Haider',
+        phone: '03215551234',
+        address: 'Talagang Road, Chakwal',
+        items: [],
+        cartTotal: 1850,
+        createdAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
+        recoveryStatus: 'pending',
+      },
+      {
+        id: 'ab-sample-2',
+        customerName: 'Zainab Bibi',
+        phone: '03335559876',
+        address: 'Bhaun Chowk, Chakwal',
+        items: [],
+        cartTotal: 2490,
+        createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+        recoveryStatus: 'message_sent',
+        lastMessageSentAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+      },
+    ];
+  });
+
+  const [liveStats] = useState<LiveStoreStats>({
+    activeVisitors: 34,
+    openCartsCount: 8,
+    openCartsValue: 18450,
+    checkoutsInProgress: 3,
+  });
+
+  // Marketing Campaigns
+  const [marketingCampaigns, setMarketingCampaigns] = useState<MarketingCampaign[]>(() => {
+    try {
+      const saved = localStorage.getItem(MARKETING_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'camp-1',
+        title: 'Friday Mega Bucket Weekend Blast',
+        channel: 'whatsapp',
+        audience: 'all',
+        message: 'Assalam o Alaikum! Aaj Friday Special: Flat 4% OFF on Daily 5 Meal Boxes. Kallar Kahar se fresh KFC Chakwal deliver karein!',
+        sentCount: 142,
+        sentAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+      },
+    ];
+  });
 
   // SERVER SYNC
   useEffect(() => {
@@ -443,6 +646,86 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const interval = setInterval(loadServerData, 12000);
     return () => clearInterval(interval);
   }, []);
+
+  // =========================================================================
+  // ANDROID & MOBILE HARDWARE / GESTURE BACK BUTTON HANDLING
+  // Ensures hardware back button closes the top-most modal/drawer rather than
+  // abruptly exiting the application.
+  // =========================================================================
+  const hasModalOrSubpageOpen = Boolean(
+    selectedItemForCustomization ||
+    isCheckoutOpen ||
+    isCartOpen ||
+    isCustomerAuthModalOpen ||
+    isPoliciesModalOpen ||
+    isAdminLoginModalOpen ||
+    activeOrder ||
+    currentView !== 'home'
+  );
+
+  const prevModalOpenStateRef = useRef(false);
+
+  useEffect(() => {
+    if (hasModalOrSubpageOpen && !prevModalOpenStateRef.current) {
+      window.history.pushState({ kfcModalLayer: true }, '');
+    } else if (!hasModalOrSubpageOpen && prevModalOpenStateRef.current) {
+      if (window.history.state?.kfcModalLayer) {
+        window.history.back();
+      }
+    }
+    prevModalOpenStateRef.current = hasModalOrSubpageOpen;
+  }, [hasModalOrSubpageOpen]);
+
+  useEffect(() => {
+    const handleAndroidBack = () => {
+      // Close top-most modal layer first
+      if (selectedItemForCustomization) {
+        setSelectedItemForCustomization(null);
+        return;
+      }
+      if (isCheckoutOpen) {
+        setIsCheckoutOpen(false);
+        return;
+      }
+      if (isCartOpen) {
+        setIsCartOpen(false);
+        return;
+      }
+      if (isCustomerAuthModalOpen) {
+        setIsCustomerAuthModalOpen(false);
+        return;
+      }
+      if (isPoliciesModalOpen) {
+        setIsPoliciesModalOpen(false);
+        return;
+      }
+      if (isAdminLoginModalOpen) {
+        setIsAdminLoginModalOpen(false);
+        return;
+      }
+      if (activeOrder) {
+        setActiveOrder(null);
+        return;
+      }
+      if (currentView !== 'home') {
+        setCurrentView('home');
+        setSelectedProduct(null);
+        return;
+      }
+    };
+
+    window.addEventListener('popstate', handleAndroidBack);
+    return () => window.removeEventListener('popstate', handleAndroidBack);
+  }, [
+    selectedItemForCustomization,
+    isCheckoutOpen,
+    isCartOpen,
+    isCustomerAuthModalOpen,
+    isPoliciesModalOpen,
+    isAdminLoginModalOpen,
+    activeOrder,
+    currentView
+  ]);
 
   const syncStoreToServer = async (customPayload?: Record<string, any>) => {
     try {
@@ -557,7 +840,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loginAdmin = (pin: string): boolean => {
     if (pin.trim() === settings.adminPin || pin.trim() === '7860') {
       setIsAdmin(true);
-      sessionStorage.setItem(ADMIN_AUTH_KEY, 'true');
+      localStorage.setItem(ADMIN_AUTH_KEY, 'true');
       setIsAdminLoginModalOpen(false);
       return true;
     }
@@ -566,9 +849,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const logoutAdmin = () => {
     setIsAdmin(false);
-    sessionStorage.removeItem(ADMIN_AUTH_KEY);
+    localStorage.removeItem(ADMIN_AUTH_KEY);
     const url = new URL(window.location.href);
     url.searchParams.delete('admin');
+    url.searchParams.delete('app');
     window.history.replaceState({}, '', url.pathname);
   };
 
@@ -713,15 +997,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 
   // DISCOUNTS ENGINE
+  const now = new Date();
+  const isDiscountDateValid = (d: Discount) => {
+    if (d.startDate && new Date(d.startDate) > now) return false;
+    if (d.endDate && new Date(d.endDate) < now) return false;
+    return true;
+  };
+
   let appliedDiscount: Discount | null = null;
   if (appliedDiscountCode) {
     const found = discounts.find(
-      (d) => d.code.toUpperCase() === appliedDiscountCode.toUpperCase() && d.status === 'active'
+      (d) => d.code.toUpperCase() === appliedDiscountCode.toUpperCase() && d.status === 'active' && isDiscountDateValid(d)
     );
     if (found) appliedDiscount = found;
   } else {
     const autoDiscounts = discounts.filter(
-      (d) => d.isAutomatic && d.status === 'active' && (!d.minOrderAmount || cartSubtotal >= d.minOrderAmount)
+      (d) => d.isAutomatic && d.status === 'active' && isDiscountDateValid(d) && (!d.minOrderAmount || cartSubtotal >= d.minOrderAmount)
     );
     if (autoDiscounts.length > 0) appliedDiscount = autoDiscounts[0];
   }
@@ -759,6 +1050,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const disc = discounts.find((d) => d.code.toUpperCase() === clean);
     if (!disc) return { success: false, message: `Discount code "${clean}" not found` };
     if (disc.status !== 'active') return { success: false, message: `Discount code "${clean}" is not active` };
+    
+    // Check start and end date/time
+    const currentNow = new Date();
+    if (disc.startDate && new Date(disc.startDate) > currentNow) {
+      return {
+        success: false,
+        message: `Discount code "${clean}" starts on ${new Date(disc.startDate).toLocaleDateString()} at ${new Date(disc.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      };
+    }
+    if (disc.endDate && new Date(disc.endDate) < currentNow) {
+      return {
+        success: false,
+        message: `Discount code "${clean}" expired on ${new Date(disc.endDate).toLocaleDateString()}`,
+      };
+    }
+
     if (disc.minOrderAmount && cartSubtotal < disc.minOrderAmount) {
       return {
         success: false,
@@ -813,8 +1120,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const maxRedeemablePoints = canRedeemPoints ? Math.min(userPoints, subtotalAfterCoupon) : 0;
   const loyaltyDiscountAmount = isRedeemingPoints && canRedeemPoints ? maxRedeemablePoints : 0;
 
+  // VIP Membership Lifetime Discount Engine (Flat 3%, 6%, or 8% OFF for approved VIPs)
+  const activeVipTier = DEFAULT_VIP_TIERS.find((t) => t.id === currentUser?.vipTier);
+  const isVipActive = Boolean(currentUser?.vipStatus === 'active' && activeVipTier);
+  const vipDiscountAmount = isVipActive && cartSubtotal > 0 && activeVipTier
+    ? Math.round((cartSubtotal * activeVipTier.discountPercentage) / 100)
+    : 0;
+
   // Potential points to earn: 10 points for every 300 Rs spent on food
-  const netFoodPaid = Math.max(0, cartSubtotal - discountAmount - loyaltyDiscountAmount);
+  const netFoodPaid = Math.max(0, cartSubtotal - discountAmount - loyaltyDiscountAmount - vipDiscountAmount);
   const potentialPointsToEarn = Math.floor(netFoodPaid / 300) * 10;
 
   // Effective Delivery Fee from Selected Delivery Method
@@ -826,7 +1140,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Cart Grand Total
   const cartTotal = cartSubtotal > 0
-    ? Math.max(0, cartSubtotal - discountAmount - loyaltyDiscountAmount) + effectiveDeliveryFee
+    ? Math.max(0, cartSubtotal - discountAmount - loyaltyDiscountAmount - vipDiscountAmount) + effectiveDeliveryFee
     : 0;
 
   // Cart operations
@@ -889,7 +1203,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
-  const createOrder = (customer: CustomerDetails, paymentMethod: PaymentMethod): Order => {
+  const createOrder = (
+    customer: CustomerDetails, 
+    paymentMethod: PaymentMethod,
+    specialInstructions?: string
+  ): Order => {
     const rawKfcSubtotal = cart.reduce((acc, ci) => {
       const baseRaw = ci.menuItem.baseKfcPrice;
       const addons = ci.options.addons.reduce((a, b) => a + b.price, 0);
@@ -911,17 +1229,71 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       loyaltyPointsEarned: potentialPointsToEarn,
       loyaltyPointsRedeemed: actualLoyaltyDiscount,
       loyaltyDiscount: actualLoyaltyDiscount,
+      vipDiscount: vipDiscountAmount,
+      vipTierApplied: isVipActive && currentUser?.vipTier ? currentUser.vipTier : undefined,
       total: cartTotal,
-      customer,
+      customer: {
+        ...customer,
+        notes: specialInstructions || customer.notes,
+      },
+      specialInstructions: specialInstructions || customer.notes,
       paymentMethod,
       status: 'confirmed',
     };
 
-    // Update Customer loyalty balance
+    // Loyalty Points notification and transaction history recording
+    if (potentialPointsToEarn > 0) {
+      setPointsEarnedNotice(potentialPointsToEarn);
+      const earnTx: LoyaltyTransaction = {
+        id: `tx-${Date.now()}-earn`,
+        customerId: currentUser?.id || 'guest',
+        type: 'earned',
+        points: potentialPointsToEarn,
+        description: `Earned on Order #${newOrder.id.slice(-6)}`,
+        orderId: newOrder.id,
+        date: new Date().toISOString(),
+      };
+      setLoyaltyTransactions((prev) => {
+        const next = [earnTx, ...prev];
+        localStorage.setItem(LOYALTY_TX_KEY, JSON.stringify(next));
+        return next;
+      });
+    }
+
+    if (actualLoyaltyDiscount > 0) {
+      const redeemTx: LoyaltyTransaction = {
+        id: `tx-${Date.now()}-redeem`,
+        customerId: currentUser?.id || 'guest',
+        type: 'redeemed',
+        points: actualLoyaltyDiscount,
+        description: `Redeemed on Order #${newOrder.id.slice(-6)}`,
+        orderId: newOrder.id,
+        date: new Date().toISOString(),
+      };
+      setLoyaltyTransactions((prev) => {
+        const next = [redeemTx, ...prev];
+        localStorage.setItem(LOYALTY_TX_KEY, JSON.stringify(next));
+        return next;
+      });
+    }
+
+    // Update Customer loyalty balance & address book
     if (currentUser) {
+      const existingAddresses = currentUser.savedAddresses || [];
+      const hasAddr = existingAddresses.some(
+        (a) => a.address.toLowerCase().trim() === customer.address.toLowerCase().trim()
+      );
+      const updatedAddresses = hasAddr
+        ? existingAddresses
+        : [...existingAddresses, { id: `addr-${Date.now()}`, label: 'Recent Order', address: customer.address.trim() }];
+
       const updatedBalance = Math.max(0, (currentUser.loyaltyPoints || 0) - actualLoyaltyDiscount) + potentialPointsToEarn;
-      const updatedUser = {
+      const updatedUser: CustomerUser = {
         ...currentUser,
+        fullName: customer.fullName || currentUser.fullName,
+        phone: customer.phone || currentUser.phone,
+        address: customer.address || currentUser.address,
+        savedAddresses: updatedAddresses,
         loyaltyPoints: updatedBalance,
       };
       setCurrentUser(updatedUser);
@@ -1018,9 +1390,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Customer User Auth
   const signupUser = (data: { fullName: string; phone: string; address: string; email?: string }) => {
+    const initialAddresses: CustomerAddress[] = [
+      {
+        id: `addr-${Date.now()}`,
+        label: 'Home',
+        address: data.address.trim(),
+        isDefault: true,
+      },
+    ];
     const newUser: CustomerUser = {
       id: `usr-${Date.now()}`,
       ...data,
+      savedAddresses: initialAddresses,
       loyaltyPoints: 50, // 50 Welcome bonus loyalty points!
       createdAt: new Date().toISOString(),
     };
@@ -1053,11 +1434,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return true;
     }
     const existing = customerRecords.find((c) => c.phone === phone);
+    const existingAddr = existing?.address || 'Within 3 KM (Chakwal City)';
     const newUser: CustomerUser = {
       id: existing?.id || `usr-${Date.now()}`,
       fullName: existing?.fullName || 'Customer',
       phone,
-      address: existing?.address || 'Within 3 KM (Chakwal City)',
+      address: existingAddr,
+      savedAddresses: [
+        {
+          id: `addr-${Date.now()}`,
+          label: 'Default Address',
+          address: existingAddr,
+          isDefault: true,
+        },
+      ],
       loyaltyPoints: existing?.loyaltyPoints ?? 50,
       createdAt: existing?.createdAt || new Date().toISOString(),
     };
@@ -1065,6 +1455,53 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(newUser));
     setIsCustomerAuthModalOpen(false);
     return true;
+  };
+
+  const addSavedAddress = (label: string, address: string) => {
+    if (!currentUser) return;
+    const newAddr: CustomerAddress = {
+      id: `addr-${Date.now()}`,
+      label: label.trim() || 'Address',
+      address: address.trim(),
+    };
+    const currentList = currentUser.savedAddresses || [];
+    const updatedUser: CustomerUser = {
+      ...currentUser,
+      address: address.trim(),
+      savedAddresses: [...currentList, newAddr],
+    };
+    setCurrentUser(updatedUser);
+    localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+
+    fetch('/api/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedUser),
+    }).catch(() => {});
+  };
+
+  const deleteSavedAddress = (addressId: string) => {
+    if (!currentUser) return;
+    const currentList = currentUser.savedAddresses || [];
+    const filtered = currentList.filter((a) => a.id !== addressId);
+    const updatedUser: CustomerUser = {
+      ...currentUser,
+      address: filtered[0]?.address || currentUser.address,
+      savedAddresses: filtered,
+    };
+    setCurrentUser(updatedUser);
+    localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+  };
+
+  const repeatOrder = (order: Order) => {
+    if (!order.items || order.items.length === 0) return;
+    setCart(
+      order.items.map((ci) => ({
+        ...ci,
+        cartItemId: `${ci.menuItem.id}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      }))
+    );
+    setIsCartOpen(true);
   };
 
   const logoutUser = () => {
@@ -1114,6 +1551,215 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteCustomSection = (sectionId: string) => {
     const current = settings.customSections || [];
     updateSettings({ customSections: current.filter((s) => s.id !== sectionId) });
+  };
+
+  // VIP Membership Actions
+  const requestVipMembership = (
+    tierId: VipTierId,
+    paymentMethod: 'jazzcash' | 'easypaisa' | 'bank_transfer',
+    transactionId: string
+  ) => {
+    const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
+    const newReq: VipMembershipRequest = {
+      id: `vip-req-${Date.now()}`,
+      customerId: currentUser?.id || `cust-${Date.now()}`,
+      customerName: currentUser?.fullName || 'VIP Customer',
+      phone: currentUser?.phone || '03252777574',
+      tierId,
+      amount: tier.price,
+      paymentMethod,
+      transactionId,
+      requestedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+    const nextReqs = [newReq, ...vipRequests];
+    setVipRequests(nextReqs);
+    localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(nextReqs));
+
+    if (currentUser) {
+      const updatedUser: CustomerUser = {
+        ...currentUser,
+        vipTier: tierId,
+        vipStatus: 'pending',
+      };
+      setCurrentUser(updatedUser);
+      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+    }
+  };
+
+  const approveVipRequest = (requestId: string) => {
+    const req = vipRequests.find((r) => r.id === requestId);
+    if (!req) return;
+    const nextReqs = vipRequests.map((r) =>
+      r.id === requestId ? { ...r, status: 'approved' as const, approvedAt: new Date().toISOString() } : r
+    );
+    setVipRequests(nextReqs);
+    localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(nextReqs));
+
+    if (currentUser && (currentUser.id === req.customerId || currentUser.phone === req.phone)) {
+      const updatedUser: CustomerUser = {
+        ...currentUser,
+        vipTier: req.tierId,
+        vipStatus: 'active',
+      };
+      setCurrentUser(updatedUser);
+      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+    }
+
+    setCustomerRecords((prev) =>
+      prev.map((c) => (c.phone === req.phone ? { ...c, vipTier: req.tierId } : c))
+    );
+  };
+
+  const rejectVipRequest = (requestId: string) => {
+    const nextReqs = vipRequests.map((r) =>
+      r.id === requestId ? { ...r, status: 'rejected' as const } : r
+    );
+    setVipRequests(nextReqs);
+    localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(nextReqs));
+  };
+
+  // Custom Domain Integration
+  const updateCustomDomain = (newConfig: Partial<CustomDomainConfig>) => {
+    const updated = { ...(settings.customDomain || DEFAULT_CUSTOM_DOMAIN_CONFIG), ...newConfig };
+    updateSettings({ customDomain: updated });
+  };
+
+  // Meta Commerce (Facebook & Instagram Ads Manager)
+  const updateMetaCommerce = (newConfig: Partial<MetaCommerceConfig>) => {
+    const updated = { ...(settings.metaCommerce || DEFAULT_META_COMMERCE_CONFIG), ...newConfig };
+    updateSettings({ metaCommerce: updated });
+  };
+
+  // Automated 12-Hour Review Collection Flow
+  const updateAutoReview = (newConfig: Partial<AutoReviewConfig>) => {
+    const updated = { ...(settings.autoReview || DEFAULT_AUTO_REVIEW_CONFIG), ...newConfig };
+    updateSettings({ autoReview: updated });
+  };
+
+  const sendReviewCollectionWhatsapp = (order: Order) => {
+    const cleanPhone = order.customer.phone.replace(/[^0-9]/g, '');
+    const intlPhone = cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
+    const text = encodeURIComponent(
+      `Assalam o Alaikum ${order.customer.fullName}! Umeed hai aap ka KFC meal bohot crispy aur lazeez tha. Baraye meherbani 1 minute nikaal kar apna review submit karein: ${window.location.origin}/#reviews - Review par aapko 20 FREE KFC Loyalty Points milenge!`
+    );
+    window.open(`https://wa.me/${intlPhone}?text=${text}`, '_blank');
+  };
+
+  // Abandoned Checkouts
+  const recordAbandonedCheckout = (customer: CustomerDetails) => {
+    if (!customer.phone || cart.length === 0) return;
+    const existing = abandonedCheckouts.find((c) => c.phone === customer.phone && c.recoveryStatus === 'pending');
+    if (existing) return;
+
+    const newAb: AbandonedCheckout = {
+      id: `ab-${Date.now()}`,
+      customerName: customer.fullName || 'Guest',
+      phone: customer.phone,
+      address: customer.address,
+      items: [...cart],
+      cartTotal,
+      createdAt: new Date().toISOString(),
+      recoveryStatus: 'pending',
+    };
+    const next = [newAb, ...abandonedCheckouts];
+    setAbandonedCheckouts(next);
+    localStorage.setItem(ABANDONED_CHECKOUTS_KEY, JSON.stringify(next));
+  };
+
+  const markAbandonedCheckoutRecovered = (id: string) => {
+    const next = abandonedCheckouts.map((a) => (a.id === id ? { ...a, recoveryStatus: 'recovered' as const } : a));
+    setAbandonedCheckouts(next);
+    localStorage.setItem(ABANDONED_CHECKOUTS_KEY, JSON.stringify(next));
+  };
+
+  const sendAbandonedRecoveryWhatsapp = (checkout: AbandonedCheckout) => {
+    const cleanPhone = checkout.phone.replace(/[^0-9]/g, '');
+    const intlPhone = cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
+    const itemsSummary = checkout.items.map((i) => `${i.quantity}x ${i.menuItem.name}`).join(', ') || 'KFC Meal';
+    const text = encodeURIComponent(
+      `Assalam o Alaikum ${checkout.customerName}! Aap ka KFC Chakwal Delivery bucket ready hai (${itemsSummary}) Total: Rs. ${checkout.cartTotal}. Kya aap abhi order confirm karna chahte hain? Hum Kallar Kahar se fresh KFC lekar aa rahe hain!`
+    );
+    window.open(`https://wa.me/${intlPhone}?text=${text}`, '_blank');
+
+    const next = abandonedCheckouts.map((a) =>
+      a.id === checkout.id ? { ...a, recoveryStatus: 'message_sent' as const, lastMessageSentAt: new Date().toISOString() } : a
+    );
+    setAbandonedCheckouts(next);
+    localStorage.setItem(ABANDONED_CHECKOUTS_KEY, JSON.stringify(next));
+  };
+
+  // Bulk Marketing Campaigns
+  const createMarketingBroadcast = (campaign: Omit<MarketingCampaign, 'id' | 'sentAt'>) => {
+    const newCamp: MarketingCampaign = {
+      ...campaign,
+      id: `camp-${Date.now()}`,
+      sentAt: new Date().toISOString(),
+    };
+    const next = [newCamp, ...marketingCampaigns];
+    setMarketingCampaigns(next);
+    localStorage.setItem(MARKETING_KEY, JSON.stringify(next));
+  };
+
+  // Customers Import & Export
+  const exportCustomersCSV = () => {
+    const headers = ['ID', 'Full Name', 'Phone', 'Email', 'Address', 'Loyalty Points', 'VIP Tier', 'Total Orders', 'Total Spent (PKR)', 'Joined Date'];
+    const rows = customerRecords.map((c) => [
+      c.id,
+      `"${(c.fullName || '').replace(/"/g, '""')}"`,
+      `"${c.phone || ''}"`,
+      `"${c.email || ''}"`,
+      `"${(c.address || '').replace(/"/g, '""')}"`,
+      c.loyaltyPoints || 0,
+      c.vipTier || 'None',
+      c.totalOrdersCount || 0,
+      c.totalSpent || 0,
+      c.createdAt || '',
+    ]);
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  };
+
+  const importCustomersCSV = (csvText: string) => {
+    try {
+      const lines = csvText.split('\n').filter((l) => l.trim().length > 0);
+      if (lines.length < 2) return { imported: 0, errors: 1 };
+      
+      const newRecords: CustomerLoyaltyRecord[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(',').map((p) => p.trim().replace(/^["']|["']$/g, ''));
+        if (parts.length >= 2) {
+          const name = parts[1] || parts[0];
+          const phone = parts[2] || parts[1];
+          const email = parts[3] || '';
+          const address = parts[4] || '';
+          const points = parseInt(parts[5], 10) || 50;
+          if (phone) {
+            newRecords.push({
+              id: `cust-imp-${Date.now()}-${i}`,
+              fullName: name || 'Customer',
+              phone: phone,
+              email: email,
+              address: address || 'Chakwal',
+              loyaltyPoints: points,
+              totalOrdersCount: 1,
+              totalSpent: 1200,
+              createdAt: new Date().toISOString(),
+            });
+          }
+        }
+      }
+      if (newRecords.length > 0) {
+        setCustomerRecords((prev) => {
+          const merged = [...newRecords, ...prev.filter((p) => !newRecords.some((n) => n.phone === p.phone))];
+          localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(merged));
+          return merged;
+        });
+        return { imported: newRecords.length, errors: 0 };
+      }
+      return { imported: 0, errors: 1 };
+    } catch {
+      return { imported: 0, errors: 1 };
+    }
   };
 
   return (
@@ -1228,6 +1874,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         signupUser,
         loginUser,
         logoutUser,
+        addSavedAddress,
+        deleteSavedAddress,
+        repeatOrder,
         isCustomerAuthModalOpen,
         setIsCustomerAuthModalOpen,
         allOrders,
@@ -1235,6 +1884,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateOrderStatus,
         isOrdersDashboardOpen,
         setIsOrdersDashboardOpen,
+        vipTiers,
+        vipRequests,
+        isVipModalOpen,
+        setIsVipModalOpen,
+        requestVipMembership,
+        approveVipRequest,
+        rejectVipRequest,
+        vipDiscountAmount,
+        loyaltyTransactions,
+        isLoyaltyModalOpen,
+        setIsLoyaltyModalOpen,
+        pointsEarnedNotice,
+        clearPointsEarnedNotice,
+        isDailyDealsPopupOpen,
+        setIsDailyDealsPopupOpen,
+        updateCustomDomain,
+        updateMetaCommerce,
+        liveStats,
+        abandonedCheckouts,
+        recordAbandonedCheckout,
+        markAbandonedCheckoutRecovered,
+        sendAbandonedRecoveryWhatsapp,
+        updateAutoReview,
+        sendReviewCollectionWhatsapp,
+        marketingCampaigns,
+        createMarketingBroadcast,
+        exportCustomersCSV,
+        importCustomersCSV,
+        categories,
+        addCategory,
       }}
     >
       {children}

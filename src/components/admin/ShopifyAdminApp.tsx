@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { 
   LayoutDashboard, 
@@ -43,26 +43,51 @@ import {
   AlertCircle,
   DollarSign,
   Lock,
-  ArrowRight
+  ArrowRight,
+  Calendar,
+  TrendingUp,
+  BarChart2,
+  Download,
+  Globe,
+  Crown,
+  Send,
+  UserCheck,
+  Printer,
+  UploadCloud,
+  FolderPlus,
+  Boxes,
+  CheckCircle2,
+  Activity,
+  MessageCircle,
+  Mail,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { DiscountsManager } from './DiscountsManager';
 import { PageSectionsBuilder } from '../PageSectionsBuilder';
 import { CsvProductImporter } from '../CsvProductImporter';
-import { CategoryId, MenuItem, StorePolicy, DeliveryMethod, DailyDealConfig } from '../../types';
+import { ImageUploadPicker } from '../ImageUploadPicker';
+import { CustomDomainManager } from './CustomDomainManager';
+import { MetaAdsManager } from './MetaAdsManager';
+import { VipClubManager } from './VipClubManager';
+import { CategoryId, MenuItem, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant } from '../../types';
 import { KFC_CATEGORIES } from '../../data/kfcMenu';
 
 type SellerTab = 
   | 'dashboard'
   | 'orders'
+  | 'abandoned'
   | 'products'
   | 'daily-deals'
+  | 'customers'
+  | 'vip-club'
+  | 'marketing'
+  | 'domains'
   | 'delivery-methods'
-  | 'loyalty'
   | 'discounts'
   | 'online-store'
   | 'policies'
   | 'reviews'
-  | 'csv-import'
   | 'links'
   | 'settings';
 
@@ -107,6 +132,17 @@ export const ShopifyAdminApp: React.FC = () => {
     logoutAdmin,
     playOrderSound,
     goHome,
+    liveStats,
+    abandonedCheckouts,
+    sendAbandonedRecoveryWhatsapp,
+    markAbandonedCheckoutRecovered,
+    exportCustomersCSV,
+    importCustomersCSV,
+    marketingCampaigns,
+    createMarketingBroadcast,
+    sendReviewCollectionWhatsapp,
+    categories,
+    addCategory,
   } = useStore();
 
   const [sellerPinInput, setSellerPinInput] = useState('');
@@ -116,9 +152,48 @@ export const ShopifyAdminApp: React.FC = () => {
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState<CategoryId | 'all'>('all');
 
-  // Product Edit Modal (Fully Editable: Title, Desc, Price, Category, Image)
+  // Products sub-tabs inside products section
+  const [productSubTab, setProductSubTab] = useState<'catalog' | 'inventory' | 'collections' | 'bulk-csv' | 'media-pdf' | 'meta-ads'>('catalog');
+
+  // Add Collection Modal state
+  const [isAddingCollection, setIsAddingCollection] = useState(false);
+  const [newColName, setNewColName] = useState('');
+  const [newColSubtitle, setNewColSubtitle] = useState('');
+  const [newColImage, setNewColImage] = useState('/src/assets/images/kfc_hero_zinger_combo_1791015805739.jpg');
+
+  // Customer Import / Export ref & state
+  const customerCsvInputRef = React.useRef<HTMLInputElement>(null);
+  const [customerImportNotice, setCustomerImportNotice] = useState<string | null>(null);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+
+  // Bulk Marketing Broadcast state
+  const [selectedMarketingCustomerIds, setSelectedMarketingCustomerIds] = useState<string[]>([]);
+  const [marketingChannel, setMarketingChannel] = useState<'whatsapp' | 'email'>('whatsapp');
+  const [marketingSubject, setMarketingSubject] = useState('🍗 Exclusive KFC Chakwal Offer!');
+  const [marketingMessage, setMarketingMessage] = useState('Assalam o Alaikum {name}! Special crispy KFC meal box deal is now live for Chakwal. Freshly picked from Kallar Kahar Motorway and delivered to your doorstep. Order now on WhatsApp or App!');
+  const [marketingStatusMessage, setMarketingStatusMessage] = useState<string | null>(null);
+
+  // New product multiple images, inventory, variants
+  const [newProdGallery, setNewProdGallery] = useState<string[]>([]);
+  const [newProdTrackInventory, setNewProdTrackInventory] = useState(false);
+  const [newProdStockQty, setNewProdStockQty] = useState(50);
+  const [newProdHasVariants, setNewProdHasVariants] = useState(false);
+  const [newProdVariants, setNewProdVariants] = useState<ProductVariant[]>([]);
+
+  // Product Edit Modal (Fully Editable: Title, Desc, Price, Category, Image, Inventory, Variants)
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
+
+  // Synchronize edit modal extended fields when editingItem changes
+  useEffect(() => {
+    if (editingItem) {
+      setNewProdGallery(editingItem.galleryImages || []);
+      setNewProdTrackInventory(editingItem.trackInventory || false);
+      setNewProdStockQty(editingItem.stockQuantity || 50);
+      setNewProdHasVariants(Boolean(editingItem.variants && editingItem.variants.length > 0));
+      setNewProdVariants(editingItem.variants || []);
+    }
+  }, [editingItem]);
 
   // New Product Form state
   const [newProdName, setNewProdName] = useState('');
@@ -155,6 +230,12 @@ export const ShopifyAdminApp: React.FC = () => {
 
   // Copied Link feedback
   const [copiedLink, setCopiedLink] = useState<'customer' | 'seller' | null>(null);
+
+  // Date-wise sales report state (Shopify Analytics)
+  const [salesDateRange, setSalesDateRange] = useState<'today' | 'yesterday' | '7days' | '30days' | 'month' | 'all' | 'custom'>('7days');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [copiedSalesReport, setCopiedSalesReport] = useState(false);
 
   // =========================================================================
   // LOGIN SCREEN (If not authenticated as seller)
@@ -241,10 +322,98 @@ export const ShopifyAdminApp: React.FC = () => {
     );
   }
 
-  // Dashboard calculations
+  // Dashboard calculations (All Time)
   const totalRevenue = allOrders.reduce((acc, o) => acc + (o.total || 0), 0);
   const pendingOrders = allOrders.filter((o) => o.status === 'confirmed' || o.status === 'kitchen').length;
   const deliveredOrders = allOrders.filter((o) => o.status === 'delivered').length;
+
+  // Date-wise Filtering (Shopify Sales Report)
+  const now = new Date();
+  const filteredOrdersByDate = allOrders.filter((o) => {
+    const oDate = new Date(o.date);
+    if (salesDateRange === 'today') {
+      const todayStr = now.toISOString().split('T')[0];
+      return o.date.startsWith(todayStr);
+    }
+    if (salesDateRange === 'yesterday') {
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      const yStr = y.toISOString().split('T')[0];
+      return o.date.startsWith(yStr);
+    }
+    if (salesDateRange === '7days') {
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return oDate >= sevenDaysAgo;
+    }
+    if (salesDateRange === '30days') {
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      return oDate >= thirtyDaysAgo;
+    }
+    if (salesDateRange === 'month') {
+      return oDate.getMonth() === now.getMonth() && oDate.getFullYear() === now.getFullYear();
+    }
+    if (salesDateRange === 'custom') {
+      if (customStartDate && new Date(customStartDate) > oDate) return false;
+      if (customEndDate && new Date(customEndDate + 'T23:59:59') < oDate) return false;
+      return true;
+    }
+    return true; // 'all'
+  });
+
+  const rangeNetRevenue = filteredOrdersByDate.reduce((acc, o) => acc + (o.total || 0), 0);
+  const rangeGrossSales = filteredOrdersByDate.reduce((acc, o) => acc + (o.subtotal || 0), 0);
+  const rangeTotalDiscounts = filteredOrdersByDate.reduce((acc, o) => acc + (o.discount || 0) + (o.loyaltyDiscount || 0), 0);
+  const rangeTotalDeliveryFees = filteredOrdersByDate.reduce((acc, o) => acc + (o.deliveryFee || 0), 0);
+  const rangeAov = filteredOrdersByDate.length > 0 ? Math.round(rangeNetRevenue / filteredOrdersByDate.length) : 0;
+
+  // Date-wise breakdown table
+  interface DateReportItem {
+    date: string;
+    ordersCount: number;
+    grossSales: number;
+    discounts: number;
+    deliveryFees: number;
+    netTotal: number;
+  }
+  const dateMap = new Map<string, DateReportItem>();
+  filteredOrdersByDate.forEach((ord) => {
+    const dStr = ord.date.split('T')[0];
+    const item = dateMap.get(dStr) || {
+      date: dStr,
+      ordersCount: 0,
+      grossSales: 0,
+      discounts: 0,
+      deliveryFees: 0,
+      netTotal: 0,
+    };
+    item.ordersCount += 1;
+    item.grossSales += ord.subtotal || 0;
+    item.discounts += (ord.discount || 0) + (ord.loyaltyDiscount || 0);
+    item.deliveryFees += ord.deliveryFee || 0;
+    item.netTotal += ord.total || 0;
+    dateMap.set(dStr, item);
+  });
+  const dateReports = Array.from(dateMap.values()).sort((a, b) => b.date.localeCompare(a.date));
+
+  // Top Selling Products in selected date range
+  const productCountMap = new Map<string, { id: string; name: string; quantity: number; revenue: number }>();
+  filteredOrdersByDate.forEach((ord) => {
+    ord.items.forEach((item) => {
+      const pid = item.menuItem.id;
+      const existing = productCountMap.get(pid) || {
+        id: pid,
+        name: item.menuItem.name,
+        quantity: 0,
+        revenue: 0,
+      };
+      existing.quantity += item.quantity;
+      existing.revenue += item.unitPrice * item.quantity;
+      productCountMap.set(pid, existing);
+    });
+  });
+  const topSellingProducts = Array.from(productCountMap.values())
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 5);
 
   const filteredProducts = menuItems.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(productSearch.toLowerCase());
@@ -282,6 +451,166 @@ export const ShopifyAdminApp: React.FC = () => {
     setNewProdSellingPrice('');
     setNewProdComparePrice('');
     setNewProdBadge('');
+    setNewProdGallery([]);
+    setNewProdTrackInventory(false);
+    setNewProdStockQty(50);
+    setNewProdHasVariants(false);
+    setNewProdVariants([]);
+  };
+
+  // Handle Add Collection Submit
+  const handleAddCollectionSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newColName.trim()) return;
+    const slug = newColName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+    const newCat: Category = {
+      id: slug as any,
+      name: newColName.trim(),
+      subtitle: newColSubtitle.trim() || 'Authentic KFC Chakwal favorites',
+      image: newColImage.trim(),
+    };
+    addCategory(newCat);
+    setIsAddingCollection(false);
+    setNewColName('');
+    setNewColSubtitle('');
+  };
+
+  // Products PDF Catalog Download (Print / Save as PDF)
+  const handleDownloadPdfCatalog = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to generate the KFC Menu PDF Catalog.');
+      return;
+    }
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>KFC Chakwal Delivery - Official Products Catalog</title>
+          <style>
+            @page { size: A4 portrait; margin: 10mm; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 16px; color: #18181b; }
+            .header { text-align: center; border-bottom: 3px solid #e4002b; padding-bottom: 12px; margin-bottom: 20px; }
+            .title { color: #e4002b; font-size: 26px; font-weight: 900; text-transform: uppercase; margin: 0; }
+            .subtitle { font-size: 13px; color: #3f3f46; margin: 4px 0; }
+            .contact { font-size: 11px; font-weight: bold; color: #71717a; }
+            .category-section { margin-bottom: 24px; page-break-inside: avoid; }
+            .cat-title { color: #e4002b; font-size: 16px; font-weight: 800; text-transform: uppercase; border-bottom: 1.5px solid #f43f5e; padding-bottom: 4px; margin-bottom: 10px; }
+            .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .item-card { border: 1px solid #e4e4e7; border-radius: 8px; padding: 8px; display: flex; gap: 10px; align-items: center; }
+            .item-img { width: 50px; height: 50px; border-radius: 6px; object-fit: cover; background: #eee; flex-shrink: 0; }
+            .item-info { flex: 1; min-width: 0; }
+            .item-name { font-size: 12px; font-weight: bold; margin: 0 0 2px 0; }
+            .item-desc { font-size: 10px; color: #71717a; margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .item-price { font-size: 12px; font-weight: 900; color: #e4002b; }
+            .footer { margin-top: 25px; border-top: 1px solid #e4e4e7; padding-top: 8px; text-align: center; font-size: 10px; color: #a1a1aa; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="title">🍗 KFC Chakwal Delivery · Official Menu Catalog</h1>
+            <p class="subtitle">Picked fresh from Kallar Kahar Motorway & delivered hot across Chakwal (within 3 KM)</p>
+            <p class="contact">Order via WhatsApp: +92 325 2777574 · Same-Day Delivery (Order before 4 PM, Delivered by 8 PM)</p>
+          </div>
+          ${categories.map(cat => {
+            const catItems = menuItems.filter(i => i.categoryId === cat.id);
+            if (catItems.length === 0) return '';
+            return `
+              <div class="category-section">
+                <div class="cat-title">${cat.name} (${catItems.length} Items)</div>
+                <div class="grid">
+                  ${catItems.map(i => `
+                    <div class="item-card">
+                      <img class="item-img" src="${i.image}" alt="" />
+                      <div class="item-info">
+                        <p class="item-name">${i.name}</p>
+                        <p class="item-desc">${i.description || ''}</p>
+                        <p class="item-price">Rs. ${i.sellingPrice || i.baseKfcPrice}</p>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+          <div class="footer">
+            KFC Chakwal Delivery Catalog · ${new Date().toLocaleDateString('en-PK')} · 100% Halal Verified Original KFC
+          </div>
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  // Export Product Images JSON/List
+  const handleExportProductImages = () => {
+    const imagesData = menuItems.map(m => ({
+      name: m.name,
+      category: m.categoryId,
+      price: m.sellingPrice || m.baseKfcPrice,
+      primaryImage: m.image,
+      gallery: m.galleryImages || []
+    }));
+    const blob = new Blob([JSON.stringify(imagesData, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `kfc_product_images_${Date.now()}.json`;
+    link.click();
+  };
+
+  // Export Customers to CSV
+  const handleExportCustomers = () => {
+    const csvContent = exportCustomersCSV();
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `kfc_chakwal_customers_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+  };
+
+  // Import Customers File
+  const handleImportCustomersFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (text) {
+        const result = importCustomersCSV(text);
+        setCustomerImportNotice(`✓ Successfully imported ${result.imported} customer records!`);
+        setTimeout(() => setCustomerImportNotice(null), 4000);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Bulk Marketing Send
+  const handleSendMarketingBroadcast = () => {
+    if (selectedMarketingCustomerIds.length === 0) {
+      alert('Please select at least one customer to broadcast message.');
+      return;
+    }
+    const recipients = customerRecords.filter(c => selectedMarketingCustomerIds.includes(c.id));
+    createMarketingBroadcast({
+      title: marketingSubject,
+      message: marketingMessage,
+      channel: marketingChannel,
+      targetAudience: `${recipients.length} Selected Customers`,
+      recipientCount: recipients.length,
+    });
+    setMarketingStatusMessage(`✓ Broadcast recorded for ${recipients.length} customers! Launching WhatsApp...`);
+    setTimeout(() => setMarketingStatusMessage(null), 4000);
+
+    if (recipients[0]?.phone) {
+      const cleanPhone = recipients[0].phone.replace(/[^0-9]/g, '');
+      const intlPhone = cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
+      const personalized = encodeURIComponent(marketingMessage.replace('{name}', recipients[0].fullName));
+      window.open(`https://wa.me/${intlPhone}?text=${personalized}`, '_blank');
+    }
   };
 
   // Handle Add Delivery Method Submit
@@ -430,16 +759,20 @@ export const ShopifyAdminApp: React.FC = () => {
             {/* Navigation Menu */}
             <nav className="space-y-1">
               {[
-                { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+                { id: 'dashboard', label: 'Dashboard & Realtime', icon: LayoutDashboard },
                 { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrders > 0 ? pendingOrders : undefined },
-                { id: 'products', label: 'Products & Menu', icon: UtensilsCrossed },
+                { id: 'abandoned', label: 'Abandoned Checkouts', icon: AlertCircle, badge: abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length > 0 ? abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length : undefined },
+                { id: 'products', label: 'Products & Catalog', icon: UtensilsCrossed },
                 { id: 'daily-deals', label: 'Daily 5 Deals (4% OFF)', icon: Flame },
+                { id: 'customers', label: 'Customers & Loyalty', icon: Users },
+                { id: 'vip-club', label: "Colonel's VIP Club", icon: Crown },
+                { id: 'marketing', label: 'WhatsApp Marketing', icon: Send },
+                { id: 'domains', label: 'Connect Custom Domain', icon: Globe },
                 { id: 'delivery-methods', label: 'Delivery Methods', icon: Truck },
-                { id: 'loyalty', label: 'Loyalty & Customers', icon: Award },
                 { id: 'discounts', label: 'Discounts & Codes', icon: Tag },
-                { id: 'online-store', label: 'Online Store & Sections', icon: Palette },
+                { id: 'online-store', label: 'Online Store & Theme', icon: Palette },
+                { id: 'reviews', label: 'Reviews & Auto 12-Hr Flow', icon: Star },
                 { id: 'policies', label: 'Store Policies', icon: FileText },
-                { id: 'csv-import', label: 'Shopify CSV Import', icon: FileSpreadsheet },
                 { id: 'links', label: 'Share & App Links', icon: Link2 },
                 { id: 'settings', label: 'Settings & Logos', icon: Settings },
               ].map((item) => {
@@ -483,31 +816,57 @@ export const ShopifyAdminApp: React.FC = () => {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
           
           {/* ========================================================================= */}
-          {/* TAB 1: DASHBOARD */}
+          {/* TAB 1: DASHBOARD (Shopify-Style Powerful Date-Wise Sales Analytics) */}
           {/* ========================================================================= */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
+              {/* Header & Quick Sync */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
                 <div>
-                  <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">
-                    Seller Overview
+                  <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight flex items-center gap-2">
+                    <TrendingUp className="w-6 h-6 text-[#e4002b]" />
+                    <span>Shopify-Style Sales & Operational Analytics</span>
                   </h2>
                   <p className="text-xs text-zinc-500 mt-1">
-                    Live operational metrics for KFC Chakwal Delivery service
+                    Date-wise financial reports, order metrics, and menu sales breakdown for KFC Chakwal.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const reportText = `🍗 KFC CHAKWAL SALES REPORT (${salesDateRange.toUpperCase()})\n` +
+                        `Period: ${salesDateRange === 'custom' ? `${customStartDate || 'Start'} to ${customEndDate || 'End'}` : salesDateRange}\n` +
+                        `Total Orders: ${filteredOrdersByDate.length}\n` +
+                        `Net Revenue: ${formatPKR(rangeNetRevenue)}\n` +
+                        `Gross Sales: ${formatPKR(rangeGrossSales)}\n` +
+                        `Total Discounts: ${formatPKR(rangeTotalDiscounts)}\n` +
+                        `Delivery Fees: ${formatPKR(rangeTotalDeliveryFees)}\n` +
+                        `Average Order Value (AOV): ${formatPKR(rangeAov)}\n` +
+                        `---------------------------------\n` +
+                        `DATE-WISE BREAKDOWN:\n` +
+                        dateReports.map(d => `${d.date}: ${d.ordersCount} orders | Net: ${formatPKR(d.netTotal)} | Disc: ${formatPKR(d.discounts)}`).join('\n');
+                      navigator.clipboard.writeText(reportText);
+                      setCopiedSalesReport(true);
+                      setTimeout(() => setCopiedSalesReport(false), 2500);
+                    }}
+                    className="bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    {copiedSalesReport ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedSalesReport ? 'Report Copied!' : 'Copy Report'}</span>
+                  </button>
+
                   <button
                     onClick={() => syncStoreToServer()}
-                    className="bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-sm"
+                    className="bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>Sync Customers</span>
                   </button>
+
                   <button
                     onClick={() => setIsAddingProduct(true)}
-                    className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-red-950/20"
+                    className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-red-950/20 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Add Product</span>
@@ -515,34 +874,245 @@ export const ShopifyAdminApp: React.FC = () => {
                 </div>
               </div>
 
-              {/* 4 Stat Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white border border-zinc-200 p-5 rounded-2xl shadow-sm space-y-2">
-                  <span className="text-xs font-bold text-zinc-500 uppercase">Total Sales</span>
-                  <p className="text-2xl font-black text-zinc-900 font-mono">{formatPKR(totalRevenue)}</p>
-                  <span className="text-[11px] text-emerald-600 font-bold">● {allOrders.length} orders total</span>
+              {/* REAL-TIME LIVE ACTIVITY BAR (Visitors, Open Carts, Checking Out) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                      <span>Realtime Live Visitors</span>
+                    </span>
+                    <p className="text-2xl font-black text-emerald-950 font-mono mt-1">{liveStats.activeVisitors} Active</p>
+                    <p className="text-[10px] text-emerald-700 mt-0.5">Customers browsing KFC Chakwal app right now</p>
+                  </div>
+                  <Activity className="w-8 h-8 text-emerald-600 opacity-80" />
                 </div>
 
-                <div className="bg-white border border-zinc-200 p-5 rounded-2xl shadow-sm space-y-2">
-                  <span className="text-xs font-bold text-zinc-500 uppercase">Pending Orders</span>
-                  <p className="text-2xl font-black text-amber-500 font-mono">{pendingOrders}</p>
-                  <span className="text-[11px] text-zinc-500">Needs processing</span>
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      <span>Active Open Carts</span>
+                    </span>
+                    <p className="text-2xl font-black text-amber-950 font-mono mt-1">{liveStats.openCartsCount} Buckets</p>
+                    <p className="text-[10px] text-amber-700 mt-0.5">Customers with hot meals in cart ({formatPKR(liveStats.openCartsValue)})</p>
+                  </div>
+                  <ShoppingBag className="w-8 h-8 text-amber-600 opacity-80" />
                 </div>
 
-                <div className="bg-white border border-zinc-200 p-5 rounded-2xl shadow-sm space-y-2">
-                  <span className="text-xs font-bold text-zinc-500 uppercase">Delivered</span>
-                  <p className="text-2xl font-black text-emerald-600 font-mono">{deliveredOrders}</p>
-                  <span className="text-[11px] text-zinc-500">Completed in Chakwal</span>
-                </div>
-
-                <div className="bg-white border border-zinc-200 p-5 rounded-2xl shadow-sm space-y-2">
-                  <span className="text-xs font-bold text-zinc-500 uppercase">Registered Customers</span>
-                  <p className="text-2xl font-black text-blue-600 font-mono">{customerRecords.length}</p>
-                  <span className="text-[11px] text-zinc-500">Loyalty points accounts</span>
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      <span>Checking Out Now</span>
+                    </span>
+                    <p className="text-2xl font-black text-blue-950 font-mono mt-1">{liveStats.checkoutsInProgress} People</p>
+                    <p className="text-[10px] text-blue-700 mt-0.5">Entering address & selecting payment</p>
+                  </div>
+                  <CreditCard className="w-8 h-8 text-blue-600 opacity-80" />
                 </div>
               </div>
 
-              {/* Quick Links Banner */}
+              {/* SHOPIFY-STYLE DATE RANGE FILTER BAR */}
+              <div className="bg-white border border-zinc-200 p-4 rounded-2xl shadow-sm space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700">
+                    <Calendar className="w-4 h-4 text-[#e4002b]" />
+                    <span>Select Reporting Date Range:</span>
+                  </div>
+
+                  <span className="text-[11px] text-zinc-500 font-medium">
+                    Showing <strong>{filteredOrdersByDate.length}</strong> orders in this time period
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 text-xs">
+                  {[
+                    { id: 'today', label: 'Today' },
+                    { id: 'yesterday', label: 'Yesterday' },
+                    { id: '7days', label: 'Last 7 Days' },
+                    { id: '30days', label: 'Last 30 Days' },
+                    { id: 'month', label: 'This Month' },
+                    { id: 'all', label: 'All Time' },
+                    { id: 'custom', label: 'Custom Range' },
+                  ].map((p) => {
+                    const isSelected = salesDateRange === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setSalesDateRange(p.id as any)}
+                        className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#e4002b] text-white shadow-sm'
+                            : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom Date Range Selector Inputs */}
+                {salesDateRange === 'custom' && (
+                  <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-2">
+                    <div>
+                      <label className="block text-zinc-600 font-bold mb-1">From Date:</label>
+                      <input
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-zinc-600 font-bold mb-1">To Date:</label>
+                      <input
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 5 KEY FINANCIAL PERFORMANCE CARDS (FOR SELECTED PERIOD) */}
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+                <div className="bg-white border border-zinc-200 p-4 rounded-2xl shadow-sm space-y-1">
+                  <span className="text-[11px] font-bold text-zinc-500 uppercase">Net Sales (PKR)</span>
+                  <p className="text-2xl font-black text-zinc-900 font-mono">{formatPKR(rangeNetRevenue)}</p>
+                  <span className="text-[10px] text-emerald-600 font-bold">● Total collected</span>
+                </div>
+
+                <div className="bg-white border border-zinc-200 p-4 rounded-2xl shadow-sm space-y-1">
+                  <span className="text-[11px] font-bold text-zinc-500 uppercase">Total Orders</span>
+                  <p className="text-2xl font-black text-blue-600 font-mono">{filteredOrdersByDate.length}</p>
+                  <span className="text-[10px] text-zinc-500">In selected period</span>
+                </div>
+
+                <div className="bg-white border border-zinc-200 p-4 rounded-2xl shadow-sm space-y-1">
+                  <span className="text-[11px] font-bold text-zinc-500 uppercase">Average Order (AOV)</span>
+                  <p className="text-2xl font-black text-purple-600 font-mono">{formatPKR(rangeAov)}</p>
+                  <span className="text-[10px] text-zinc-500">Average bill value</span>
+                </div>
+
+                <div className="bg-white border border-zinc-200 p-4 rounded-2xl shadow-sm space-y-1">
+                  <span className="text-[11px] font-bold text-zinc-500 uppercase">Delivery Fees</span>
+                  <p className="text-2xl font-black text-amber-600 font-mono">{formatPKR(rangeTotalDeliveryFees)}</p>
+                  <span className="text-[10px] text-zinc-500">Riders revenue</span>
+                </div>
+
+                <div className="bg-white border border-zinc-200 p-4 rounded-2xl shadow-sm space-y-1 col-span-2 lg:col-span-1">
+                  <span className="text-[11px] font-bold text-zinc-500 uppercase">Discounts Given</span>
+                  <p className="text-2xl font-black text-red-600 font-mono">{formatPKR(rangeTotalDiscounts)}</p>
+                  <span className="text-[10px] text-zinc-500">Coupons & loyalty points</span>
+                </div>
+              </div>
+
+              {/* DATE-WISE SALES REPORT TABLE (SHOPIFY POWERFUL REPORT) */}
+              <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden space-y-3 p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200 pb-3">
+                  <div>
+                    <h3 className="font-bold text-sm text-zinc-900 flex items-center gap-2">
+                      <BarChart2 className="w-4 h-4 text-[#e4002b]" />
+                      <span>Date-Wise Sales Breakdown</span>
+                    </h3>
+                    <p className="text-[11px] text-zinc-500">
+                      Day-by-day financial performance table with orders, gross sales, discounts, and net bill.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-bold text-zinc-600 bg-zinc-100 px-2.5 py-1 rounded-lg">
+                    {dateReports.length} Days Recorded
+                  </span>
+                </div>
+
+                {dateReports.length === 0 ? (
+                  <div className="text-center py-8 text-zinc-500 text-xs">
+                    Iss date range mein abhi tak koi order record nahi hai.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-zinc-200 text-zinc-500 font-bold uppercase text-[10px]">
+                          <th className="py-2.5 px-3">Date</th>
+                          <th className="py-2.5 px-3">Orders</th>
+                          <th className="py-2.5 px-3">Gross Sales</th>
+                          <th className="py-2.5 px-3">Discounts</th>
+                          <th className="py-2.5 px-3">Delivery Fees</th>
+                          <th className="py-2.5 px-3 text-right">Net Revenue (PKR)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {dateReports.map((report) => (
+                          <tr key={report.date} className="hover:bg-zinc-50/80 transition">
+                            <td className="py-2.5 px-3 font-mono font-bold text-zinc-900 flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+                              <span>{report.date}</span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold text-[11px]">
+                                {report.ordersCount} orders
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-zinc-700">{formatPKR(report.grossSales)}</td>
+                            <td className="py-2.5 px-3 font-mono text-red-600">
+                              {report.discounts > 0 ? `-${formatPKR(report.discounts)}` : 'Rs. 0'}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-amber-700">{formatPKR(report.deliveryFees)}</td>
+                            <td className="py-2.5 px-3 font-mono font-black text-[#e4002b] text-right text-sm">
+                              {formatPKR(report.netTotal)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* TOP SELLING PRODUCTS IN SELECTED PERIOD */}
+              <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm p-5 space-y-3">
+                <div className="flex items-center justify-between border-b border-zinc-200 pb-3">
+                  <div>
+                    <h3 className="font-bold text-sm text-zinc-900 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>Top Selling Menu Items (In Selected Period)</span>
+                    </h3>
+                    <p className="text-[11px] text-zinc-500">
+                      Most popular meals and combos ordered by Chakwal customers.
+                    </p>
+                  </div>
+                </div>
+
+                {topSellingProducts.length === 0 ? (
+                  <div className="text-center py-6 text-zinc-400 text-xs">
+                    Selected period mein product sales data available nahi hai.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {topSellingProducts.map((p, rank) => (
+                      <div key={p.id} className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5 truncate">
+                          <span className="w-6 h-6 rounded-full bg-[#e4002b] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                            #{rank + 1}
+                          </span>
+                          <span className="font-bold text-zinc-900 truncate">{p.name}</span>
+                        </div>
+                        <div className="text-right shrink-0 ml-2">
+                          <span className="font-bold text-emerald-600 block">{p.quantity} units</span>
+                          <span className="text-[10px] text-zinc-500 font-mono">{formatPKR(p.revenue)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Management Links Banner */}
               <div className="bg-gradient-to-r from-red-50 to-amber-50 border border-red-200 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <h3 className="font-bold text-zinc-900 text-sm flex items-center gap-2">
@@ -567,10 +1137,10 @@ export const ShopifyAdminApp: React.FC = () => {
                     Delivery Methods
                   </button>
                   <button
-                    onClick={() => setActiveTab('loyalty')}
+                    onClick={() => setActiveTab('customers')}
                     className="bg-white text-zinc-800 text-xs font-bold px-3 py-1.5 rounded-xl border border-zinc-300 hover:border-[#e4002b]"
                   >
-                    Customer Loyalty
+                    Customer Loyalty & Records
                   </button>
                 </div>
               </div>
@@ -730,137 +1300,594 @@ export const ShopifyAdminApp: React.FC = () => {
           )}
 
           {/* ========================================================================= */}
-          {/* TAB 3: PRODUCTS & MENU CATALOG (FULLY EDITABLE: TITLE, DESC, PRICE, IMAGES) */}
+          {/* TAB: ABANDONED CHECKOUTS & 10-MIN RECOVERY */}
           {/* ========================================================================= */}
-          {activeTab === 'products' && (
+          {activeTab === 'abandoned' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
                 <div>
                   <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight flex items-center gap-2">
-                    <UtensilsCrossed className="w-5 h-5 text-[#e4002b]" />
-                    <span>Product Catalog ({menuItems.length})</span>
+                    <AlertCircle className="w-5 h-5 text-[#e4002b]" />
+                    <span>Abandoned Checkouts & 10-Min Recovery ({abandonedCheckouts.length})</span>
                   </h2>
                   <p className="text-xs text-zinc-500 mt-1">
-                    Edit title, descriptions, direct selling prices, strike-through compare prices, and add or remove product images.
+                    Customers who added meals to bucket or entered address but dropped off. Send recovery WhatsApp within 10 minutes to recover the order.
                   </p>
                 </div>
-
-                <button
-                  onClick={() => setIsAddingProduct(true)}
-                  className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-md cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add New Product</span>
-                </button>
               </div>
 
-              {/* Search & Category Filter */}
-              <div className="flex flex-col sm:flex-row gap-3 bg-white p-3 rounded-2xl border border-zinc-200">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder="Search by product name..."
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-[#e4002b]"
-                  />
+              {/* Status Alert Banner */}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-amber-900">
+                      10-Minute Recovery Engine Active
+                    </p>
+                    <p className="text-[11px] text-amber-700 mt-0.5">
+                      Abandoned carts within 10 minutes have an 85% conversion recovery rate when pinged with personalized bucket details.
+                    </p>
+                  </div>
                 </div>
-
-                <select
-                  value={productCategoryFilter}
-                  onChange={(e) => setProductCategoryFilter(e.target.value as any)}
-                  className="bg-zinc-50 border border-zinc-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#e4002b]"
-                >
-                  <option value="all">All Categories ({menuItems.length})</option>
-                  {KFC_CATEGORIES.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-black text-amber-800 text-sm">
+                    {abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length} Pending Recovery
+                  </span>
+                </div>
               </div>
 
-              {/* Products Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredProducts.map((item) => {
-                  const effective = calculatePrice(item.baseKfcPrice, item.sellingPrice);
-                  const isCustom = item.sellingPrice !== undefined && item.sellingPrice > 0;
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="bg-white border border-zinc-200 rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition"
-                    >
-                      <div className="flex gap-3">
-                        <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-zinc-100 shrink-0 border border-zinc-200">
-                          {item.image ? (
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = '/src/assets/images/kfc_krunch_burger_1791015834419.jpg';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center p-1 text-[9px] text-zinc-400 text-center font-bold">
-                              <span>No Image</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <h4 className="font-bold text-sm text-zinc-900 truncate">{item.name}</h4>
-                          <p className="text-[11px] text-zinc-500 line-clamp-2">{item.description}</p>
-                          <div className="flex items-center gap-2 pt-1">
-                            <span className="font-mono font-bold text-sm text-[#e4002b]">{formatPKR(effective)}</span>
-                            {item.compareAtPrice && (
-                              <span className="text-xs text-zinc-400 line-through font-mono">{formatPKR(item.compareAtPrice)}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Card Actions */}
-                      <div className="border-t border-zinc-100 pt-3 flex items-center justify-between gap-2">
-                        <button
-                          onClick={() => toggleItemAvailability(item.id)}
-                          className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                            item.isAvailable
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-zinc-100 text-zinc-500'
-                          }`}
-                        >
-                          {item.isAvailable ? 'In Stock' : 'Out of Stock'}
-                        </button>
-
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => setEditingItem(item)}
-                            className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
-                          >
-                            <ImageIcon className="w-3.5 h-3.5" />
-                            <span>Edit All</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              if (confirm(`Delete ${item.name}?`)) deleteMenuItem(item.id);
-                            }}
-                            className="text-red-500 hover:text-red-700 p-1.5 cursor-pointer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              {/* Abandoned Checkouts Table */}
+              <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 font-bold uppercase">
+                      <tr>
+                        <th className="p-3.5">Customer & Phone</th>
+                        <th className="p-3.5">Address</th>
+                        <th className="p-3.5">Bucket Items</th>
+                        <th className="p-3.5">Cart Total</th>
+                        <th className="p-3.5">Time Dropped</th>
+                        <th className="p-3.5">Status</th>
+                        <th className="p-3.5 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {abandonedCheckouts.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-zinc-400">
+                            No abandoned checkouts right now. When customers leave items in bucket, they appear here.
+                          </td>
+                        </tr>
+                      ) : (
+                        abandonedCheckouts.map((ab) => (
+                          <tr key={ab.id} className="hover:bg-zinc-50">
+                            <td className="p-3.5 font-bold text-zinc-900">
+                              <div>{ab.customerName}</div>
+                              <div className="font-mono text-zinc-500 text-[11px] font-normal">{ab.phone}</div>
+                            </td>
+                            <td className="p-3.5 text-zinc-600 max-w-xs truncate">{ab.address || 'Chakwal'}</td>
+                            <td className="p-3.5 text-zinc-700">
+                              {ab.items && ab.items.length > 0
+                                ? ab.items.map(i => `${i.quantity}x ${i.menuItem.name}`).join(', ')
+                                : 'KFC Meal Box'}
+                            </td>
+                            <td className="p-3.5 font-mono font-bold text-[#e4002b] text-sm">
+                              {formatPKR(ab.cartTotal)}
+                            </td>
+                            <td className="p-3.5 text-zinc-500 font-mono text-[11px]">
+                              {new Date(ab.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td className="p-3.5">
+                              {ab.recoveryStatus === 'recovered' ? (
+                                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                  ✓ Recovered
+                                </span>
+                              ) : ab.recoveryStatus === 'message_sent' ? (
+                                <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                  Message Sent
+                                </span>
+                              ) : (
+                                <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                                  Pending Recovery
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => sendAbandonedRecoveryWhatsapp(ab)}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition inline-flex items-center gap-1 shadow-xs cursor-pointer active:scale-95"
+                                title="Send WhatsApp Recovery Message"
+                              >
+                                <Phone className="w-3 h-3" />
+                                <span>Recover via WhatsApp</span>
+                              </button>
+                              {ab.recoveryStatus !== 'recovered' && (
+                                <button
+                                  type="button"
+                                  onClick={() => markAbandonedCheckoutRecovered(ab.id)}
+                                  className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold px-2.5 py-1.5 rounded-xl transition cursor-pointer"
+                                >
+                                  Mark Won
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
 
           {/* ========================================================================= */}
-          {/* TAB 4: DAILY 5 DEALS (4% OFF) */}
+          {/* TAB 3: UNIFIED PRODUCTS CENTER (ALL TOOLS DIRECTLY INSIDE PRODUCTS TAB) */}
+          {/* ========================================================================= */}
+          {activeTab === 'products' && (
+            <div className="space-y-6">
+              {/* Products Center Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
+                <div>
+                  <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight flex items-center gap-2">
+                    <UtensilsCrossed className="w-5 h-5 text-[#e4002b]" />
+                    <span>Unified Products Center ({menuItems.length} Products)</span>
+                  </h2>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Manage catalog, flexible inventory tracking, add collections, bulk CSV upload/export, printable PDF catalog, and Meta Ads.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setIsAddingProduct(true)}
+                    className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-md cursor-pointer active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add New Product</span>
+                  </button>
+                  <button
+                    onClick={() => setIsAddingCollection(true)}
+                    className="bg-zinc-800 hover:bg-zinc-900 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95"
+                  >
+                    <FolderPlus className="w-4 h-4 text-amber-400" />
+                    <span>Add Collection</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub-Navigation Pills Inside Products Section */}
+              <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-zinc-100 rounded-2xl border border-zinc-200 text-xs font-bold">
+                {[
+                  { id: 'catalog', label: 'All Products', icon: UtensilsCrossed, count: menuItems.length },
+                  { id: 'inventory', label: 'Inventory & Stock', icon: Boxes },
+                  { id: 'collections', label: 'Collections', icon: FolderPlus, count: categories.length },
+                  { id: 'bulk-csv', label: 'Bulk CSV & Upload', icon: FileSpreadsheet },
+                  { id: 'media-pdf', label: 'PDF Catalog & Media', icon: Printer },
+                  { id: 'meta-ads', label: 'Facebook & Meta Ads', icon: Share2 },
+                ].map((st) => {
+                  const Icon = st.icon;
+                  const isActive = productSubTab === st.id;
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => setProductSubTab(st.id as any)}
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition cursor-pointer ${
+                        isActive
+                          ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/80 font-black'
+                          : 'text-zinc-600 hover:text-zinc-900 hover:bg-white/50'
+                      }`}
+                    >
+                      <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#e4002b]' : 'text-zinc-500'}`} />
+                      <span>{st.label}</span>
+                      {st.count !== undefined && (
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-[#e4002b] text-white' : 'bg-zinc-200 text-zinc-700'}`}>
+                          {st.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* SUBTAB 1: ALL PRODUCTS CATALOG */}
+              {productSubTab === 'catalog' && (
+                <div className="space-y-4">
+                  {/* Search & Category Filter */}
+                  <div className="flex flex-col sm:flex-row gap-3 bg-white p-3 rounded-2xl border border-zinc-200">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
+                      <input
+                        type="text"
+                        value={productSearch}
+                        onChange={(e) => setProductSearch(e.target.value)}
+                        placeholder="Search by product name..."
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-[#e4002b]"
+                      />
+                    </div>
+
+                    <select
+                      value={productCategoryFilter}
+                      onChange={(e) => setProductCategoryFilter(e.target.value as any)}
+                      className="bg-zinc-50 border border-zinc-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#e4002b]"
+                    >
+                      <option value="all">All Categories ({menuItems.length})</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Products Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredProducts.map((item) => {
+                      const effective = calculatePrice(item.baseKfcPrice, item.sellingPrice);
+                      const isCustom = item.sellingPrice !== undefined && item.sellingPrice > 0;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-white border border-zinc-200 rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition"
+                        >
+                          <div className="flex gap-3">
+                            <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-zinc-100 shrink-0 border border-zinc-200">
+                              {item.image ? (
+                                <img
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = '/src/assets/images/kfc_krunch_burger_1791015834419.jpg';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center p-1 text-[9px] text-zinc-400 text-center font-bold">
+                                  <span>No Image</span>
+                                </div>
+                              )}
+                              {item.galleryImages && item.galleryImages.length > 0 && (
+                                <span className="absolute top-1 left-1 bg-black/70 text-white text-[9px] font-bold px-1 rounded">
+                                  +{item.galleryImages.length}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <h4 className="font-bold text-sm text-zinc-900 truncate">{item.name}</h4>
+                              <p className="text-[11px] text-zinc-500 line-clamp-2">{item.description}</p>
+                              <div className="flex items-center gap-2 pt-1">
+                                <span className="font-mono font-bold text-sm text-[#e4002b]">{formatPKR(effective)}</span>
+                                {item.compareAtPrice && (
+                                  <span className="text-xs text-zinc-400 line-through font-mono">{formatPKR(item.compareAtPrice)}</span>
+                                )}
+                              </div>
+                              {item.trackInventory && (
+                                <p className="text-[10px] text-zinc-400 font-mono">
+                                  Stock: <strong className={Number(item.stockQuantity) <= 5 ? 'text-amber-600' : 'text-emerald-600'}>{item.stockQuantity || 0} pcs</strong>
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card Actions */}
+                          <div className="border-t border-zinc-100 pt-3 flex items-center justify-between gap-2">
+                            <button
+                              onClick={() => toggleItemAvailability(item.id)}
+                              className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                                item.isAvailable
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-zinc-100 text-zinc-500'
+                              }`}
+                            >
+                              {item.isAvailable ? 'In Stock' : 'Out of Stock'}
+                            </button>
+
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => setEditingItem(item)}
+                                className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                              >
+                                <ImageIcon className="w-3.5 h-3.5" />
+                                <span>Edit All</span>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Delete ${item.name}?`)) deleteMenuItem(item.id);
+                                }}
+                                className="text-red-500 hover:text-red-700 p-1.5 cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 2: INVENTORY & STOCK MANAGEMENT */}
+              {productSubTab === 'inventory' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-white border border-zinc-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div>
+                      <h3 className="font-bold text-sm text-zinc-900 flex items-center gap-2">
+                        <Boxes className="w-4 h-4 text-[#e4002b]" />
+                        <span>Inventory & Quantity Tracker</span>
+                      </h3>
+                      <p className="text-zinc-500 text-[11px] mt-0.5">
+                        Track stock levels, configure low-stock warnings, and toggle flexible tracking per product.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          menuItems.forEach(i => {
+                            if (!i.isAvailable) toggleItemAvailability(i.id);
+                          });
+                        }}
+                        className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition cursor-pointer"
+                      >
+                        ✓ Mark All In-Stock
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 font-bold uppercase">
+                          <tr>
+                            <th className="p-3.5">Product</th>
+                            <th className="p-3.5">Category</th>
+                            <th className="p-3.5">Track Inventory</th>
+                            <th className="p-3.5">Available Stock</th>
+                            <th className="p-3.5">Status</th>
+                            <th className="p-3.5 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {menuItems.map((item) => (
+                            <tr key={item.id} className="hover:bg-zinc-50">
+                              <td className="p-3.5">
+                                <div className="flex items-center gap-2.5">
+                                  <img
+                                    src={item.image}
+                                    alt=""
+                                    className="w-10 h-10 rounded-lg object-cover bg-zinc-100 shrink-0"
+                                    onError={(e) => {
+                                      e.currentTarget.src = '/src/assets/images/kfc_krunch_burger_1791015834419.jpg';
+                                    }}
+                                  />
+                                  <div>
+                                    <p className="font-bold text-zinc-900">{item.name}</p>
+                                    <p className="font-mono text-[#e4002b] text-[11px] font-bold">
+                                      {formatPKR(calculatePrice(item.baseKfcPrice, item.sellingPrice))}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3.5 text-zinc-600 capitalize">
+                                {item.categoryId.replace('-', ' ')}
+                              </td>
+                              <td className="p-3.5">
+                                <label className="inline-flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={item.trackInventory ?? false}
+                                    onChange={(e) => {
+                                      updateMenuItem({ ...item, trackInventory: e.target.checked });
+                                    }}
+                                    className="w-4 h-4 accent-[#e4002b]"
+                                  />
+                                  <span className="text-[11px] font-medium text-zinc-600">
+                                    {item.trackInventory ? 'Tracking ON' : 'Un-tracked'}
+                                  </span>
+                                </label>
+                              </td>
+                              <td className="p-3.5">
+                                {item.trackInventory ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const cur = Math.max(0, (item.stockQuantity || 0) - 5);
+                                        updateMenuItem({ ...item, stockQuantity: cur });
+                                      }}
+                                      className="w-6 h-6 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold flex items-center justify-center cursor-pointer"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      value={item.stockQuantity ?? 50}
+                                      onChange={(e) => {
+                                        updateMenuItem({ ...item, stockQuantity: Number(e.target.value) });
+                                      }}
+                                      className="w-16 bg-zinc-50 border border-zinc-200 rounded px-2 py-1 font-mono text-center font-bold"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const cur = (item.stockQuantity || 0) + 5;
+                                        updateMenuItem({ ...item, stockQuantity: cur });
+                                      }}
+                                      className="w-6 h-6 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold flex items-center justify-center cursor-pointer"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-zinc-400 font-mono">Unlimited</span>
+                                )}
+                              </td>
+                              <td className="p-3.5">
+                                {!item.isAvailable ? (
+                                  <span className="bg-zinc-100 text-zinc-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    Out of Stock
+                                  </span>
+                                ) : item.trackInventory && Number(item.stockQuantity) <= 5 ? (
+                                  <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                                    Low Stock ({item.stockQuantity})
+                                  </span>
+                                ) : (
+                                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    In Stock
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3.5 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleItemAvailability(item.id)}
+                                  className="text-xs text-[#e4002b] font-bold hover:underline cursor-pointer"
+                                >
+                                  {item.isAvailable ? 'Mark Unavailable' : 'Mark Available'}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 3: COLLECTIONS / CATEGORIES MANAGEMENT */}
+              {productSubTab === 'collections' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-white border border-zinc-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div>
+                      <h3 className="font-bold text-sm text-zinc-900 flex items-center gap-2">
+                        <FolderPlus className="w-4 h-4 text-[#e4002b]" />
+                        <span>KFC Menu Collections ({categories.length})</span>
+                      </h3>
+                      <p className="text-zinc-500 text-[11px] mt-0.5">
+                        Group your KFC items into dedicated meal boxes, combos, everyday value, and family buckets.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingCollection(true)}
+                      className="bg-[#e4002b] hover:bg-[#c30025] text-white font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add New Collection</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {categories.map((c) => {
+                      const count = menuItems.filter(m => m.categoryId === c.id).length;
+                      return (
+                        <div key={c.id} className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-red-50 text-[#e4002b] flex items-center justify-center font-bold text-lg border border-red-100">
+                              🍗
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-bold text-sm text-zinc-900 truncate">{c.name}</h4>
+                              <p className="text-[11px] text-zinc-500 truncate">{c.subtitle}</p>
+                              <p className="text-[10px] font-mono text-[#e4002b] font-bold mt-0.5">{count} Items in Collection</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 4: BULK CSV UPLOAD & IMPORT */}
+              {productSubTab === 'bulk-csv' && (
+                <div className="space-y-4">
+                  <CsvProductImporter />
+                </div>
+              )}
+
+              {/* SUBTAB 5: MEDIA & PRODUCTS PDF CATALOG DOWNLOAD */}
+              {productSubTab === 'media-pdf' && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    {/* PDF Catalog Card */}
+                    <div className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-4">
+                      <div className="w-12 h-12 rounded-2xl bg-red-50 text-[#e4002b] flex items-center justify-center border border-red-100 shadow-sm">
+                        <Printer className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-zinc-900">
+                          Products PDF Catalog Download
+                        </h3>
+                        <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                          Download or print a beautiful, branded KFC Menu PDF Catalog with photos, authentic descriptions, prices, and Chakwal express delivery contact details.
+                        </p>
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={handleDownloadPdfCatalog}
+                          className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold uppercase px-5 py-3 rounded-xl flex items-center gap-2 shadow-md cursor-pointer active:scale-95 transition"
+                        >
+                          <Download className="w-4 h-4 stroke-[2.5]" />
+                          <span>Download KFC Menu PDF Catalog</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Export Product Images Card */}
+                    <div className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-4">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shadow-sm">
+                        <ImageIcon className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-base text-zinc-900">
+                          Export Product Images & Gallery
+                        </h3>
+                        <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                          Export structured JSON data containing all {menuItems.length} product photos, gallery image URLs, and product names for marketing and offline backup.
+                        </p>
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={handleExportProductImages}
+                          className="bg-zinc-800 hover:bg-zinc-900 text-white text-xs font-bold uppercase px-5 py-3 rounded-xl flex items-center gap-2 shadow-md cursor-pointer active:scale-95 transition"
+                        >
+                          <Download className="w-4 h-4 stroke-[2.5]" />
+                          <span>Export All Product Images (JSON)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 6: FACEBOOK, INSTAGRAM & META ADS */}
+              {productSubTab === 'meta-ads' && (
+                <div className="space-y-4">
+                  <MetaAdsManager />
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB 4: DAILY 5 DEALS (COLLECTION OR RANDOM AT 12:00 AM MIDNIGHT) */}
           {/* ========================================================================= */}
           {activeTab === 'daily-deals' && (
             <div className="space-y-6">
@@ -868,19 +1895,19 @@ export const ShopifyAdminApp: React.FC = () => {
                 <div>
                   <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight flex items-center gap-2">
                     <Flame className="w-5 h-5 text-[#e4002b]" />
-                    <span>Daily 5 Meal Boxes Deal Setting</span>
+                    <span>Daily 5 Deals Setting (Auto Midnight 12:00 AM Offer)</span>
                   </h2>
                   <p className="text-xs text-zinc-500 mt-1">
-                    Automatically picks 5 meal box items every day and applies a 4% discount for customers.
+                    Select Collection ya Random products jin par automatically har roz rat ko 12:00 baje {dailyDealConfig.discountPercentage || 4}% offer lagti rahay gi.
                   </p>
                 </div>
               </div>
 
-              <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-5 shadow-sm">
+              <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-6 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-bold text-sm text-zinc-900">Enable Daily 5 Deals Section</h3>
-                    <p className="text-xs text-zinc-500">Shows the daily 5 featured meal boxes prominently on customer home page</p>
+                    <p className="text-xs text-zinc-500">Shows the daily 5 featured deals prominently on customer home page</p>
                   </div>
                   <input
                     type="checkbox"
@@ -890,6 +1917,143 @@ export const ShopifyAdminApp: React.FC = () => {
                   />
                 </div>
 
+                {/* Offer Selection Mode: Random vs Specific Collection vs Manual */}
+                <div className="pt-4 border-t border-zinc-100 space-y-3">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700">
+                    Product Selection Mode (Rat 12:00 Baje Ki Offer Ke Liye):
+                  </label>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Option 1: Random Products */}
+                    <button
+                      type="button"
+                      onClick={() => updateDailyDealConfig({ selectionMode: 'random' })}
+                      className={`p-3.5 rounded-xl border text-left cursor-pointer transition ${
+                        (dailyDealConfig.selectionMode === 'random' || !dailyDealConfig.selectionMode)
+                          ? 'border-[#e4002b] bg-red-50/70 text-zinc-900 font-bold shadow-xs'
+                          : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-[#e4002b]">🎲 Random Products</span>
+                        {(dailyDealConfig.selectionMode === 'random' || !dailyDealConfig.selectionMode) && (
+                          <Check className="w-4 h-4 text-[#e4002b]" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-500 font-normal leading-relaxed">
+                        Pure KFC menu aur meal boxes se rat 12 baje automatically 5 random deals rotate hoti rahengi.
+                      </p>
+                    </button>
+
+                    {/* Option 2: Specific Collection */}
+                    <button
+                      type="button"
+                      onClick={() => updateDailyDealConfig({ selectionMode: 'collection', collectionCategory: dailyDealConfig.collectionCategory || 'everyday-value' })}
+                      className={`p-3.5 rounded-xl border text-left cursor-pointer transition ${
+                        dailyDealConfig.selectionMode === 'collection'
+                          ? 'border-[#e4002b] bg-red-50/70 text-zinc-900 font-bold shadow-xs'
+                          : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-[#e4002b]">📂 Specific Collection</span>
+                        {dailyDealConfig.selectionMode === 'collection' && (
+                          <Check className="w-4 h-4 text-[#e4002b]" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-500 font-normal leading-relaxed">
+                        Aapki chuni hui category (e.g. Everyday Value) se rat 12 baje automatically deals lagti rahengi.
+                      </p>
+                    </button>
+
+                    {/* Option 3: Manual Selection */}
+                    <button
+                      type="button"
+                      onClick={() => updateDailyDealConfig({ selectionMode: 'manual' })}
+                      className={`p-3.5 rounded-xl border text-left cursor-pointer transition ${
+                        dailyDealConfig.selectionMode === 'manual'
+                          ? 'border-[#e4002b] bg-red-50/70 text-zinc-900 font-bold shadow-xs'
+                          : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-[#e4002b]">🎯 Manual Selection</span>
+                        {dailyDealConfig.selectionMode === 'manual' && (
+                          <Check className="w-4 h-4 text-[#e4002b]" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-500 font-normal leading-relaxed">
+                        Aap khud apni pasand ke exact 5 products select kar sakte hain.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* If Collection is chosen: Show category selector */}
+                {dailyDealConfig.selectionMode === 'collection' && (
+                  <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2 text-xs">
+                    <label className="block font-bold text-zinc-700">
+                      Select Collection / Category:
+                    </label>
+                    <select
+                      value={dailyDealConfig.collectionCategory || 'everyday-value'}
+                      onChange={(e) => updateDailyDealConfig({ collectionCategory: e.target.value as CategoryId })}
+                      className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-[#e4002b]"
+                    >
+                      {KFC_CATEGORIES.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({menuItems.filter(m => m.categoryId === c.id).length} products)
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-zinc-500">
+                      Iss category ke products mein se har roz raat 12:00 AM par automatically 5 featured offers chun kar 4% discount ke sath show honge.
+                    </p>
+                  </div>
+                )}
+
+                {/* If Manual is chosen: Product Multi-Selector */}
+                {dailyDealConfig.selectionMode === 'manual' && (
+                  <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-zinc-700">
+                        Pick Products for Daily Deals (Selected: {(dailyDealConfig.selectedProductIds || []).length} items):
+                      </label>
+                      <span className="text-[11px] text-[#e4002b] font-bold">
+                        Recommendation: 5 products
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-56 overflow-y-auto p-1 bg-white border border-zinc-200 rounded-xl">
+                      {menuItems.map((item) => {
+                        const isSelected = (dailyDealConfig.selectedProductIds || []).includes(item.id);
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              const current = dailyDealConfig.selectedProductIds || [];
+                              const next = isSelected
+                                ? current.filter((id) => id !== item.id)
+                                : [...current, item.id];
+                              updateDailyDealConfig({ selectedProductIds: next });
+                            }}
+                            className={`p-2 rounded-lg text-left text-xs border flex items-center justify-between gap-1.5 cursor-pointer transition ${
+                              isSelected
+                                ? 'bg-red-50 border-[#e4002b] text-[#e4002b] font-bold'
+                                : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                            }`}
+                          >
+                            <span className="truncate">{item.name}</span>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Midnight Rotation & Settings Fields */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-4 border-t border-zinc-100">
                   <div>
                     <label className="block text-zinc-700 font-bold mb-1">Section Title</label>
@@ -922,8 +2086,15 @@ export const ShopifyAdminApp: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800">
-                  ✓ Automatically selects 5 meal box specials every day based on the calendar date, applies flat {dailyDealConfig.discountPercentage}% OFF, and lets customers add them directly to bucket!
+                {/* Automatic Midnight Guarantee Banner */}
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-900 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-700">
+                    <Clock className="w-4 h-4" />
+                    <span>Automatic Rat 12:00 AM Midnight Auto-Rotate System Active</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-emerald-800">
+                    Chakwal customers ke liye har roz raat 12:00 AM (00:00 midnight) par automatically system nayi 5 deals schedule aur publish karta rahay ga. Aapko daily manual update karne ki zaroorat nahi!
+                  </p>
                 </div>
               </div>
             </div>
@@ -1025,19 +2196,68 @@ export const ShopifyAdminApp: React.FC = () => {
           )}
 
           {/* ========================================================================= */}
-          {/* TAB 6: LOYALTY & CUSTOMER RECORDS */}
+          {/* TAB 6: CUSTOMER RECORDS & LOYALTY */}
           {/* ========================================================================= */}
-          {activeTab === 'loyalty' && (
+          {activeTab === 'customers' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
                 <div>
                   <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight flex items-center gap-2">
                     <Award className="w-5 h-5 text-[#e4002b]" />
-                    <span>Customer Loyalty & Points Manager ({customerRecords.length})</span>
+                    <span>Customer Loyalty & Records Manager ({customerRecords.length})</span>
                   </h2>
                   <p className="text-xs text-zinc-500 mt-1">
                     Rule: Customers earn 10 points per Rs. 300 spent. Min order Rs. 500 to redeem. Not combinable with coupon codes.
                   </p>
+                </div>
+
+                {/* Import / Export Buttons */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    ref={customerCsvInputRef}
+                    accept=".csv,.txt"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const content = event.target?.result as string;
+                        if (content) {
+                          const res = importCustomersCSV(content);
+                          alert(`Imported ${res.imported} customers successfully! (${res.errors} skipped/errors)`);
+                        }
+                      };
+                      reader.readAsText(file);
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => customerCsvInputRef.current?.click()}
+                    className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 px-3 py-2 rounded-xl transition cursor-pointer"
+                  >
+                    <UploadCloud className="w-4 h-4 text-zinc-600" />
+                    <span>Import Shopify/Excel CSV</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const csv = exportCustomersCSV();
+                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `kfc_chakwal_customers_${new Date().toISOString().slice(0, 10)}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 text-emerald-600" />
+                    <span>Export Customers CSV</span>
+                  </button>
                 </div>
               </div>
 
@@ -1241,13 +2461,6 @@ export const ShopifyAdminApp: React.FC = () => {
           )}
 
           {/* ========================================================================= */}
-          {/* TAB 10: CSV IMPORT/EXPORT */}
-          {/* ========================================================================= */}
-          {activeTab === 'csv-import' && (
-            <CsvProductImporter />
-          )}
-
-          {/* ========================================================================= */}
           {/* TAB 11: SHARING & DIRECT LINKS */}
           {/* ========================================================================= */}
           {activeTab === 'links' && (
@@ -1331,41 +2544,39 @@ export const ShopifyAdminApp: React.FC = () => {
                 </p>
               </div>
 
-              {/* Logo & App Icon URLs */}
+              {/* Logo, App Icon & Hero Banner Uploads (Device File Upload Supported) */}
               <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
                 <h3 className="font-bold text-sm text-zinc-900 flex items-center gap-2">
                   <ImageIcon className="w-4 h-4 text-[#e4002b]" />
-                  <span>Preloader Logo & App Icon URL</span>
+                  <span>Store Brand Images & Banners (Image Upload)</span>
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <label className="block text-zinc-700 font-bold mb-1">Preloader Screen Logo URL</label>
-                    <input
-                      type="text"
-                      value={settings.customPreloaderLogoUrl || ''}
-                      onChange={(e) => updateSettings({ customPreloaderLogoUrl: e.target.value })}
-                      placeholder="Paste logo image URL (PNG / JPG)"
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#e4002b]"
-                    />
-                    <p className="text-[11px] text-zinc-400 mt-1">
-                      Shows on the initial animated loading screen.
-                    </p>
-                  </div>
+                  <ImageUploadPicker
+                    label="Store / Preloader Animated Logo"
+                    value={settings.customPreloaderLogoUrl || ''}
+                    onChange={(newUrl) => updateSettings({ customPreloaderLogoUrl: newUrl })}
+                    aspectRatio="square"
+                    helperText="Upload your store or preloader logo (PNG/JPG)."
+                  />
 
-                  <div>
-                    <label className="block text-zinc-700 font-bold mb-1">Custom App Icon URL</label>
-                    <input
-                      type="text"
-                      value={settings.customAppIconUrl || ''}
-                      onChange={(e) => updateSettings({ customAppIconUrl: e.target.value })}
-                      placeholder="Paste app icon URL (Square 512x512)"
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#e4002b]"
-                    />
-                    <p className="text-[11px] text-zinc-400 mt-1">
-                      Used for phone home screen installation icon.
-                    </p>
-                  </div>
+                  <ImageUploadPicker
+                    label="Custom Mobile App Icon (Square 512x512)"
+                    value={settings.customAppIconUrl || ''}
+                    onChange={(newUrl) => updateSettings({ customAppIconUrl: newUrl })}
+                    aspectRatio="square"
+                    helperText="Used for Android & iPhone home screen icon."
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-zinc-100">
+                  <ImageUploadPicker
+                    label="Hero Section Main Promotional Banner"
+                    value={settings.hero?.imageUrl || ''}
+                    onChange={(newUrl) => updateSettings({ hero: { ...(settings.hero || { headline: '', highlightText: '', subtext: '', ctaButtonText: '', deliveryBadgeText: '' }), imageUrl: newUrl } })}
+                    aspectRatio="wide"
+                    helperText="Upload custom banner image displayed at the top of the customer store."
+                  />
                 </div>
               </div>
 
@@ -1502,69 +2713,14 @@ export const ShopifyAdminApp: React.FC = () => {
                 </div>
               </div>
 
-              {/* Product Image Manager: ADD / REMOVE IMAGES */}
-              <div className="space-y-2 border border-zinc-200 bg-zinc-50 p-3.5 rounded-2xl">
-                <div className="flex items-center justify-between">
-                  <label className="block text-zinc-800 font-bold">
-                    Product Image (Add / Remove)
-                  </label>
-                  {editingItem.image && (
-                    <button
-                      type="button"
-                      onClick={() => setEditingItem({ ...editingItem, image: '' })}
-                      className="text-red-600 hover:text-red-700 text-[11px] font-bold underline cursor-pointer"
-                    >
-                      Remove Image
-                    </button>
-                  )}
-                </div>
-
-                {editingItem.image ? (
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={editingItem.image}
-                      alt={editingItem.name}
-                      className="w-14 h-14 rounded-xl object-cover border border-zinc-300 bg-white"
-                      onError={(e) => {
-                        e.currentTarget.src = '/src/assets/images/kfc_krunch_burger_1791015834419.jpg';
-                      }}
-                    />
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={editingItem.image}
-                        onChange={(e) => setEditingItem({ ...editingItem, image: e.target.value })}
-                        className="w-full bg-white border border-zinc-300 text-xs rounded-xl px-3 py-2"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] text-zinc-500 italic">No image currently set. Paste image URL below or select preset:</p>
-                    <input
-                      type="text"
-                      value={editingItem.image}
-                      onChange={(e) => setEditingItem({ ...editingItem, image: e.target.value })}
-                      placeholder="Paste image URL here"
-                      className="w-full bg-white border border-zinc-300 text-xs rounded-xl px-3 py-2"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  <span className="text-[10px] text-zinc-500">KFC Presets:</span>
-                  {KFC_IMAGE_PRESETS.map((p) => (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => setEditingItem({ ...editingItem, image: p.url })}
-                      className="bg-white border border-zinc-300 text-[10px] font-bold text-zinc-700 px-2 py-0.5 rounded-lg hover:border-[#e4002b]"
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Product Image Manager: Device Upload & Presets */}
+              <ImageUploadPicker
+                label="Product Image (Upload from Phone/PC or Presets)"
+                value={editingItem.image || ''}
+                onChange={(newUrl) => setEditingItem({ ...editingItem, image: newUrl })}
+                aspectRatio="square"
+                helperText="Upload any product photo from your device, or choose from presets."
+              />
 
               <div>
                 <label className="block text-zinc-700 font-bold mb-1">Product Description</label>
@@ -1653,29 +2809,13 @@ export const ShopifyAdminApp: React.FC = () => {
               </div>
 
               {/* Product Image Input */}
-              <div className="border border-zinc-200 bg-zinc-50 p-3.5 rounded-2xl space-y-2">
-                <label className="block text-zinc-800 font-bold">Product Image URL (Optional - Can leave blank)</label>
-                <input
-                  type="text"
-                  value={newProdImage}
-                  onChange={(e) => setNewProdImage(e.target.value)}
-                  placeholder="Paste image URL (Leave blank to add image later)"
-                  className="w-full bg-white border border-zinc-300 text-xs rounded-xl px-3 py-2"
-                />
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  <span className="text-[10px] text-zinc-500">Quick presets:</span>
-                  {KFC_IMAGE_PRESETS.map((p) => (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => setNewProdImage(p.url)}
-                      className="text-[10px] bg-white border border-zinc-300 text-zinc-700 px-2 py-0.5 rounded hover:border-[#e4002b]"
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <ImageUploadPicker
+                label="Product Image (Upload from Phone/PC or Presets)"
+                value={newProdImage}
+                onChange={(newUrl) => setNewProdImage(newUrl)}
+                aspectRatio="square"
+                helperText="Upload any product photo from your device, or choose from presets."
+              />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

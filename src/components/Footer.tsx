@@ -62,7 +62,9 @@ export const Footer: React.FC = () => {
               </div>
               <div>
                 <h4 className={`font-bold text-xs ${isDark ? 'text-white' : 'text-zinc-900'}`}>Direct Support</h4>
-                <p className="text-[11px] text-zinc-500">{settings.phone}</p>
+                <a href="tel:+923252777574" className="text-[11px] text-zinc-500 hover:text-[#e4002b] transition block mt-0.5">
+                  {settings.phone}
+                </a>
               </div>
             </div>
           </div>
@@ -153,17 +155,16 @@ export const Footer: React.FC = () => {
             
             {/* Social Media Links */}
             <div className="flex flex-wrap gap-2">
-              {settings.socialLinks?.whatsapp && (
-                <a
-                  href={settings.socialLinks.whatsapp}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition"
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>WhatsApp</span>
-                </a>
-              )}
+              <a
+                href={settings.socialLinks?.whatsapp || `https://wa.me/923252777574?text=${encodeURIComponent('Assalam o Alaikum KFC Chakwal Delivery, I have an inquiry about KFC menu and order.')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                aria-label="Contact on WhatsApp"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>WhatsApp</span>
+              </a>
               {settings.socialLinks?.facebook && (
                 <a
                   href={settings.socialLinks.facebook}

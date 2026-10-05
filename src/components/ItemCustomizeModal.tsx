@@ -304,9 +304,10 @@ export const ItemCustomizeModal: React.FC = () => {
               type="button"
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               disabled={quantity <= 1}
-              className={`p-2 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+              className={`min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed active:scale-90 transition ${
                 isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-500 hover:text-zinc-900'
               }`}
+              aria-label="Decrease quantity"
             >
               <Minus className="w-4 h-4" />
             </button>
@@ -318,9 +319,10 @@ export const ItemCustomizeModal: React.FC = () => {
             <button
               type="button"
               onClick={() => setQuantity((q) => q + 1)}
-              className={`p-2 cursor-pointer ${
+              className={`min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer active:scale-90 transition ${
                 isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-500 hover:text-zinc-900'
               }`}
+              aria-label="Increase quantity"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -330,7 +332,8 @@ export const ItemCustomizeModal: React.FC = () => {
           <button
             type="button"
             onClick={handleConfirmAddToCart}
-            className="flex-1 bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-lg sm:text-xl py-3 px-4 rounded-xl font-bold flex items-center justify-between shadow-xl shadow-red-950/40 cursor-pointer transition-all active:scale-[0.98]"
+            className="flex-1 min-h-[48px] bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-lg sm:text-xl py-3 px-4 rounded-xl font-bold flex items-center justify-between shadow-xl shadow-red-950/40 cursor-pointer transition-all active:scale-[0.98]"
+            aria-label="Confirm and add to bucket"
           >
             <span>ADD TO BUCKET</span>
             <span className="font-sans text-sm font-extrabold tabular-nums bg-black/25 px-2.5 py-1 rounded-lg">

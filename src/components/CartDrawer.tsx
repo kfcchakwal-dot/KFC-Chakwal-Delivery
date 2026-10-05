@@ -87,7 +87,7 @@ export const CartDrawer: React.FC = () => {
         onClick={() => setIsCartOpen(false)}
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
         <div className={`w-screen max-w-md shadow-2xl flex flex-col border-l ${
           isDark ? 'bg-[#141418] border-[#292934] text-white' : 'bg-white border-zinc-200 text-zinc-900'
         }`}>
@@ -246,23 +246,25 @@ export const CartDrawer: React.FC = () => {
                         {formatPKR(item.unitPrice * item.quantity)}
                       </span>
 
-                      <div className={`flex items-center rounded-lg p-0.5 border ${
+                      <div className={`flex items-center rounded-xl p-0.5 border ${
                         isDark ? 'bg-[#121215] border-zinc-800' : 'bg-zinc-100 border-zinc-300'
                       }`}>
                         <button
                           type="button"
                           onClick={() => updateCartQuantity(item.cartItemId, item.quantity - 1)}
-                          className="p-1 text-zinc-400 hover:text-red-500 cursor-pointer"
+                          className="min-w-[40px] min-h-[40px] flex items-center justify-center text-zinc-400 hover:text-red-500 active:scale-90 transition cursor-pointer"
+                          aria-label={`Decrease quantity of ${item.menuItem.name}`}
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
-                        <span className={`w-6 text-center text-xs font-bold tabular-nums ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                        <span className={`w-7 text-center text-xs font-black tabular-nums ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                           {item.quantity}
                         </span>
                         <button
                           type="button"
                           onClick={() => updateCartQuantity(item.cartItemId, item.quantity + 1)}
-                          className="p-1 text-zinc-400 hover:text-emerald-500 cursor-pointer"
+                          className="min-w-[40px] min-h-[40px] flex items-center justify-center text-zinc-400 hover:text-emerald-500 active:scale-90 transition cursor-pointer"
+                          aria-label={`Increase quantity of ${item.menuItem.name}`}
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>

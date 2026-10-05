@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { Header } from './components/Header';
 import { HeroBanner } from './components/HeroBanner';
@@ -20,9 +20,15 @@ import { ShopifyAdminApp } from './components/admin/ShopifyAdminApp';
 import { Preloader } from './components/Preloader';
 import { DailyDealsSection } from './components/DailyDealsSection';
 import { PoliciesModal } from './components/PoliciesModal';
+import { DailyDealsPopupModal } from './components/DailyDealsPopupModal';
+import { LoyaltyProgramModal } from './components/LoyaltyProgramModal';
+import { VipClubModal } from './components/VipClubModal';
+import { PointsEarnedNotification } from './components/PointsEarnedNotification';
 import { KFC_CATEGORIES } from './data/kfcMenu';
 import { CategoryId } from './types';
 import { SearchX, Bike } from 'lucide-react';
+import { OfflineNotice } from './components/OfflineNotice';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const MainShop: React.FC = () => {
   const {
@@ -36,10 +42,103 @@ const MainShop: React.FC = () => {
     activeCategory,
     setActiveCategory,
     themeMode,
+    isCartOpen,
+    setIsCartOpen,
+    isCustomizerOpen,
+    setIsCustomizerOpen,
+    isCheckoutOpen,
+    setIsCheckoutOpen,
+    isCustomerAuthModalOpen,
+    setIsCustomerAuthModalOpen,
+    isAdminLoginModalOpen,
+    setIsAdminLoginModalOpen,
+    isPoliciesModalOpen,
+    setIsPoliciesModalOpen,
+    isLoyaltyModalOpen,
+    setIsLoyaltyModalOpen,
+    isVipModalOpen,
+    setIsVipModalOpen,
+    isDailyDealsPopupOpen,
+    setIsDailyDealsPopupOpen,
+    activeOrder,
+    clearActiveOrder,
+    goHome,
   } = useStore();
 
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
   const isDark = themeMode === 'dark';
+
+  // Android Back Gesture & System Back Button Handling: Close top-most modal/subview gracefully
+  useEffect(() => {
+    const isAnyModalOpen =
+      isCartOpen ||
+      isCustomizerOpen ||
+      isCheckoutOpen ||
+      isCustomerAuthModalOpen ||
+      isAdminLoginModalOpen ||
+      isPoliciesModalOpen ||
+      isLoyaltyModalOpen ||
+      isVipModalOpen ||
+      isDailyDealsPopupOpen ||
+      !!activeOrder ||
+      currentView !== 'home';
+
+    if (isAnyModalOpen) {
+      window.history.pushState({ modalOpen: true }, '');
+    }
+
+    const handlePopState = () => {
+      if (isDailyDealsPopupOpen) {
+        setIsDailyDealsPopupOpen(false);
+      } else if (isVipModalOpen) {
+        setIsVipModalOpen(false);
+      } else if (isLoyaltyModalOpen) {
+        setIsLoyaltyModalOpen(false);
+      } else if (isCheckoutOpen) {
+        setIsCheckoutOpen(false);
+      } else if (isCartOpen) {
+        setIsCartOpen(false);
+      } else if (isCustomizerOpen) {
+        setIsCustomizerOpen(false);
+      } else if (isCustomerAuthModalOpen) {
+        setIsCustomerAuthModalOpen(false);
+      } else if (isAdminLoginModalOpen) {
+        setIsAdminLoginModalOpen(false);
+      } else if (isPoliciesModalOpen) {
+        setIsPoliciesModalOpen(false);
+      } else if (activeOrder) {
+        clearActiveOrder();
+      } else if (currentView !== 'home') {
+        goHome();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [
+    isCartOpen,
+    isCustomizerOpen,
+    isCheckoutOpen,
+    isCustomerAuthModalOpen,
+    isAdminLoginModalOpen,
+    isPoliciesModalOpen,
+    isLoyaltyModalOpen,
+    isVipModalOpen,
+    isDailyDealsPopupOpen,
+    activeOrder,
+    currentView,
+    setIsCartOpen,
+    setIsCustomizerOpen,
+    setIsCheckoutOpen,
+    setIsCustomerAuthModalOpen,
+    setIsAdminLoginModalOpen,
+    setIsPoliciesModalOpen,
+    setIsLoyaltyModalOpen,
+    setIsVipModalOpen,
+    setIsDailyDealsPopupOpen,
+    clearActiveOrder,
+    goHome,
+  ]);
 
   // If in Admin Mode or Seller Mode (?app=seller), render KCD Seller Portal
   if (isAdmin || isSellerMode) {
@@ -64,6 +163,9 @@ const MainShop: React.FC = () => {
         isDark ? 'bg-[#0e0e11] text-[#f4f4f5]' : 'bg-[#f8f9fa] text-[#1a1a1f]'
       }`}
     >
+      {/* Internet Connection Offline Detection & Status Bar */}
+      <OfflineNotice />
+
       {/* Brand Animated Preloader */}
       <Preloader />
 
@@ -87,8 +189,8 @@ const MainShop: React.FC = () => {
           {/* Dynamic Page Sections - e.g. Image with Text placeholders placed by Admin */}
           <PageSectionsRenderer page="home" />
 
-          {/* Main Menu Section */}
-          <section id="kfc-menu-section" className="flex-1 pb-16">
+          {/* Main Menu Section (pb-28 on mobile avoids FloatingCartBar overlap) */}
+          <section id="kfc-menu-section" className="flex-1 pb-28 sm:pb-16">
             <CategoryNav
               selectedCategoryId={selectedCategory}
               onSelectCategory={(catId) => {
@@ -259,7 +361,6 @@ const MainShop: React.FC = () => {
       <Footer />
 
       {/* Floating Modals and Drawers */}
-      <ProductPage />
       <ItemCustomizeModal />
       <CartDrawer />
       <CheckoutModal />
@@ -269,14 +370,20 @@ const MainShop: React.FC = () => {
       <PoliciesModal />
       <FloatingCartBar />
       <InstallAppModal />
+      <DailyDealsPopupModal />
+      <LoyaltyProgramModal />
+      <VipClubModal />
+      <PointsEarnedNotification />
     </div>
   );
 };
 
 export default function App() {
   return (
-    <StoreProvider>
-      <MainShop />
-    </StoreProvider>
+    <ErrorBoundary>
+      <StoreProvider>
+        <MainShop />
+      </StoreProvider>
+    </ErrorBoundary>
   );
 }

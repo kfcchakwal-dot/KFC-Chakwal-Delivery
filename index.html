@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>KFC Chakwal Delivery</title>
     <meta name="description" content="Order authentic KFC items delivered hot and fresh across Chakwal with live customization, exact KFC Pakistan favorites, and swift delivery." />
     <meta property="og:title" content="KFC Chakwal Delivery" />
@@ -24,6 +24,12 @@
   <body class="antialiased selection:bg-[#e4002b] selection:text-white">
     <div id="root"></div>
     <script>
+      window.deferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window.deferredPrompt = e;
+        window.dispatchEvent(new CustomEvent('pwa-prompt-ready'));
+      });
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('/sw.js').catch(function() {});

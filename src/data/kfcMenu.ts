@@ -13,6 +13,10 @@ import {
   StorePolicy,
   DeliveryMethod,
   DailyDealConfig,
+  VipTier,
+  CustomDomainConfig,
+  MetaCommerceConfig,
+  AutoReviewConfig,
 } from '../types';
 
 export const KFC_CATEGORIES: Category[] = [
@@ -68,6 +72,66 @@ export const DEFAULT_HERO_CONFIG: HeroConfig = {
   subtext: 'Order your favorite KFC Pakistan Zingers, Krunch Combos, Hot Wings, and Mega Buckets delivered piping hot right to your doorstep anywhere in Chakwal.',
   ctaButtonText: 'EXPLORE ALL ITEMS',
   deliveryBadgeText: 'Chakwal Fast Delivery',
+  enabled: true,
+};
+
+export const DEFAULT_VIP_TIERS: VipTier[] = [
+  {
+    id: 'silver',
+    name: 'Silver Crunch Pass',
+    discountPercentage: 3,
+    price: 499,
+    description: 'Flat 3% Lifetime Discount on every single order across Chakwal.',
+    badgeColor: 'from-slate-400 to-zinc-600',
+    perks: ['Flat 3% Lifetime OFF', 'Priority Express Cooking', 'Silver VIP Badge', 'Valid forever with one-time payment'],
+  },
+  {
+    id: 'gold',
+    name: 'Gold Feast Pass',
+    discountPercentage: 6,
+    price: 899,
+    description: 'Flat 6% Lifetime Discount on every order + free sauces & special packing.',
+    badgeColor: 'from-amber-400 to-yellow-600',
+    perks: ['Flat 6% Lifetime OFF', 'Zero Cutlery / Sauce charges', 'Gold VIP Badge', 'Free Delivery on orders above Rs. 2000'],
+  },
+  {
+    id: 'platinum',
+    name: 'Platinum Zinger Pass',
+    discountPercentage: 8,
+    price: 999,
+    description: 'Ultimate 8% Lifetime Discount + VIP WhatsApp Direct Line & Instant Dispatch.',
+    badgeColor: 'from-rose-500 via-red-600 to-amber-600',
+    perks: ['Flat 8% Lifetime OFF', 'Top Priority Kallar Kahar Dispatch', 'VIP Platinum Hot Badge', 'Personal Dedicated Rider fleet priority'],
+  },
+];
+
+export const DEFAULT_CUSTOM_DOMAIN_CONFIG: CustomDomainConfig = {
+  domain: '',
+  status: 'unconfigured',
+  aRecord: '34.120.54.21',
+  cnameRecord: 'cname.kfcchakwaldelivery.app',
+  txtVerification: 'kfc-verify=c794408e-894c-4201',
+  sslActive: false,
+};
+
+export const DEFAULT_META_COMMERCE_CONFIG: MetaCommerceConfig = {
+  pixelId: '',
+  conversionsApiToken: '',
+  catalogFeedUrl: 'https://ais-pre-mxjiqhos6xebtb32yfuilk-41775555479.asia-southeast1.run.app/api/facebook-catalog.xml',
+  testEventCode: '',
+  instagramShoppingEnabled: true,
+  facebookShopEnabled: true,
+  trackAddToCart: true,
+  trackInitiateCheckout: true,
+  trackPurchase: true,
+};
+
+export const DEFAULT_AUTO_REVIEW_CONFIG: AutoReviewConfig = {
+  enabled: true,
+  delayHours: 12,
+  rewardPoints: 20,
+  whatsappTemplate: 'Assalam o Alaikum {customer_name}! Umeed hai aap ka KFC meal bohot crispy aur piping hot tha. Baraye mehrbani 1 minute nikaal kar apna star rating aur review dein: {review_link}. Review submit karny par aapko 20 FREE Loyalty Points milenge!',
+  autoSendWhatsapp: true,
 };
 
 export const DEFAULT_HEADER_FOOTER_CONFIG: HeaderFooterConfig = {
@@ -290,6 +354,9 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   hero: DEFAULT_HERO_CONFIG,
   paymentMethods: DEFAULT_PAYMENT_METHODS,
   defaultBadgePosition: 'top-left',
+  customDomain: DEFAULT_CUSTOM_DOMAIN_CONFIG,
+  metaCommerce: DEFAULT_META_COMMERCE_CONFIG,
+  autoReview: DEFAULT_AUTO_REVIEW_CONFIG,
   shopify: {
     enabled: false,
     storeDomain: '',

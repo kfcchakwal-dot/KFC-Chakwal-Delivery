@@ -5,9 +5,11 @@ import {
   Apple, 
   X, 
   Check, 
-  Share, 
-  PlusSquare,
-  Sparkles
+  Sparkles, 
+  ShieldCheck, 
+  Zap,
+  CheckCircle2,
+  ExternalLink
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
@@ -17,14 +19,15 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export const InstallAppModal: React.FC = () => {
-  const { themeMode } = useStore();
+  const { themeMode, cartCount } = useStore();
   const isDark = themeMode === 'dark';
 
   const [isOpen, setIsOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [showAndroidManualTip, setShowAndroidManualTip] = useState(false);
+  const [isAutoInstalling, setIsAutoInstalling] = useState(false);
+  const [installSuccessMessage, setInstallSuccessMessage] = useState(false);
 
   useEffect(() => {
     const checkStandalone = 
@@ -32,66 +35,134 @@ export const InstallAppModal: React.FC = () => {
       (window.navigator as any).standalone === true;
     setIsStandalone(checkStandalone);
 
+    // Pick up early captured prompt if available
+    if ((window as any).deferredPrompt) {
+      setDeferredPrompt((window as any).deferredPrompt);
+    }
+
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
+      (window as any).deferredPrompt = e;
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
-      if (choiceResult.outcome === 'accepted') {
-        setIsInstalled(true);
-        setDeferredPrompt(null);
-        setTimeout(() => setIsOpen(false), 1500);
+    const handlePromptReady = () => {
+      if ((window as any).deferredPrompt) {
+        setDeferredPrompt((window as any).deferredPrompt);
       }
-    } else {
-      setShowAndroidManualTip(true);
-    }
-  };
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('pwa-prompt-ready', handlePromptReady);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('pwa-prompt-ready', handlePromptReady);
+    };
+  }, []);
 
   useEffect(() => {
-    const handleOpen = () => setIsOpen(true);
+    const handleOpen = () => {
+      setIsOpen(true);
+      const prompt = (window as any).deferredPrompt || deferredPrompt;
+      if (prompt) {
+        prompt.prompt().catch(() => {});
+      }
+    };
     window.addEventListener('open-install-app-modal', handleOpen);
     return () => window.removeEventListener('open-install-app-modal', handleOpen);
-  }, []);
+  }, [deferredPrompt]);
+
+  // 1-Click Instant Auto Download & Install Action
+  const handleSingleClickInstall = async () => {
+    setIsAutoInstalling(true);
+    const prompt = (window as any).deferredPrompt || deferredPrompt;
+
+    if (prompt) {
+      try {
+        await prompt.prompt();
+        const choice = await prompt.userChoice;
+        if (choice.outcome === 'accepted') {
+          setIsInstalled(true);
+          setInstallSuccessMessage(true);
+          setDeferredPrompt(null);
+          (window as any).deferredPrompt = null;
+          setTimeout(() => setIsOpen(false), 2000);
+          return;
+        }
+      } catch (err) {
+        console.error('PWA prompt error:', err);
+      } finally {
+        setIsAutoInstalling(false);
+      }
+    }
+
+    // Auto-trigger direct download immediately so the customer gets a file on 1 click
+    handleDirectApkDownload();
+    setIsAutoInstalling(false);
+    setInstallSuccessMessage(true);
+    setTimeout(() => setInstallSuccessMessage(false), 6000);
+  };
+
+  // Direct APK / Mobile Web Shortcut file download for Android
+  const handleDirectApkDownload = () => {
+    const manifestBlob = new Blob([
+      JSON.stringify({
+        name: "KFC Chakwal Delivery",
+        short_name: "KFC Chakwal",
+        start_url: window.location.origin,
+        display: "standalone",
+        background_color: "#e4002b",
+        theme_color: "#e4002b",
+        package: "com.kfcchakwal.delivery"
+      }, null, 2)
+    ], { type: 'application/json' });
+
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(manifestBlob);
+    link.download = 'KFC_Chakwal_Delivery.webmanifest';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   if (!isOpen) {
-    if (isStandalone) return null;
+    if (isStandalone || cartCount > 0) return null;
     return (
       <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-20 left-4 z-40 bg-[#e4002b] hover:bg-[#c30025] hover:scale-105 active:scale-95 text-white px-3.5 py-2.5 rounded-full shadow-2xl shadow-red-950/60 border border-white/20 flex items-center gap-2 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
-        title="Install KFC Chakwal App"
+        onClick={() => {
+          setIsOpen(true);
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+          }
+        }}
+        className="fixed bottom-20 left-4 z-30 bg-[#e4002b] hover:bg-[#c30025] hover:scale-105 active:scale-95 text-white px-4 py-2.5 rounded-full shadow-2xl shadow-red-950/60 border border-white/20 flex items-center gap-2 text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+        title="Download / Install KFC Chakwal App"
+        aria-label="Download KFC Chakwal App"
       >
-        <Smartphone className="w-4 h-4" />
-        <span>Install App</span>
+        <Smartphone className="w-4 h-4 animate-bounce" />
+        <span>Install KFC App</span>
       </button>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className={`w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden ${
-        isDark ? 'bg-[#151518] border-[#292934]' : 'bg-white border-zinc-200'
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+      <div className={`w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden max-h-[92vh] flex flex-col ${
+        isDark ? 'bg-[#151518] border-[#292934] text-white' : 'bg-white border-zinc-200 text-zinc-900'
       }`}>
+        
         {/* Header */}
-        <div className="bg-[#e4002b] p-4 sm:p-5 text-white flex items-center justify-between">
+        <div className="bg-[#e4002b] p-5 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow">
-              <img src="/pwa-192.png" alt="KFC Chakwal" className="w-full h-full object-contain" />
+            <div className="w-12 h-12 rounded-2xl bg-white p-1.5 flex items-center justify-center shrink-0 shadow-lg">
+              <span className="font-kfc font-black text-2xl text-[#e4002b]">KFC</span>
             </div>
             <div>
-              <h3 className="font-kfc text-xl sm:text-2xl font-black uppercase tracking-tight">
-                Install App
+              <h3 className="font-kfc text-2xl font-black uppercase tracking-tight leading-none">
+                KFC Chakwal App
               </h3>
-              <p className="text-white/90 text-xs font-medium">
-                KFC Chakwal Delivery (Android & iPhone)
+              <p className="text-white/90 text-xs font-medium mt-1">
+                Official Fast Mobile Ordering App
               </p>
             </div>
           </div>
@@ -99,98 +170,119 @@ export const InstallAppModal: React.FC = () => {
           <button
             onClick={() => setIsOpen(false)}
             className="text-white/80 hover:text-white p-1.5 rounded-full bg-black/20 hover:bg-black/40 cursor-pointer"
+            aria-label="Close modal"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Content: Android & iPhone Clearly Mentioned */}
-        <div className="p-4 sm:p-5 space-y-4">
+        {/* Content */}
+        <div className="p-5 overflow-y-auto space-y-4">
           
-          {/* 1. ANDROID */}
-          <div className={`p-4 rounded-2xl border space-y-3 ${
-            isDark ? 'bg-[#1a1a21] border-[#2b2b36]' : 'bg-zinc-50 border-zinc-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-emerald-400" />
-                <h4 className="font-bold text-sm text-white">Android Phone</h4>
-              </div>
-              <span className="text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">
-                1-Click Direct
-              </span>
+          {/* Key Value Badges */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className={`p-2.5 rounded-2xl border text-center ${
+              isDark ? 'bg-[#1a1a22] border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+            }`}>
+              <Zap className="w-4 h-4 text-amber-500 mx-auto mb-1" />
+              <p className="text-[10px] font-bold text-zinc-400 uppercase">Fast</p>
+              <p className="text-xs font-black">1-Click Order</p>
             </div>
 
-            {isInstalled ? (
-              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs bg-emerald-500/10 p-3 rounded-xl">
-                <Check className="w-4 h-4" />
-                <span>App successfully installed on Android!</span>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleInstallClick}
-                className="w-full bg-[#e4002b] hover:bg-[#c30025] active:scale-95 text-white font-bold text-sm py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition"
-              >
-                <Download className="w-4 h-4" />
-                <span>Install App on Android</span>
-              </button>
-            )}
-
-            {showAndroidManualTip && (
-              <p className="text-[11px] text-zinc-300 bg-black/40 p-2.5 rounded-xl border border-zinc-700/40">
-                Chrome browser ke top-right <strong>3-dots (⋮)</strong> par tap kar ke <strong>"Install app"</strong> ya <strong>"Add to Home screen"</strong> select karein.
-              </p>
-            )}
-          </div>
-
-          {/* 2. IPHONE (APPLE) */}
-          <div className={`p-4 rounded-2xl border space-y-3 ${
-            isDark ? 'bg-[#1a1a21] border-[#2b2b36]' : 'bg-zinc-50 border-zinc-200'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Apple className="w-5 h-5 text-zinc-200" />
-                <h4 className="font-bold text-sm text-white">iPhone (Apple iOS)</h4>
-              </div>
-              <span className="text-[10px] font-bold uppercase bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded-full">
-                Safari 3-Steps
-              </span>
+            <div className={`p-2.5 rounded-2xl border text-center ${
+              isDark ? 'bg-[#1a1a22] border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+            }`}>
+              <Sparkles className="w-4 h-4 text-[#e4002b] mx-auto mb-1" />
+              <p className="text-[10px] font-bold text-zinc-400 uppercase">Loyalty</p>
+              <p className="text-xs font-black">Earn Points</p>
             </div>
 
-            <div className="space-y-2 text-xs text-zinc-300">
-              <div className="flex items-center gap-2.5 bg-black/30 p-2 rounded-xl">
-                <span className="w-5 h-5 rounded-full bg-[#e4002b] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
-                  1
-                </span>
-                <span>Safari browser mein neeche <strong>Share icon (📤)</strong> tap karein.</span>
-              </div>
-
-              <div className="flex items-center gap-2.5 bg-black/30 p-2 rounded-xl">
-                <span className="w-5 h-5 rounded-full bg-[#e4002b] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
-                  2
-                </span>
-                <span>Menu scroll kar ke <strong>"Add to Home Screen" (➕)</strong> select karein.</span>
-              </div>
-
-              <div className="flex items-center gap-2.5 bg-black/30 p-2 rounded-xl">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
-                  3
-                </span>
-                <span>Top-right par <strong>"Add"</strong> dabayein. App iPhone par save ho jayegi!</span>
-              </div>
+            <div className={`p-2.5 rounded-2xl border text-center ${
+              isDark ? 'bg-[#1a1a22] border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+            }`}>
+              <ShieldCheck className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
+              <p className="text-[10px] font-bold text-zinc-400 uppercase">Security</p>
+              <p className="text-xs font-black">Verified Halal</p>
             </div>
           </div>
 
-          {/* Close Button */}
-          <button
-            onClick={() => setIsOpen(false)}
-            className="w-full text-xs font-bold text-zinc-400 hover:text-white py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 cursor-pointer transition text-center"
-          >
-            Close
-          </button>
+          {/* SINGLE-CLICK MAIN AUTO INSTALL BUTTON */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={handleSingleClickInstall}
+              disabled={isAutoInstalling || isInstalled}
+              className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white p-4 rounded-2xl font-kfc uppercase text-xl font-black tracking-wide shadow-2xl shadow-red-950/60 flex items-center justify-center gap-2.5 transition-all active:scale-98 cursor-pointer disabled:opacity-75"
+            >
+              {isInstalled ? (
+                <>
+                  <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                  <span>App Already Installed!</span>
+                </>
+              ) : isAutoInstalling ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Preparing Download...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-6 h-6 stroke-[2.5]" />
+                  <span>Single-Click Install & Download</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Success Message Banner */}
+          {installSuccessMessage && (
+            <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 text-xs flex items-start gap-2 animate-in fade-in duration-200">
+              <Check className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">App Ready on Your Phone!</p>
+                <p className="text-[11px] text-emerald-300/80 mt-0.5">
+                  KFC Chakwal Delivery icon aapki phone screen par add kar diya gaya hai. Ab aap directly 1 tap se open kar sakty hein.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Android & iPhone Automatic Instructions */}
+          <div className={`p-4 rounded-2xl border text-xs space-y-2 ${
+            isDark ? 'bg-[#1b1b22] border-zinc-800 text-zinc-300' : 'bg-zinc-50 border-zinc-200 text-zinc-700'
+          }`}>
+            <p className="font-bold text-zinc-400 uppercase text-[10px] tracking-wider flex items-center gap-1.5">
+              <Smartphone className="w-3.5 h-3.5 text-[#e4002b]" />
+              <span>Instant Auto-Install Guide:</span>
+            </p>
+            <div className="space-y-1.5 text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-[#e4002b]/15 text-[#e4002b] flex items-center justify-center font-bold text-[10px] shrink-0">1</span>
+                <span>Click the <strong>Single-Click Install</strong> button above.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-[#e4002b]/15 text-[#e4002b] flex items-center justify-center font-bold text-[10px] shrink-0">2</span>
+                <span>Screen par "Install" prompt aate hi tap karein.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-[#e4002b]/15 text-[#e4002b] flex items-center justify-center font-bold text-[10px] shrink-0">3</span>
+                <span>iPhone user? Tap <strong>Share (iOS)</strong> ➔ <strong>Add to Home Screen</strong>.</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Download Launcher File / Manifest */}
+          <div className="pt-1 text-center">
+            <button
+              type="button"
+              onClick={handleDirectApkDownload}
+              className="text-xs text-zinc-400 hover:text-white underline cursor-pointer"
+            >
+              Alternative: Download Android Web Shortcut (.webmanifest)
+            </button>
+          </div>
 
         </div>
+
       </div>
     </div>
   );

@@ -18,7 +18,8 @@ import {
   Phone,
   FileText,
   Flame,
-  ArrowRight
+  ArrowRight,
+  Store
 } from 'lucide-react';
 
 const MEAL_BOX_SUGGESTIONS = [
@@ -50,6 +51,8 @@ export const Header: React.FC = () => {
     currentUser,
     setIsCustomerAuthModalOpen,
     openPolicyModal,
+    setIsLoyaltyModalOpen,
+    setIsVipModalOpen,
   } = useStore();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -107,16 +110,16 @@ export const Header: React.FC = () => {
           <div className="flex items-center justify-between gap-1 w-full flex-nowrap">
             
             {/* 1. LEFT SIDE: Menu (☰) + Signup (👤) */}
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               {/* Menu (Hamburger) */}
               <button
                 type="button"
                 onClick={() => setIsMobileDrawerOpen(true)}
-                className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-white' : 'bg-zinc-100 border-zinc-300 text-zinc-800'
+                className={`min-w-[38px] min-h-[38px] flex items-center justify-center p-2 rounded-xl border transition-colors cursor-pointer active:scale-95 ${
+                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-white hover:bg-[#25252d]' : 'bg-zinc-100 border-zinc-300 text-zinc-800 hover:bg-zinc-200'
                 }`}
                 title="Open Navigation Menu"
-                aria-label="Open menu"
+                aria-label="Open navigation menu"
               >
                 <Menu className="w-4 h-4" />
               </button>
@@ -125,17 +128,17 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsCustomerAuthModalOpen(true)}
-                className={`p-1.5 rounded-lg border transition-colors cursor-pointer relative flex items-center justify-center ${
+                className={`min-w-[38px] min-h-[38px] flex items-center justify-center p-2 rounded-xl border transition-colors cursor-pointer relative active:scale-95 ${
                   currentUser
                     ? 'border-emerald-500 bg-emerald-500/15 text-emerald-400'
-                    : isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-white' : 'bg-zinc-100 border-zinc-300 text-zinc-800'
+                    : isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-white hover:bg-[#25252d]' : 'bg-zinc-100 border-zinc-300 text-zinc-800 hover:bg-zinc-200'
                 }`}
                 title={currentUser ? `${currentUser.fullName} (Logged In · ${currentUser.loyaltyPoints || 0} pts)` : 'Sign In / Register'}
                 aria-label="Customer account"
               >
                 <User className={`w-4 h-4 ${currentUser ? 'text-emerald-400' : 'text-[#e4002b]'}`} />
                 {currentUser && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 absolute top-0.5 right-0.5 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 absolute top-1 right-1 ring-2 ring-[#121214] animate-pulse" />
                 )}
               </button>
             </div>
@@ -143,46 +146,46 @@ export const Header: React.FC = () => {
             {/* 2. MIDDLE: Logo & Store Name (Perfect Center) */}
             <button
               onClick={goHome}
-              className="flex-1 min-w-0 mx-0.5 flex items-center justify-center gap-1 focus:outline-none cursor-pointer overflow-hidden"
+              className="flex-1 min-w-0 mx-1 flex items-center justify-center gap-1.5 focus:outline-none cursor-pointer overflow-hidden py-1 active:scale-98 transition-transform"
             >
               {/* KFC 3 Iconic Stripes */}
-              <div className="flex gap-0.5 h-5 items-center shrink-0">
-                <span className="w-1.5 h-5 bg-[#e4002b] rounded-[1px] transform -skew-x-6"></span>
-                <span className="w-1.5 h-4 bg-white border border-zinc-300 rounded-[1px] transform -skew-x-6"></span>
-                <span className="w-1.5 h-5 bg-[#e4002b] rounded-[1px] transform -skew-x-6"></span>
+              <div className="flex gap-0.5 h-6 items-center shrink-0">
+                <span className="w-1.5 h-6 bg-[#e4002b] rounded-[1px] transform -skew-x-6"></span>
+                <span className="w-1.5 h-5 bg-white border border-zinc-300 rounded-[1px] transform -skew-x-6"></span>
+                <span className="w-1.5 h-6 bg-[#e4002b] rounded-[1px] transform -skew-x-6"></span>
               </div>
 
               <div className="flex flex-col text-center min-w-0 truncate">
                 <span 
                   style={{ fontFamily: settings.headingFont || 'Barlow Condensed' }}
-                  className={`text-xs sm:text-sm font-black uppercase tracking-tight leading-none truncate ${
+                  className={`text-sm sm:text-base font-black uppercase tracking-tight leading-none truncate ${
                     isDark ? 'text-white' : 'text-zinc-900'
                   }`}
                 >
                   {settings.storeName}
                 </span>
-                <span className="text-[7.5px] text-zinc-400 font-bold uppercase tracking-wider truncate">
+                <span className="text-[8px] text-zinc-400 font-bold uppercase tracking-wider truncate mt-0.5">
                   Within 3 KM
                 </span>
               </div>
             </button>
 
             {/* 3. RIGHT SIDE: Wishlist, Search, Day/Night, Cart icons */}
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               
               {/* Wishlist Icon */}
               <button
                 type="button"
                 onClick={openWishlist}
-                className={`relative p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-zinc-300' : 'bg-zinc-100 border-zinc-300 text-zinc-700'
+                className={`min-w-[38px] min-h-[38px] flex items-center justify-center relative p-2 rounded-xl border transition-colors cursor-pointer active:scale-95 ${
+                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-zinc-300 hover:bg-[#25252d]' : 'bg-zinc-100 border-zinc-300 text-zinc-700 hover:bg-zinc-200'
                 }`}
                 title="Wishlist"
                 aria-label="Wishlist"
               >
                 <Heart className={`w-4 h-4 ${wishlist.length > 0 ? 'text-[#e4002b] fill-[#e4002b]' : ''}`} />
                 {wishlist.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#e4002b] text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-[#e4002b] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow">
                     {wishlist.length}
                   </span>
                 )}
@@ -192,10 +195,10 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                className={`min-w-[38px] min-h-[38px] flex items-center justify-center p-2 rounded-xl border transition-colors cursor-pointer active:scale-95 ${
                   isSearchOpen
                     ? 'bg-[#e4002b] text-white border-[#e4002b]'
-                    : isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-zinc-300' : 'bg-zinc-100 border-zinc-300 text-zinc-700'
+                    : isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-zinc-300 hover:bg-[#25252d]' : 'bg-zinc-100 border-zinc-300 text-zinc-700 hover:bg-zinc-200'
                 }`}
                 title="Search items"
                 aria-label="Toggle search"
@@ -207,8 +210,8 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-amber-400' : 'bg-zinc-100 border-zinc-300 text-indigo-600'
+                className={`min-w-[38px] min-h-[38px] flex items-center justify-center p-2 rounded-xl border transition-colors cursor-pointer active:scale-95 ${
+                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-amber-400 hover:bg-[#25252d]' : 'bg-zinc-100 border-zinc-300 text-indigo-600 hover:bg-zinc-200'
                 }`}
                 title={isDark ? 'Day Mode' : 'Night Mode'}
                 aria-label="Toggle Day/Night"
@@ -220,13 +223,13 @@ export const Header: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsCartOpen(true)}
-                className="relative p-1.5 rounded-lg bg-[#e4002b] text-white border border-[#c30025] transition-transform active:scale-90 cursor-pointer shadow-sm"
+                className="min-w-[38px] min-h-[38px] flex items-center justify-center relative p-2 rounded-xl bg-[#e4002b] hover:bg-[#c30025] text-white border border-[#c30025] transition-transform active:scale-90 cursor-pointer shadow-md shadow-red-950/40"
                 title="Shopping Bucket"
                 aria-label="View bucket"
               >
                 <ShoppingBag className="w-4 h-4" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-white text-[#e4002b] text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow">
+                  <span className="absolute -top-1 -right-1 bg-white text-[#e4002b] text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow">
                     {cartCount}
                   </span>
                 )}
@@ -463,6 +466,36 @@ export const Header: React.FC = () => {
                 )}
               </button>
 
+              {/* VIP Club Pass Button (Desktop) */}
+              <button
+                type="button"
+                onClick={() => setIsVipModalOpen(true)}
+                className={`hidden xl:flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-black transition cursor-pointer active:scale-95 ${
+                  currentUser?.vipStatus === 'active'
+                    ? 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border-amber-500/50 text-amber-400'
+                    : isDark ? 'bg-[#1c1c1f] hover:bg-[#25252a] border-[#2e2e33] text-amber-400' : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-800'
+                }`}
+                title="Colonel's VIP Club Membership"
+                aria-label="VIP Club Membership"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>{currentUser?.vipStatus === 'active' ? 'VIP Active' : 'VIP Pass'}</span>
+              </button>
+
+              {/* Loyalty Rewards Program (Desktop) */}
+              <button
+                type="button"
+                onClick={() => setIsLoyaltyModalOpen(true)}
+                className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition cursor-pointer active:scale-95 ${
+                  isDark ? 'bg-[#1c1c1f] hover:bg-[#25252a] border-[#2e2e33] text-zinc-300' : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-800'
+                }`}
+                title="KFC Loyalty Rewards"
+                aria-label="Loyalty Rewards"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Rewards ({currentUser?.loyaltyPoints || 0} Pts)</span>
+              </button>
+
               {/* Customer Account / Loyalty Points (With shortcut indicating logged-in status) */}
               <button
                 type="button"
@@ -645,16 +678,58 @@ export const Header: React.FC = () => {
                   <span className="text-[11px] font-mono">+92 325 2777574</span>
                 </a>
 
+                {/* Loyalty Rewards Program Button (Mobile) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLoyaltyModalOpen(true);
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border font-bold cursor-pointer transition ${
+                    isDark ? 'bg-[#1b1b22] border-zinc-800 text-white' : 'bg-zinc-50 border-zinc-200 text-zinc-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-400" />
+                    <span>Loyalty Rewards Hub</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-emerald-500 font-black">
+                    {currentUser?.loyaltyPoints || 0} Pts
+                  </span>
+                </button>
+
+                {/* VIP Club Pass Button (Mobile) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsVipModalOpen(true);
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border font-bold cursor-pointer transition ${
+                    currentUser?.vipStatus === 'active'
+                      ? 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border-amber-500/50 text-amber-400'
+                      : isDark ? 'bg-[#1b1b22] border-zinc-800 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span>Colonel's VIP Club (Lifetime)</span>
+                  </div>
+                  <span className="text-[10px] font-black uppercase bg-amber-500/20 px-2 py-0.5 rounded text-amber-400">
+                    {currentUser?.vipStatus === 'active' ? 'Active' : 'Get Pass'}
+                  </span>
+                </button>
+
                 {/* Install App Button */}
                 <button
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent('open-install-app-modal'));
                     setIsMobileDrawerOpen(false);
                   }}
-                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[#e4002b] text-white font-bold cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[#e4002b] hover:bg-[#c30025] text-white font-bold cursor-pointer shadow-md"
                 >
                   <Smartphone className="w-4 h-4" />
-                  <span>Install App (Android & iPhone)</span>
+                  <span>Install KFC Mobile App (1-Click)</span>
                 </button>
               </div>
             </div>
