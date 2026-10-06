@@ -61,6 +61,7 @@ export const ProductPage: React.FC = () => {
     toggleWishlist,
     reviews,
     addReview,
+    currentUser,
     settings,
     themeMode,
   } = useStore();
@@ -135,21 +136,29 @@ export const ProductPage: React.FC = () => {
     } catch {}
   };
 
-  const handleReviewSubmit = (e: React.FormEvent) => {
+  const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reviewName.trim() || !reviewComment.trim()) return;
+    if (!currentUser) {
+      setReviewSubmitted(false);
+      return;
+    }
+    if (!reviewComment.trim()) return;
 
-    addReview({
-      productId: item.id,
-      customerName: reviewName.trim(),
-      rating: reviewRating,
-      comment: reviewComment.trim(),
-    });
-
-    setReviewName('');
-    setReviewComment('');
-    setReviewSubmitted(true);
-    setTimeout(() => setReviewSubmitted(false), 3000);
+    try {
+      await addReview({
+        productId: item.id,
+        customerName: currentUser.fullName,
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      });
+      setReviewName('');
+      setReviewComment('');
+      setReviewSubmitted(true);
+      setTimeout(() => setReviewSubmitted(false), 3000);
+    } catch (error: any) {
+      setReviewSubmitted(false);
+      alert(error?.message || 'Review submit nahi ho saka.');
+    }
   };
 
   const productReviews = reviews.filter((r) => r.productId === item.id);
