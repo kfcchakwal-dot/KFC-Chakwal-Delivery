@@ -558,7 +558,7 @@ app.get('/api/reviews', async (req, res) => {
   try {
     if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
     const productId = String(req.query.productId || '').trim();
-    let query: FirebaseFirestore.Query = firestoreDb.collection('reviews').orderBy('date', 'desc').limit(200);
+    let query: any = firestoreDb.collection('reviews').orderBy('date', 'desc').limit(200);
     if (productId) query = firestoreDb.collection('reviews').where('productId', '==', productId).orderBy('date', 'desc').limit(100);
     const snap = await query.get();
     return res.json(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
