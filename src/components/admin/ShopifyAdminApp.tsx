@@ -85,6 +85,7 @@ type SellerTab =
   | 'customers'
   | 'vip-club'
   | 'marketing'
+  | 'meta'
   | 'domains'
   | 'delivery-methods'
   | 'discounts'
@@ -758,6 +759,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 { id: 'customers', label: 'Customers & Loyalty', icon: Users },
                 { id: 'vip-club', label: "Colonel's VIP Club", icon: Crown },
                 { id: 'marketing', label: 'WhatsApp Marketing', icon: Send },
+                { id: 'meta', label: 'Meta Ads & Catalog', icon: Share2 },
                 { id: 'domains', label: 'Connect Custom Domain', icon: Globe },
                 { id: 'delivery-methods', label: 'Delivery Methods', icon: Truck },
                 { id: 'discounts', label: 'Discounts & Codes', icon: Tag },
@@ -2339,6 +2341,13 @@ export const ShopifyAdminApp: React.FC = () => {
           {/* ========================================================================= */}
           {activeTab === 'vip-club' && (
             <VipClubManager />
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: META ADS & CATALOG */}
+          {/* ========================================================================= */}
+          {activeTab === 'meta' && (
+            <MetaAdsManager />
           )}
 
           {/* ========================================================================= */}
