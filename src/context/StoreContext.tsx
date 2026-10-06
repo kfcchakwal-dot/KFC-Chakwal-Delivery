@@ -292,7 +292,7 @@ interface StoreContextType {
   deleteCustomer: (customerId: string) => void;
 
   // Lifetime VIP Pass actions
-  requestVipMembershipWhatsApp: (tierId: VipTierId, customerName: string, phone: string, email?: string) => VipMembershipRequest;
+  requestVipMembershipWhatsApp: (tierId: VipTierId, customerName: string, phone: string, email?: string) => Promise<VipMembershipRequest>;
   grantVipMembershipManual: (customerPhoneOrId: string, tierId: VipTierId) => void;
 
   // Admin Users
@@ -1788,39 +1788,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // WhatsApp-First Lifetime VIP Pass Order (No TID required)
-  const requestVipMembershipWhatsApp = (
+  const requestVipMembershipWhatsApp = async (
     tierId: VipTierId,
     customerName: string,
     phone: string,
     email?: string
-  ): VipMembershipRequest => {
-    const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
-    const newReq: VipMembershipRequest = {
-      id: `vip-req-${Date.now()}`,
-      customerId: currentUser?.id || `cust-${Date.now()}`,
-      customerName: customerName.trim(),
-      phone: phone.trim(),
-      email: email?.trim(),
-      tierId,
-      amount: tier.price,
-      paymentMethod: 'whatsapp',
-      requestedAt: new Date().toISOString(),
-      status: 'pending',
-    };
-    const nextReqs = [newReq, ...vipRequests.filter((r) => r.phone !== phone.trim() || r.status === 'approved')];
-    setVipRequests(nextReqs);
-    localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(nextReqs));
-
+  ): Promise<VipMembershipRequest> => {
+    const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+    if (!token) throw new Error('Customer authentication required for VIP request.');
+    const response = await fetch('/api/vip/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        tierId,
+        customerName: customerName.trim(),
+        phone: phone.trim(),
+        email: email?.trim(),
+        paymentMethod: 'whatsapp',
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'VIP request could not be created.');
+    const saved = data as VipMembershipRequest;
+    setVipRequests((prev) => [saved, ...prev.filter((request) => request.id !== saved.id)]);
     if (currentUser) {
-      const updatedUser: CustomerUser = {
-        ...currentUser,
-        vipTier: tierId,
-        vipStatus: 'pending',
-      };
-      setCurrentUser(updatedUser);
-      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+      setCurrentUser((prev) => prev ? { ...prev, vipTier: tierId, vipStatus: 'pending' } : prev);
     }
-    return newReq;
+    return saved;
   };
 
   // Manually grant Lifetime VIP Pass by admin
