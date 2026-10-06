@@ -493,6 +493,66 @@ app.get('/api/customers', verifyAdminAuth, async (_req, res) => {
   }
 });
 
+// POST /api/customers (Admin Only: create/update customer records)
+app.post('/api/customers', verifyAdminAuth, async (req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const input = req.body || {};
+    const phone = String(input.phone || '').trim();
+    const fullName = String(input.fullName || '').trim();
+    if (!phone) return res.status(400).json({ error: 'Customer phone is required' });
+
+    let docRef = input.id ? firestoreDb.collection('customers').doc(String(input.id)) : null;
+    if (!docRef || String(input.id).startsWith('cust-')) {
+      const existing = await firestoreDb.collection('customers').where('phone', '==', phone).limit(1).get();
+      docRef = existing.empty
+        ? firestoreDb.collection('customers').doc()
+        : existing.docs[0].ref;
+    }
+
+    const existingSnap = await docRef.get();
+    const existing: any = existingSnap.exists ? existingSnap.data() : {};
+    const data: any = {
+      phone,
+      fullName: fullName || existing.fullName || 'Customer',
+      email: String(input.email ?? existing.email ?? ''),
+      defaultAddress: String(input.address ?? input.defaultAddress ?? existing.defaultAddress ?? ''),
+      loyaltyPoints: Math.max(0, Number(input.loyaltyPoints ?? existing.loyaltyPoints ?? 0)),
+      vipTier: input.vipTier ?? existing.vipTier ?? null,
+      totalOrdersCount: Math.max(0, Number(input.totalOrdersCount ?? existing.totalOrdersCount ?? 0)),
+      totalSpent: Math.max(0, Number(input.totalSpent ?? existing.totalSpent ?? 0)),
+      createdAt: existing.createdAt || new Date().toISOString(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await docRef.set(data, { merge: true });
+    const saved = await docRef.get();
+    return res.json({ id: docRef.id, ...saved.data() });
+  } catch (err) {
+    console.error('Error saving customer:', err);
+    return res.status(500).json({ error: 'Failed to save customer record' });
+  }
+});
+
+// DELETE /api/customers/:id (Admin Only)
+app.delete('/api/customers/:id', verifyAdminAuth, async (req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const id = String(req.params.id);
+    const docRef = firestoreDb.collection('customers').doc(id);
+    if ((await docRef.get()).exists) {
+      await docRef.delete();
+      return res.json({ success: true, id });
+    }
+    const snap = await firestoreDb.collection('customers').where('phone', '==', id).limit(1).get();
+    if (snap.empty) return res.status(404).json({ error: 'Customer not found' });
+    await snap.docs[0].ref.delete();
+    return res.json({ success: true, id: snap.docs[0].id });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete customer record' });
+  }
+});
+
 // POST /api/admin/verify-domain (Real DNS Verification using Node.js dns resolver)
 app.post('/api/admin/verify-domain', verifyAdminAuth, async (req, res) => {
   const { domain } = req.body;
