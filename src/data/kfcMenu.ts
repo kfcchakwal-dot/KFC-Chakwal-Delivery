@@ -327,9 +327,6 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   orderNotificationSound: true,
   customAppIconUrl: '/pwa-512.png',
   customPreloaderLogoUrl: '/logo.svg',
-  adminUsers: [
-    { id: 'admin-1', name: 'Master Admin', email: 'kfcchakwal@gmail.com', role: 'Super Admin', addedAt: '2026-09-01' }
-  ],
   homepageVideo: {
     enabled: true,
     videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-frying-crispy-chicken-tenders-in-oil-42630-large.mp4',
