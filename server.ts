@@ -848,27 +848,32 @@ app.get('/api/meta-feed.json', async (_req, res) => {
 // POST /api/abandoned-checkouts (Log or sync abandoned cart session)
 app.post('/api/abandoned-checkouts', async (req, res) => {
   try {
-    const session = req.body;
-    if (!session || !session.phone || !session.items) {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const customer = await getOptionalCustomerAuth(req);
+    if (!customer?.uid || !customer.phone) return res.status(401).json({ error: 'Customer authentication required' });
+
+    const session = req.body || {};
+    if (!session.phone || !session.items) {
       return res.status(400).json({ error: 'Cart session phone and items required' });
     }
+    if (String(session.phone) !== String(customer.phone)) {
+      return res.status(403).json({ error: 'Phone does not match authenticated account' });
+    }
 
-    const checkoutId = session.id || `ab-${Date.now()}`;
+    const checkoutId = session.id || `ab-${customer.uid}-${Date.now()}`;
     const record = {
       id: checkoutId,
-      customerName: session.customerName || 'Customer',
-      phone: session.phone,
-      items: session.items,
-      cartTotal: session.cartTotal || 0,
+      uid: customer.uid,
+      customerName: String(session.customerName || 'Customer').slice(0, 100),
+      phone: customer.phone,
+      items: Array.isArray(session.items) ? session.items.slice(0, 50) : [],
+      cartTotal: Math.max(0, Number(session.cartTotal || 0)),
       createdAt: session.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       recoveryStatus: 'pending'
     };
 
-    if (firestoreDb) {
-      await firestoreDb.collection('abandonedCheckouts').doc(checkoutId).set(record, { merge: true });
-    }
-
+    await firestoreDb.collection('abandonedCheckouts').doc(checkoutId).set(record, { merge: true });
     res.json(record);
   } catch (err) {
     res.status(500).json({ error: 'Failed to record checkout session' });
