@@ -2335,6 +2335,70 @@ export const ShopifyAdminApp: React.FC = () => {
           )}
 
           {/* ========================================================================= */}
+          {/* TAB: VIP CLUB */}
+          {/* ========================================================================= */}
+          {activeTab === 'vip-club' && (
+            <VipClubManager />
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: CUSTOM DOMAIN */}
+          {/* ========================================================================= */}
+          {activeTab === 'domains' && (
+            <CustomDomainManager />
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: WHATSAPP MARKETING */}
+          {/* ========================================================================= */}
+          {activeTab === 'marketing' && (
+            <div className="space-y-6 max-w-5xl">
+              <div className="border-b border-zinc-200 pb-5">
+                <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">WhatsApp Marketing</h2>
+                <p className="text-xs text-zinc-500 mt-1">Campaign history is shown below. Automatic WhatsApp sending requires the WhatsApp Business Cloud API configuration.</p>
+              </div>
+              <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 text-sm">
+                <strong>Configuration Required:</strong> WHATSAPP_ACCESS_TOKEN aur WHATSAPP_PHONE_NUMBER_ID server environment mein configure hone ke baad real Cloud API sending enable hogi. App fake “sent” status nahi dikhayegi.
+              </div>
+              <div className="space-y-3">
+                {marketingCampaigns.length === 0 ? (
+                  <div className="p-8 rounded-2xl border border-dashed border-zinc-300 text-center text-sm text-zinc-500">Abhi koi marketing campaign record nahi hai.</div>
+                ) : marketingCampaigns.map((campaign) => (
+                  <div key={campaign.id} className="p-4 rounded-2xl border border-zinc-200 bg-white">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-bold text-zinc-900">{campaign.title}</h3>
+                        <p className="text-xs text-zinc-500 mt-1">{campaign.message}</p>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-lg bg-zinc-100 text-zinc-600">{campaign.channel}</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 mt-3">{new Date(campaign.sentAt).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: REVIEWS & AUTO 12-HOUR FLOW */}
+          {/* ========================================================================= */}
+          {activeTab === 'reviews' && (
+            <div className="space-y-6 max-w-5xl">
+              <div className="border-b border-zinc-200 pb-5">
+                <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">Reviews & Auto 12-Hour Flow</h2>
+                <p className="text-xs text-zinc-500 mt-1">Customer reviews are available in the storefront. Automatic 12-hour WhatsApp review requests are currently disabled until a server scheduler is deployed.</p>
+              </div>
+              <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 text-sm">
+                <strong>Setup Required:</strong> Review automation ko browser timer se nahi chalaya jayega. Scheduler deploy hone ke baad hi automatic requests enable hongi.
+              </div>
+              <div className="p-4 rounded-2xl border border-zinc-200 bg-white">
+                <p className="text-sm font-bold text-zinc-900">Current reviews: {reviews.length}</p>
+                <p className="text-xs text-zinc-500 mt-1">Manual review management existing storefront/admin workflow se available hai.</p>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
           {/* TAB 7: DISCOUNTS */}
           {/* ========================================================================= */}
           {activeTab === 'discounts' && (
