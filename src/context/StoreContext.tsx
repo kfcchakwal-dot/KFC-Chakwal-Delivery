@@ -895,31 +895,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const loginAdmin = async (emailOrPin: string, password?: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const email = emailOrPin.includes('@') ? emailOrPin.trim() : `${emailOrPin.trim()}@kfcchakwaldelivery.app`;
-      const pwd = password || emailOrPin;
-      const cred = await signInWithEmailAndPassword(auth, email, pwd);
+      const email = emailOrPin.trim().toLowerCase();
+      if (!email || !email.includes('@') || !password) {
+        return { success: false, error: 'Administrator email aur password required hain.' };
+      }
+
+      const cred = await signInWithEmailAndPassword(auth, email, password);
       const user = cred.user;
       const tokenResult = await user.getIdTokenResult();
 
-      let isAuthorizedAdmin = false;
-      if (tokenResult.claims.admin === true || user.email === 'kfcchakwal@gmail.com') {
-        isAuthorizedAdmin = true;
-      } else {
+      let isAuthorizedAdmin = tokenResult.claims.admin === true;
+      if (!isAuthorizedAdmin) {
         const adminDoc = await getDoc(doc(db, 'adminUsers', user.uid));
-        if (adminDoc.exists() && adminDoc.data()?.role === 'admin') {
-          isAuthorizedAdmin = true;
-        }
+        isAuthorizedAdmin =
+          adminDoc.exists() &&
+          adminDoc.data()?.role === 'admin' &&
+          adminDoc.data()?.active !== false;
       }
 
-      if (isAuthorizedAdmin) {
-        setIsAdmin(true);
-        setIsAdminLoginModalOpen(false);
-        return { success: true };
-      } else {
+      if (!isAuthorizedAdmin) {
         await signOut(auth);
         setIsAdmin(false);
-        return { success: false, error: 'Access denied: You do not have administrator permissions.' };
+        return { success: false, error: 'Access denied: administrator permissions required.' };
       }
+
+      setIsAdmin(true);
+      setIsAdminLoginModalOpen(false);
+      return { success: true };
     } catch (err: any) {
       console.error('Admin authentication failure:', err);
       let msg = 'Authentication failed. Please verify your administrator credentials.';
