@@ -298,7 +298,7 @@ app.post('/api/orders', async (req, res) => {
       for (const addonId of requestedAddonIds) {
         const addon = addonMap.get(addonId);
         if (!addon) return res.status(400).json({ error: 'Invalid product add-on selected' });
-        addonTotal += Number(addon.price || 0);
+        addonTotal += Number((addon as any).price || 0);
       }
 
       const unitPrice = unitBase + addonTotal;
