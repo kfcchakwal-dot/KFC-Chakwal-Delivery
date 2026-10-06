@@ -604,7 +604,7 @@ export const CustomerAuthModal: React.FC = () => {
                     <button type="button" disabled={otpBusy} onClick={() => { setIsOtpSent(false); setOtpCode(''); setOtpError(''); }} className="w-full py-2 text-zinc-400 font-bold">Change Number</button>
                   </>
                 ) : (
-                  <button type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer shadow-lg shadow-red-950/20 active:scale-95 flex items-center justify-center gap-2">
+                  <button id="customer-auth-send-otp" type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer shadow-lg shadow-red-950/20 active:scale-95 flex items-center justify-center gap-2">
                     <span>{otpBusy ? 'Sending OTP...' : 'Verify Phone & Create Account'}</span>
                     <Sparkles className="w-4 h-4 text-amber-300" />
                   </button>
