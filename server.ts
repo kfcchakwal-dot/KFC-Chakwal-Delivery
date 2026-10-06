@@ -412,10 +412,13 @@ app.post('/api/orders', async (req, res) => {
     }, { merge: true });
 
     if (appliedDiscount?.id) {
-      const discountRef = firestoreDb.collection('discounts').doc(String(appliedDiscount.id));
-      batch.set(discountRef, {
-        ...appliedDiscount,
-        usedCount: Number(appliedDiscount.usedCount || 0) + 1,
+      const updatedDiscounts = discounts.map((discount: any) =>
+        discount.id === appliedDiscount.id
+          ? { ...discount, usedCount: Number(discount.usedCount || 0) + 1 }
+          : discount
+      );
+      batch.set(firestoreDb.collection('storeSettings').doc('global'), {
+        discounts: updatedDiscounts,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
     }
