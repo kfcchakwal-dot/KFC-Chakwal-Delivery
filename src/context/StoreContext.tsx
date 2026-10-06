@@ -194,7 +194,7 @@ interface StoreContextType {
 
   // Reviews
   reviews: ProductReview[];
-  addReview: (review: Omit<ProductReview, 'id' | 'date'>) => void;
+  addReview: (review: Omit<ProductReview, 'id' | 'date'>) => Promise<ProductReview>;
   deleteReview: (reviewId: string) => void;
 
   // Customer Account
@@ -806,6 +806,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setServerSyncStatus('offline');
     }
   };
+
+  useEffect(() => {
+    const loadReviews = async () => {
+      try {
+        const res = await fetch('/api/reviews');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) setReviews(data);
+        }
+      } catch {}
+    };
+    loadReviews();
+  }, []);
 
   // Orders Fetch & Sound Trigger
   const fetchOrders = async () => {
@@ -1447,13 +1460,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Reviews
-  const addReview = (reviewData: Omit<ProductReview, 'id' | 'date'>) => {
-    const newRev: ProductReview = {
-      ...reviewData,
-      id: `rev-${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
-    };
-    setReviews((prev) => [newRev, ...prev]);
+  const addReview = async (reviewData: Omit<ProductReview, 'id' | 'date'>): Promise<ProductReview> => {
+    const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+    if (!token) throw new Error('Customer authentication required to submit a review.');
+    const response = await fetch('/api/reviews', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(reviewData),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Review submit nahi ho saka.');
+    const savedReview = data as ProductReview;
+    setReviews((prev) => [savedReview, ...prev]);
+    return savedReview;
   };
 
   const deleteReview = (reviewId: string) => {
