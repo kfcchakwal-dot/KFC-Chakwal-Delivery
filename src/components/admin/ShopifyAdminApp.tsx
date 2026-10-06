@@ -2367,8 +2367,16 @@ export const ShopifyAdminApp: React.FC = () => {
                 <p className="text-xs text-zinc-500 mt-1">Campaign history is shown below. Automatic WhatsApp sending requires the WhatsApp Business Cloud API configuration.</p>
               </div>
               <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 text-sm">
-                <strong>Configuration Required:</strong> WHATSAPP_ACCESS_TOKEN aur WHATSAPP_PHONE_NUMBER_ID server environment mein configure hone ke baad real Cloud API sending enable hogi. App fake “sent” status nahi dikhayegi.
+                <strong>Free WhatsApp mode:</strong> WhatsApp Business API ki zaroorat nahi. Neeche diye gaye button se customer ki WhatsApp chat pre-filled message ke saath open hogi. Official WhatsApp Click-to-Chat links mobile aur WhatsApp Web dono par kaam karte hain.
               </div>
+              <a
+                href="https://wa.me/923252777574?text=Assalam%20o%20Alaikum%2C%20KFC%20Chakwal%20Delivery%20se%20order%20ya%20marketing%20campaign%20ke%20baray%20mein%20rabta%20karna%20hai."
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-black text-white shadow-sm"
+              >
+                Open KFC WhatsApp
+              </a>
               <div className="space-y-3">
                 {marketingCampaigns.length === 0 ? (
                   <div className="p-8 rounded-2xl border border-dashed border-zinc-300 text-center text-sm text-zinc-500">Abhi koi marketing campaign record nahi hai.</div>
