@@ -100,7 +100,7 @@ export const CheckoutModal: React.FC = () => {
     setIsAddingNewAddress(false);
   };
 
-  const handlePlaceOrder = (isWhatsApp: boolean = false) => {
+  const handlePlaceOrder = async (isWhatsApp: boolean = false) => {
     setFormError('');
 
     if (!fullName.trim()) {
@@ -118,8 +118,8 @@ export const CheckoutModal: React.FC = () => {
       return;
     }
 
-    const finalAddress = deliveryMode === 'pickup' 
-      ? 'Self Pickup from Tehsil Chowk, Chakwal' 
+    const finalAddress = deliveryMode === 'pickup'
+      ? 'Self Pickup from Tehsil Chowk, Chakwal'
       : address.trim();
 
     const customer: CustomerDetails = {
@@ -128,51 +128,51 @@ export const CheckoutModal: React.FC = () => {
       address: finalAddress,
     };
 
-    const newOrder = createOrder(customer, paymentMethod, specialInstructions.trim());
+    setIsPlacingOrder(true);
+    try {
+      const newOrder = await createOrder(customer, paymentMethod, specialInstructions.trim());
 
-    // Build complete WhatsApp message
-    const itemsList = newOrder.items
-      .map(
-        (i) =>
-          `• ${i.quantity}x ${i.menuItem.name} (${formatPKR(i.unitPrice * i.quantity)})${
-            i.options.spiceLevel ? ` [${i.options.spiceLevel}]` : ''
-          }${i.options.drink ? ` [${i.options.drink}]` : ''}${
-            i.options.addons && i.options.addons.length > 0 ? ` (+${i.options.addons.map(a => a.name).join(', ')})` : ''
-          }`
-      )
-      .join('\n');
+      const itemsList = newOrder.items
+        .map(
+          (i) =>
+            `• ${i.quantity}x ${i.menuItem.name} (${formatPKR(i.unitPrice * i.quantity)})` +
+            `${i.options.spiceLevel ? ` [${i.options.spiceLevel}]` : ''}` +
+            `${i.options.drink ? ` [${i.options.drink}]` : ''}` +
+            `${i.options.addons && i.options.addons.length > 0 ? ` (+${i.options.addons.map(a => a.name).join(', ')})` : ''}`
+        )
+        .join('\\n');
 
-    const message = `🍗 *NEW ORDER - KFC CHAKWAL DELIVERY*\n` +
-      `Order ID: #${newOrder.id}\n` +
-      `-------------------------\n` +
-      `*Items Ordered:*\n${itemsList}\n` +
-      `-------------------------\n` +
-      `Subtotal: ${formatPKR(newOrder.subtotal)}\n` +
-      `Delivery Type: ${deliveryMode === 'pickup' ? 'Self Pickup from Tehsil Chowk' : 'Doorstep Delivery'}\n` +
-      `Delivery Charges: ${formatPKR(newOrder.deliveryFee)}\n` +
-      (newOrder.discount > 0 ? `Discount: -${formatPKR(newOrder.discount)}\n` : '') +
-      (newOrder.loyaltyDiscount ? `Loyalty Points Discount: -${formatPKR(newOrder.loyaltyDiscount)}\n` : '') +
-      (newOrder.vipDiscount ? `VIP Lifetime Discount (${newOrder.vipTierApplied?.toUpperCase()}): -${formatPKR(newOrder.vipDiscount)}\n` : '') +
-      `*Total Bill: ${formatPKR(newOrder.total)} (PKR)*\n` +
-      `Payment: ${newOrder.paymentMethod.toUpperCase()}\n` +
-      `-------------------------\n` +
-      `*Customer Details:*\n` +
-      `Name: ${customer.fullName}\n` +
-      `Phone: ${customer.phone}\n` +
-      `Address: ${customer.address}\n` +
-      (specialInstructions.trim() ? `*Special Kitchen Instructions:* ${specialInstructions.trim()}\n` : '') +
-      `Coverage: Within 3 KM of Chakwal City\n` +
-      `Notice: KFC Kallar Kahar Motorway se fresh pick ho kar deliver hoga.\n`;
+      const message = `🍗 *NEW ORDER - KFC CHAKWAL DELIVERY*\\n` +
+        `Order ID: #${newOrder.id}\\n` +
+        `-------------------------\\n` +
+        `*Items Ordered:*\\n${itemsList}\\n` +
+        `-------------------------\\n` +
+        `Subtotal: ${formatPKR(newOrder.subtotal)}\\n` +
+        `Delivery Type: ${deliveryMode === 'pickup' ? 'Self Pickup from Tehsil Chowk' : 'Doorstep Delivery'}\\n` +
+        `Delivery Charges: ${formatPKR(newOrder.deliveryFee)}\\n` +
+        (newOrder.discount > 0 ? `Discount: -${formatPKR(newOrder.discount)}\\n` : '') +
+        (newOrder.loyaltyDiscount ? `Loyalty Points Discount: -${formatPKR(newOrder.loyaltyDiscount)}\\n` : '') +
+        (newOrder.vipDiscount ? `VIP Lifetime Discount (${newOrder.vipTierApplied?.toUpperCase()}): -${formatPKR(newOrder.vipDiscount)}\\n` : '') +
+        `*Total Bill: ${formatPKR(newOrder.total)} (PKR)*\\n` +
+        `Payment: ${newOrder.paymentMethod.toUpperCase()}\\n` +
+        `-------------------------\\n` +
+        `*Customer Details:*\\n` +
+        `Name: ${customer.fullName}\\n` +
+        `Phone: ${customer.phone}\\n` +
+        `Address: ${customer.address}\\n` +
+        (specialInstructions.trim() ? `*Special Kitchen Instructions:* ${specialInstructions.trim()}\\n` : '') +
+        `Coverage: Within 3 KM of Chakwal City\\n`;
 
-    const encodedMessage = encodeURIComponent(message);
-    const cleanPhone = settings.whatsappNumber.replace(/[^0-9]/g, '');
-    const waUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
-
-    if (isWhatsApp) {
-      window.location.href = waUrl;
+      if (isWhatsApp) {
+        const encodedMessage = encodeURIComponent(message);
+        const cleanPhone = settings.whatsappNumber.replace(/[^0-9]/g, '');
+        window.location.href = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+      }
+    } catch (error: any) {
+      setFormError(error?.message || 'Order place nahi ho saka. Please dobara try karein.');
+    } finally {
+      setIsPlacingOrder(false);
     }
-
-    setIsCheckoutOpen(false);
   };
 
   return (
