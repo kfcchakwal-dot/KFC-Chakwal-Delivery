@@ -553,6 +553,94 @@ app.delete('/api/customers/:id', verifyAdminAuth, async (req, res) => {
   }
 });
 
+// GET /api/vip (Admin ledger)
+app.get('/api/vip', verifyAdminAuth, async (_req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const snap = await firestoreDb.collection('vipMembers').limit(500).get();
+    return res.json(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  } catch {
+    return res.status(500).json({ error: 'Failed to load VIP records' });
+  }
+});
+
+// POST /api/vip/request (Authenticated customer)
+app.post('/api/vip/request', async (req, res) => {
+  try {
+    if (!firestoreDb || !firebaseAuth) return res.status(503).json({ error: 'VIP service is not configured' });
+    const authUser = await getOptionalCustomerAuth(req);
+    if (!authUser?.uid || !authUser.phone) return res.status(401).json({ error: 'Customer authentication required' });
+
+    const tierId = String(req.body?.tierId || '');
+    const tierMap: Record<string, { price: number; discountPercentage: number }> = {
+      silver: { price: 499, discountPercentage: 3 },
+      gold: { price: 899, discountPercentage: 6 },
+      platinum: { price: 999, discountPercentage: 8 },
+    };
+    const tier = tierMap[tierId];
+    if (!tier) return res.status(400).json({ error: 'Invalid VIP tier' });
+
+    const customerSnap = await firestoreDb.collection('customers').doc(authUser.uid).get();
+    const customerData: any = customerSnap.exists ? customerSnap.data() : {};
+    const id = authUser.uid;
+    const request = {
+      id,
+      customerId: authUser.uid,
+      customerName: String(customerData.fullName || req.body?.customerName || 'Customer').slice(0, 100),
+      phone: authUser.phone,
+      email: String(customerData.email || req.body?.email || ''),
+      tierId,
+      amount: tier.price,
+      paymentMethod: String(req.body?.paymentMethod || 'whatsapp'),
+      transactionId: String(req.body?.transactionId || '').slice(0, 100),
+      requestedAt: new Date().toISOString(),
+      status: 'pending',
+      discountPercentage: tier.discountPercentage,
+    };
+    await firestoreDb.collection('vipMembers').doc(id).set(request, { merge: true });
+    return res.status(201).json(request);
+  } catch (err) {
+    console.error('VIP request error:', err);
+    return res.status(500).json({ error: 'Failed to create VIP request' });
+  }
+});
+
+// PATCH /api/vip/:id/status (Admin approval/rejection)
+app.patch('/api/vip/:id/status', verifyAdminAuth, async (req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const id = String(req.params.id);
+    const status = String(req.body?.status || '');
+    if (!['approved', 'rejected', 'pending'].includes(status)) return res.status(400).json({ error: 'Invalid VIP status' });
+
+    const ref = firestoreDb.collection('vipMembers').doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'VIP request not found' });
+    const data: any = snap.data();
+    const tierId = String(data?.tierId || '');
+
+    await ref.set({
+      status,
+      approvedAt: status === 'approved' ? new Date().toISOString() : null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    if (data.customerId) {
+      await firestoreDb.collection('customers').doc(String(data.customerId)).set({
+        vipTier: status === 'approved' ? tierId : null,
+        vipStatus: status === 'approved' ? 'active' : status === 'rejected' ? 'rejected' : 'pending',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    const saved = await ref.get();
+    return res.json({ id: saved.id, ...saved.data() });
+  } catch (err) {
+    console.error('VIP status update error:', err);
+    return res.status(500).json({ error: 'Failed to update VIP status' });
+  }
+});
+
 // GET /api/reviews (Public storefront reviews)
 app.get('/api/reviews', async (req, res) => {
   try {
