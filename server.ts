@@ -558,10 +558,12 @@ app.get('/api/reviews', async (req, res) => {
   try {
     if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
     const productId = String(req.query.productId || '').trim();
-    let query: any = firestoreDb.collection('reviews').orderBy('date', 'desc').limit(200);
-    if (productId) query = firestoreDb.collection('reviews').where('productId', '==', productId).orderBy('date', 'desc').limit(100);
-    const snap = await query.get();
-    return res.json(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    const snap = await firestoreDb.collection('reviews').limit(200).get();
+    const reviews = snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }) as any)
+      .filter((review: any) => !productId || String(review.productId) === productId)
+      .sort((a: any, b: any) => String(b.date || '').localeCompare(String(a.date || '')));
+    return res.json(reviews);
   } catch (err) {
     console.error('Error reading reviews:', err);
     return res.status(500).json({ error: 'Failed to read reviews' });
