@@ -540,6 +540,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               savedAddresses: data.savedAddresses || [],
               loyaltyPoints: data.loyaltyPoints || 0,
               vipTier: data.vipTier,
+              vipStatus: data.vipStatus,
               totalSpent: data.totalSpent || 0,
               ordersCount: data.totalOrdersCount || 0,
               createdAt: data.createdAt || new Date().toISOString(),
@@ -860,6 +861,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const loadVipRequests = async () => {
+      try {
+        const res = await fetch('/api/vip', { headers: await getAuthHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) setVipRequests(data);
+        }
+      } catch {}
+    };
+    loadVipRequests();
+  }, [isAdmin]);
 
   const updateCustomerPoints = async (phoneOrId: string, newPoints: number) => {
     const target = customerRecords.find((c) => c.phone === phoneOrId || c.id === phoneOrId);
@@ -1630,6 +1645,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           savedAddresses: data.savedAddresses || [],
           loyaltyPoints: data.loyaltyPoints || 0,
           vipTier: data.vipTier,
+          vipStatus: data.vipStatus,
           totalSpent: data.totalSpent || 0,
           ordersCount: data.totalOrdersCount || 0,
           createdAt: data.createdAt || new Date().toISOString(),
