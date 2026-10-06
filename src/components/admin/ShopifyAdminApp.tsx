@@ -148,7 +148,8 @@ export const ShopifyAdminApp: React.FC = () => {
     addCategory,
   } = useStore();
 
-  const [sellerPinInput, setSellerPinInput] = useState('');
+  const [sellerEmail, setSellerEmail] = useState('');
+  const [sellerPassword, setSellerPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState<SellerTab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -247,14 +248,12 @@ export const ShopifyAdminApp: React.FC = () => {
   // LOGIN SCREEN (If not authenticated as seller)
   // =========================================================================
   if (!isAdmin) {
-    const handleLoginSubmit = (e: React.FormEvent) => {
+    const handleLoginSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      const success = loginAdmin(sellerPinInput);
-      if (!success) {
-        setLoginError('Invalid Seller PIN. (Default PIN: 7860)');
-      } else {
-        setLoginError('');
-      }
+      setLoginError('');
+      const result = await loginAdmin(sellerEmail.trim(), sellerPassword);
+      if (!result.success) setLoginError(result.error || 'Invalid administrator credentials.');
+      else setSellerPassword('');
     };
 
     return (
@@ -280,24 +279,10 @@ export const ShopifyAdminApp: React.FC = () => {
 
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
-                Seller Access PIN
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={sellerPinInput}
-                  onChange={(e) => setSellerPinInput(e.target.value)}
-                  placeholder="Enter 4-digit PIN (e.g. 7860)"
-                  className="w-full text-center tracking-widest text-lg font-black border border-zinc-300 rounded-xl py-3 px-4 focus:outline-none focus:border-[#e4002b] focus:ring-2 focus:ring-red-100"
-                  autoFocus
-                  required
-                />
-                <Lock className="w-4 h-4 text-zinc-400 absolute left-3.5 top-4 pointer-events-none" />
-              </div>
-              <p className="text-[11px] text-zinc-400 text-center mt-1.5">
-                Default PIN: <strong className="text-zinc-700">7860</strong>
-              </p>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">Admin Email</label>
+              <input type="email" value={sellerEmail} onChange={(e) => setSellerEmail(e.target.value)} placeholder="admin email" className="w-full text-sm border border-zinc-300 rounded-xl py-3 px-4 focus:outline-none focus:border-[#e4002b]" required />
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5 mt-3">Admin Password</label>
+              <input type="password" value={sellerPassword} onChange={(e) => setSellerPassword(e.target.value)} placeholder="Secure password" className="w-full text-sm border border-zinc-300 rounded-xl py-3 px-4 focus:outline-none focus:border-[#e4002b]" required />
             </div>
 
             <button
