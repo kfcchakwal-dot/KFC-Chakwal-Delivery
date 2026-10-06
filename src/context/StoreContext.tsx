@@ -1755,36 +1755,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const approveVipRequest = (requestId: string) => {
-    const req = vipRequests.find((r) => r.id === requestId);
-    if (!req) return;
-    const nextReqs = vipRequests.map((r) =>
-      r.id === requestId ? { ...r, status: 'approved' as const, approvedAt: new Date().toISOString() } : r
-    );
-    setVipRequests(nextReqs);
-    localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(nextReqs));
-
-    if (currentUser && (currentUser.id === req.customerId || currentUser.phone === req.phone)) {
-      const updatedUser: CustomerUser = {
-        ...currentUser,
-        vipTier: req.tierId,
-        vipStatus: 'active',
-      };
-      setCurrentUser(updatedUser);
-      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+  const approveVipRequest = async (requestId: string) => {
+    const response = await fetch(`/api/vip/${encodeURIComponent(requestId)}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+      body: JSON.stringify({ status: 'approved' }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'VIP approval failed.');
+    setVipRequests((prev) => prev.map((request) => request.id === requestId ? { ...request, ...data } : request));
+    if (currentUser && data.customerId === currentUser.id) {
+      setCurrentUser((prev) => prev ? { ...prev, vipTier: data.tierId, vipStatus: 'active' } : prev);
     }
-
-    setCustomerRecords((prev) =>
-      prev.map((c) => (c.phone === req.phone ? { ...c, vipTier: req.tierId } : c))
-    );
   };
 
-  const rejectVipRequest = (requestId: string) => {
-    const nextReqs = vipRequests.map((r) =>
-      r.id === requestId ? { ...r, status: 'rejected' as const } : r
-    );
-    setVipRequests(nextReqs);
-    localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(nextReqs));
+  const rejectVipRequest = async (requestId: string) => {
+    const response = await fetch(`/api/vip/${encodeURIComponent(requestId)}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+      body: JSON.stringify({ status: 'rejected' }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'VIP rejection failed.');
+    setVipRequests((prev) => prev.map((request) => request.id === requestId ? { ...request, ...data } : request));
+    if (currentUser && data.customerId === currentUser.id) {
+      setCurrentUser((prev) => prev ? { ...prev, vipStatus: 'rejected', vipTier: undefined } : prev);
+    }
   };
 
   // WhatsApp-First Lifetime VIP Pass Order (No TID required)
@@ -1818,40 +1814,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Manually grant Lifetime VIP Pass by admin
-  const grantVipMembershipManual = (customerPhoneOrId: string, tierId: VipTierId) => {
-    const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
-    const newReq: VipMembershipRequest = {
-      id: `vip-grant-${Date.now()}`,
-      customerId: customerPhoneOrId,
-      customerName: 'VIP Customer',
-      phone: customerPhoneOrId,
-      tierId,
-      amount: tier.price,
-      paymentMethod: 'bank_transfer',
-      requestedAt: new Date().toISOString(),
-      status: 'approved',
-      approvedAt: new Date().toISOString(),
-      notes: 'Manually granted by admin',
-    };
-    const nextReqs = [newReq, ...vipRequests];
-    setVipRequests(nextReqs);
-    localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(nextReqs));
+  const grantVipMembershipManual = async (customerPhoneOrId: string, tierId: VipTierId) => {
+    const target = customerRecords.find((customer) => customer.id === customerPhoneOrId || customer.phone === customerPhoneOrId);
+    if (!target) throw new Error('Customer not found.');
 
-    setCustomerRecords((prev) =>
-      prev.map((c) =>
-        c.phone === customerPhoneOrId || c.id === customerPhoneOrId ? { ...c, vipTier: tierId } : c
-      )
-    );
-
-    if (currentUser && (currentUser.phone === customerPhoneOrId || currentUser.id === customerPhoneOrId)) {
-      const updatedUser: CustomerUser = {
-        ...currentUser,
-        vipTier: tierId,
-        vipStatus: 'active',
-      };
-      setCurrentUser(updatedUser);
-      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+    let requestId = vipRequests.find((request) => request.customerId === target.id)?.id;
+    if (!requestId) {
+      const createResponse = await fetch('/api/vip/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+        body: JSON.stringify({
+          tierId,
+          customerName: target.fullName,
+          phone: target.phone,
+          email: target.email,
+          paymentMethod: 'bank_transfer',
+        }),
+      });
+      const created = await createResponse.json().catch(() => ({}));
+      if (!createResponse.ok) throw new Error(created.error || 'VIP record could not be created.');
+      requestId = created.id;
+      setVipRequests((prev) => [created, ...prev]);
     }
+
+    const response = await fetch(`/api/vip/${encodeURIComponent(requestId)}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+      body: JSON.stringify({ status: 'approved' }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'VIP grant failed.');
+    setVipRequests((prev) => prev.map((request) => request.id === requestId ? { ...request, ...data } : request));
+    setCustomerRecords((prev) => prev.map((customer) =>
+      customer.id === target.id ? { ...customer, vipTier } : customer
+    ));
   };
 
   // Order Editing (Shopify-style: add/remove items, adjust quantities, discount, shipping, customer details)
