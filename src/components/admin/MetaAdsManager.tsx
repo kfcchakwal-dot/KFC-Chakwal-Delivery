@@ -175,20 +175,20 @@ export const MetaAdsManager: React.FC = () => {
           <p className="text-xs font-bold text-zinc-700 mb-2">Event Tracking Status</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
             <div className="p-2 rounded-xl bg-zinc-50 border border-zinc-200 flex items-center gap-1.5 font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>PageView</span>
+              <span className="w-3.5 h-3.5 rounded-full border border-amber-500 shrink-0" />
+              <span>PageView · Setup Required</span>
             </div>
             <div className="p-2 rounded-xl bg-zinc-50 border border-zinc-200 flex items-center gap-1.5 font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>ViewContent</span>
+              <span className="w-3.5 h-3.5 rounded-full border border-amber-500 shrink-0" />
+              <span>ViewContent · Setup Required</span>
             </div>
             <div className="p-2 rounded-xl bg-zinc-50 border border-zinc-200 flex items-center gap-1.5 font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>AddToCart</span>
+              <span className="w-3.5 h-3.5 rounded-full border border-amber-500 shrink-0" />
+              <span>AddToCart · Setup Required</span>
             </div>
             <div className="p-2 rounded-xl bg-zinc-50 border border-zinc-200 flex items-center gap-1.5 font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Purchase</span>
+              <span className="w-3.5 h-3.5 rounded-full border border-amber-500 shrink-0" />
+              <span>Purchase · Setup Required</span>
             </div>
           </div>
         </div>
