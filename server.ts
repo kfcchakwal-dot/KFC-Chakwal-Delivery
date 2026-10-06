@@ -59,27 +59,6 @@ app.use(express.static(path.resolve(process.cwd(), 'public'), {
 }));
 
 // Fallback JSON stores for local caching / initial bootstrap
-const ORDERS_FILE = path.resolve(process.cwd(), 'orders.json');
-const STORE_DATA_FILE = path.resolve(process.cwd(), 'store-data.json');
-const CUSTOMERS_FILE = path.resolve(process.cwd(), 'customers.json');
-
-function readJsonFile(filePath: string, fallback: any = []) {
-  try {
-    if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, 'utf-8') || JSON.stringify(fallback));
-    }
-  } catch {}
-  return fallback;
-}
-
-function writeJsonFile(filePath: string, data: any) {
-  try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-  } catch (e) {
-    console.warn(`Failed to write local backup ${filePath}:`, e);
-  }
-}
-
 // =========================================================================
 // AUTHENTICATION MIDDLEWARE: Verify Admin Token
 // =========================================================================
@@ -216,14 +195,7 @@ app.get('/api/orders', async (req, res) => {
       }
     }
 
-    // Local fallback
-    const local = readJsonFile(ORDERS_FILE, []);
-    if (isAdminUser) {
-      return res.json(local);
-    } else if (customer) {
-      return res.json(local.filter((o: any) => o.customer?.uid === customer.uid || (customer.phone && o.customer?.phone === customer.phone)));
-    }
-    return res.status(401).json({ error: 'Authentication required to view orders' });
+    return res.status(503).json({ error: 'Firestore is unavailable' });
   } catch (err: any) {
     console.error('Error fetching orders:', err);
     res.status(500).json({ error: 'Failed to read orders' });
@@ -359,8 +331,9 @@ app.post('/api/admin/verify-domain', verifyAdminAuth, async (req, res) => {
 app.get('/api/facebook-catalog.xml', async (_req, res) => {
   try {
     const baseUrl = process.env.APP_URL || 'https://kfcchakwaldelivery.app';
-    const storeData = readJsonFile(STORE_DATA_FILE, {});
-    const products: any[] = storeData.products || [];
+    if (!firestoreDb) return res.status(503).send('<error>Firestore unavailable</error>');
+    const productSnap = await firestoreDb.collection('products').limit(1000).get();
+    const products: any[] = productSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     let itemsXml = '';
     products.forEach((p) => {
