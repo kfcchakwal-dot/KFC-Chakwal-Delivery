@@ -25,9 +25,12 @@ let firebaseAuth: admin.auth.Auth | null = null;
 
 try {
   if (!admin.apps.length) {
-    admin.initializeApp({
-      projectId: PROJECT_ID,
-    });
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    const credential = clientEmail && privateKey
+      ? admin.credential.cert({ projectId: PROJECT_ID, clientEmail, privateKey })
+      : admin.credential.applicationDefault();
+    admin.initializeApp({ projectId: PROJECT_ID, credential });
   }
   firestoreDb = FIRESTORE_DATABASE_ID && FIRESTORE_DATABASE_ID !== '(default)'
     ? admin.firestore().database(FIRESTORE_DATABASE_ID)
