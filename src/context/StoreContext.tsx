@@ -849,25 +849,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const updateCustomerPoints = async (phoneOrId: string, newPoints: number) => {
-    const updated = customerRecords.map((c) =>
-      c.phone === phoneOrId || c.id === phoneOrId ? { ...c, loyaltyPoints: newPoints } : c
-    );
-    setCustomerRecords(updated);
-    localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(updated));
-
-    if (currentUser && (currentUser.phone === phoneOrId || currentUser.id === phoneOrId)) {
-      const updatedUser = { ...currentUser, loyaltyPoints: newPoints };
-      setCurrentUser(updatedUser);
-      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+    const target = customerRecords.find((c) => c.phone === phoneOrId || c.id === phoneOrId);
+    if (!target) throw new Error('Customer not found.');
+    const res = await fetch('/api/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+      body: JSON.stringify({ id: target.id, phone: target.phone, fullName: target.fullName, loyaltyPoints: Math.max(0, Math.floor(newPoints)) }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Customer points update failed.');
     }
-
-    try {
-      await fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phoneOrId, loyaltyPoints: newPoints }),
-      });
-    } catch {}
+    const saved = await res.json();
+    setCustomerRecords((prev) => prev.map((c) => (c.id === target.id ? { ...c, ...saved } : c)));
+    if (currentUser && (currentUser.phone === target.phone || currentUser.id === target.id)) {
+      setCurrentUser((prev) => (prev ? { ...prev, loyaltyPoints: Number(saved.loyaltyPoints || 0) } : prev));
+    }
   };
 
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
@@ -1885,11 +1882,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Single Customer Manual Add, Edit, Delete
-  const addCustomer = (customerData: Partial<CustomerLoyaltyRecord>) => {
-    const newCust: CustomerLoyaltyRecord = {
+  const addCustomer = async (customerData: Partial<CustomerLoyaltyRecord>) => {
+    const payload: CustomerLoyaltyRecord = {
       id: `cust-${Date.now()}`,
       fullName: customerData.fullName || 'Customer',
-      phone: customerData.phone || '03001234567',
+      phone: customerData.phone || '',
       email: customerData.email || '',
       address: customerData.address || 'Chakwal City',
       loyaltyPoints: customerData.loyaltyPoints ?? 50,
@@ -1898,35 +1895,50 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       totalSpent: customerData.totalSpent ?? 0,
       createdAt: new Date().toISOString(),
     };
-    setCustomerRecords((prev) => {
-      const next = [newCust, ...prev];
-      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(next));
-      return next;
-    });
-    fetch('/api/customers', {
+    if (!payload.phone.trim()) throw new Error('Customer phone is required.');
+    const res = await fetch('/api/customers', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newCust),
-    }).catch(() => {});
+      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Customer could not be created.');
+    }
+    const saved = await res.json();
+    setCustomerRecords((prev) => [saved, ...prev.filter((c) => c.id !== saved.id && c.phone !== saved.phone)]);
   };
 
-  const updateCustomer = (customerId: string, updatedData: Partial<CustomerLoyaltyRecord>) => {
-    setCustomerRecords((prev) => {
-      const next = prev.map((c) =>
-        c.id === customerId || c.phone === customerId ? { ...c, ...updatedData } : c
-      );
-      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(next));
-      return next;
+  const updateCustomer = async (customerId: string, updatedData: Partial<CustomerLoyaltyRecord>) => {
+    const target = customerRecords.find((c) => c.id === customerId || c.phone === customerId);
+    if (!target) throw new Error('Customer not found.');
+    const res = await fetch('/api/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+      body: JSON.stringify({ ...target, ...updatedData, id: target.id, phone: target.phone }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Customer could not be updated.');
+    }
+    const saved = await res.json();
+    setCustomerRecords((prev) => prev.map((c) => (c.id === target.id ? saved : c)));
   };
 
-  const deleteCustomer = (customerId: string) => {
-    setCustomerRecords((prev) => {
-      const next = prev.filter((c) => c.id !== customerId && c.phone !== customerId);
-      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(next));
-      return next;
+  const deleteCustomer = async (customerId: string) => {
+    const target = customerRecords.find((c) => c.id === customerId || c.phone === customerId);
+    if (!target) throw new Error('Customer not found.');
+    const res = await fetch(`/api/customers/${encodeURIComponent(target.id)}`, {
+      method: 'DELETE',
+      headers: await getAuthHeaders(),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Customer could not be deleted.');
+    }
+    setCustomerRecords((prev) => prev.filter((c) => c.id !== target.id));
   };
+
 
   // Admin User Authorization Management
   const addAdminUser = (
