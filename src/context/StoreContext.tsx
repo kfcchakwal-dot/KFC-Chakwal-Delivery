@@ -495,6 +495,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         setIsAdmin(false);
+        setCurrentUser(null);
+        setAllOrders([]);
+        setVipRequests([]);
         return;
       }
 
@@ -1549,11 +1552,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentUser(updatedUser);
     localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
 
-    fetch('/api/customers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedUser),
-    }).catch(() => {});
+    void (async () => {
+      try {
+        const response = await fetch('/api/customer/profile', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+          body: JSON.stringify({
+            fullName: updatedUser.fullName,
+            email: updatedUser.email || '',
+            defaultAddress: updatedUser.address,
+            savedAddresses: updatedUser.savedAddresses,
+          }),
+        });
+        if (!response.ok) throw new Error('Profile update failed');
+        const saved = await response.json();
+        setCurrentUser((prev) => prev ? {
+          ...prev,
+          fullName: saved.fullName || prev.fullName,
+          email: saved.email || prev.email,
+          address: saved.defaultAddress || prev.address,
+          defaultAddress: saved.defaultAddress || prev.defaultAddress,
+          savedAddresses: saved.savedAddresses || prev.savedAddresses,
+        } : prev);
+      } catch (error) {
+        console.warn('Saved address sync failed:', error);
+      }
+    })();
   };
 
   const deleteSavedAddress = (addressId: string) => {
@@ -1567,6 +1591,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     setCurrentUser(updatedUser);
     localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+    void (async () => {
+      try {
+        const response = await fetch('/api/customer/profile', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+          body: JSON.stringify({
+            defaultAddress: updatedUser.address,
+            savedAddresses: updatedUser.savedAddresses,
+          }),
+        });
+        if (!response.ok) throw new Error('Profile update failed');
+      } catch (error) {
+        console.warn('Address deletion sync failed:', error);
+      }
+    })();
   };
 
   const repeatOrder = (order: Order) => {
