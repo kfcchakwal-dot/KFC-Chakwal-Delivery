@@ -632,7 +632,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const loadServerData = async () => {
       try {
-        const res = await fetch('/api/store-data');
+        const res = await fetch('/api/store-data', { headers: await getAuthHeaders() });
         if (res.ok) {
           const data = await res.json();
           if (data && Object.keys(data).length > 0) {
