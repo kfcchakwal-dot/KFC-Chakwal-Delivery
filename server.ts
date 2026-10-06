@@ -504,29 +504,47 @@ app.post('/api/admin/verify-domain', verifyAdminAuth, async (req, res) => {
 
   try {
     const addresses = await dns.resolve4(cleanDomain).catch(() => []);
+    const cnameRecords = await dns.resolveCname(cleanDomain).catch(() => []);
     let txtRecords: string[] = [];
     try {
       const rawTxt = await dns.resolveTxt(cleanDomain);
       txtRecords = rawTxt.flat();
     } catch {}
 
-    const isConnected = addresses.length > 0;
+    const dnsResolved = addresses.length > 0 || cnameRecords.length > 0;
+    const expectedTarget = String(process.env.CUSTOM_DOMAIN_CNAME_TARGET || '').trim().toLowerCase().replace(/\.$/, '');
+    const connected = Boolean(
+      expectedTarget &&
+      cnameRecords.some((record) => record.toLowerCase().replace(/\.$/, '') === expectedTarget)
+    );
+
+    let message = '';
+    if (!dnsResolved) {
+      message = `DNS verification failed. No A/CNAME record found for "${cleanDomain}".`;
+    } else if (!expectedTarget) {
+      message = `DNS resolves for "${cleanDomain}", but the hosting target is not configured on the server yet. SSL is not being claimed.`;
+    } else if (!connected) {
+      message = `DNS resolves, but "${cleanDomain}" is not pointing to the configured hosting target yet.`;
+    } else {
+      message = `DNS target verified for "${cleanDomain}". SSL status will only be reported active by the actual hosting platform.`;
+    }
 
     res.json({
       domain: cleanDomain,
       resolvedIps: addresses,
+      cnameRecords,
       txtRecords,
-      connected: isConnected,
+      dnsResolved,
+      connected,
       sslActive: false,
-      verifiedAt: isConnected ? new Date().toISOString() : null,
-      message: isConnected
-        ? `DNS successfully verified! "${cleanDomain}" resolved to ${addresses.join(', ')}`
-        : `DNS verification failed. No A record found for "${cleanDomain}". Please add DNS records with your registrar.`
+      verifiedAt: connected ? new Date().toISOString() : null,
+      message,
     });
   } catch (err: any) {
     res.json({
       domain: cleanDomain,
       resolvedIps: [],
+      cnameRecords: [],
       connected: false,
       sslActive: false,
       error: err.code || err.message,
