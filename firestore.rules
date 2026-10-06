@@ -1,110 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && (
+    function signedIn() { return request.auth != null; }
+    function admin() {
+      return signedIn() && (
         request.auth.token.admin == true ||
-        exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid))
+        (exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == 'admin' &&
+         get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.active != false)
       );
     }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    match /products/{id} { allow read: if true; allow write: if admin(); }
+    match /categories/{id} { allow read: if true; allow write: if admin(); }
+    match /collections/{id} { allow read: if true; allow write: if admin(); }
+    match /deliveryMethods/{id} { allow read: if true; allow write: if admin(); }
+    match /storeSettings/{id} { allow read: if true; allow write: if admin(); }
+    match /themeSettings/{id} { allow read: if true; allow write: if admin(); }
+    match /policies/{id} { allow read: if true; allow write: if admin(); }
+    match /discounts/{id} { allow read: if true; allow write: if admin(); }
+    match /dailyDeals/{id} { allow read: if true; allow write: if admin(); }
+
+    match /customers/{uid} {
+      allow read: if owner(uid) || admin();
+      allow create: if owner(uid) || admin();
+      allow update: if owner(uid) || admin();
+      allow delete: if admin();
     }
 
-    // Public Collections
-    match /products/{productId} {
+    match /orders/{id} {
+      allow read: if admin() || (signedIn() && resource.data.customer.uid == request.auth.uid);
+      allow create: if false;
+      allow update, delete: if admin();
+    }
+
+    match /reviews/{id} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if signedIn() && request.resource.data.customerUid == request.auth.uid;
+      allow update, delete: if admin() || (signedIn() && resource.data.customerUid == request.auth.uid);
     }
 
-    match /categories/{categoryId} {
-      allow read: if true;
-      allow write: if isAdmin();
+    match /vipMembers/{id} {
+      allow read: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow write: if admin();
     }
 
-    match /deliveryMethods/{methodId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
+    match /marketingCampaigns/{id} { allow read, write: if admin(); }
+    match /abandonedCheckouts/{id} { allow read, write: if admin(); }
+    match /notifications/{id} { allow read, write: if admin(); }
+    match /adminUsers/{uid} { allow read: if admin() || owner(uid); allow write: if admin(); }
 
-    match /storeSettings/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /themeSettings/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /policies/{policyId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /reviews/{reviewId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
-    }
-
-    match /discounts/{discountId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /dailyDeals/{dealId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // Protected Customer Profiles (Owner or Admin only)
-    match /customers/{customerId} {
-      allow read: if isOwner(customerId) || isAdmin();
-      allow create: if isOwner(customerId) || isAdmin();
-      allow update: if isOwner(customerId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    // Orders (Customer can read own, Admin can read/update all)
-    match /orders/{orderId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.customer.uid == request.auth.uid);
-      allow create: if isSignedIn() || request.resource.data.customer != null;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    // VIP Members
-    match /vipMembers/{memberId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
-      allow write: if isAdmin();
-    }
-
-    // Marketing Campaigns
-    match /marketingCampaigns/{campaignId} {
-      allow read, write: if isAdmin();
-    }
-
-    // Abandoned Checkouts
-    match /abandonedCheckouts/{checkoutId} {
-      allow read, write: if isAdmin();
-    }
-
-    // Admin Users Directory
-    match /adminUsers/{adminId} {
-      allow read: if isAdmin();
-      allow write: if isAdmin();
-    }
-
-    // Test connection doc
-    match /test/{docId} {
-      allow read: if true;
-    }
+    match /test/{id} { allow read: if false; allow write: if false; }
   }
 }
