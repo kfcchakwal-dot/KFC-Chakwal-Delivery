@@ -1793,6 +1793,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const approveVipRequest = async (requestId: string) => {
+    if (!requestId) throw new Error('VIP request ID is missing.');
     const response = await fetch(`/api/vip/${encodeURIComponent(requestId)}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
@@ -1855,7 +1856,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const target = customerRecords.find((customer) => customer.id === customerPhoneOrId || customer.phone === customerPhoneOrId);
     if (!target) throw new Error('Customer not found.');
 
-    let requestId = vipRequests.find((request) => request.customerId === target.id)?.id;
+    let requestId: string | undefined = vipRequests.find((request) => request.customerId === target.id)?.id;
     if (!requestId) {
       const createResponse = await fetch('/api/vip/request', {
         method: 'POST',
@@ -1870,6 +1871,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       const created = await createResponse.json().catch(() => ({}));
       if (!createResponse.ok) throw new Error(created.error || 'VIP record could not be created.');
+      if (typeof created.id !== 'string' || !created.id) throw new Error('VIP record returned without an ID.');
       requestId = created.id;
       setVipRequests((prev) => [created, ...prev]);
     }
