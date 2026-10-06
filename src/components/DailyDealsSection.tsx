@@ -72,13 +72,14 @@ export const DailyDealsSection: React.FC = () => {
 
   const isDark = themeMode === 'dark';
   const dealConfig = settings.dailyDeal || {
-    enabled: true,
-    title: "Today's Daily 5 Meal Box Specials",
-    subtitle: 'Freshly selected daily combos at flat 4% OFF (Limited Daily Offer)',
+    enabled: false,
+    title: 'Daily 5 Deals',
+    subtitle: 'Manual daily offers — automatic midnight rotation requires a server scheduler.',
     discountPercentage: 4,
     itemCount: 5,
-    selectionMode: 'random',
-    autoMidnightRotate: true,
+    selectionMode: 'manual',
+    selectedProductIds: [],
+    autoMidnightRotate: false,
   };
 
   if (!dealConfig.enabled) return null;
@@ -122,7 +123,7 @@ export const DailyDealsSection: React.FC = () => {
               </span>
               <span className="text-[11px] font-bold text-amber-500 flex items-center gap-1">
                 <Percent className="w-3 h-3" />
-                <span>Flat {discountPercent}% OFF Automatic</span>
+                <span>Flat {discountPercent}% OFF</span>
               </span>
             </div>
 
@@ -132,7 +133,7 @@ export const DailyDealsSection: React.FC = () => {
               {dealConfig.title}
             </h2>
             <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-              {dealConfig.subtitle} · Auto-rotates daily from our signature Meal Box collection!
+              {dealConfig.subtitle}
             </p>
           </div>
 
