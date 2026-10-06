@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
+import { auth } from '../../lib/firebase';
 import { 
   Globe, 
   CheckCircle2, 
@@ -18,9 +19,9 @@ export const CustomDomainManager: React.FC = () => {
   const domainConfig = settings.customDomain || {
     domain: '',
     status: 'unconfigured',
-    aRecord: '34.120.54.21',
-    cnameRecord: 'cname.kfcchakwaldelivery.app',
-    txtVerification: 'kfc-verify=c794408e-894c-4201',
+    aRecord: '',
+    cnameRecord: '',
+    txtVerification: '',
     sslActive: false,
   };
 
@@ -49,19 +50,32 @@ export const CustomDomainManager: React.FC = () => {
     setStatusMessage(`Domain "${clean}" saved! Please point your DNS records below, then click "Verify DNS Connection".`);
   };
 
-  const handleVerifyDNS = () => {
+  const handleVerifyDNS = async () => {
     if (!domainConfig.domain) return;
     setIsVerifying(true);
     setStatusMessage(null);
-
-    setTimeout(() => {
-      setIsVerifying(false);
-      updateCustomDomain({
-        status: 'connected',
-        sslActive: true,
+    try {
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+      if (!token) throw new Error('Admin Firebase session required.');
+      const response = await fetch('/api/admin/verify-domain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ domain: domainConfig.domain }),
       });
-      setStatusMessage(`✓ Success! "${domainConfig.domain}" is verified and connected with active SSL encryption.`);
-    }, 1800);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'DNS verification failed.');
+      updateCustomDomain({
+        status: data.connected ? 'connected' : 'pending_verification',
+        sslActive: data.sslActive === true,
+        connectedAt: data.verifiedAt || undefined,
+        aRecord: Array.isArray(data.resolvedIps) ? data.resolvedIps.join(', ') : '',
+      });
+      setStatusMessage(data.message || (data.connected ? 'DNS resolve ho raha hai. SSL hosting provider se confirm hoga.' : 'DNS record abhi resolve nahi ho raha.'));
+    } catch (error: any) {
+      setStatusMessage(error?.message || 'DNS verification failed.');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const handleDisconnect = () => {
