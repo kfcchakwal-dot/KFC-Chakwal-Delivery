@@ -1575,32 +1575,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loginUser = (phone: string): boolean => {
-    if (currentUser && currentUser.phone === phone) {
-      setIsCustomerAuthModalOpen(false);
-      return true;
-    }
-    const existing = customerRecords.find((c) => c.phone === phone);
-    const existingAddr = existing?.address || 'Within 3 KM (Chakwal City)';
-    const newUser: CustomerUser = {
-      id: existing?.id || `usr-${Date.now()}`,
-      fullName: existing?.fullName || 'Customer',
-      phone,
-      address: existingAddr,
-      savedAddresses: [
-        {
-          id: `addr-${Date.now()}`,
-          label: 'Default Address',
-          address: existingAddr,
-          isDefault: true,
-        },
-      ],
-      loyaltyPoints: existing?.loyaltyPoints ?? 50,
-      createdAt: existing?.createdAt || new Date().toISOString(),
-    };
-    setCurrentUser(newUser);
-    localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(newUser));
-    setIsCustomerAuthModalOpen(false);
-    return true;
+    // Legacy synchronous phone login is intentionally disabled. Customer access must use Firebase Phone OTP.
+    console.warn('Phone/passwordless login requires OTP verification.');
+    setIsCustomerAuthModalOpen(true);
+    return false;
   };
 
   const addSavedAddress = (label: string, address: string) => {
