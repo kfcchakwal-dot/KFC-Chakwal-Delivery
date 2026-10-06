@@ -753,7 +753,7 @@ export const ShopifyAdminApp: React.FC = () => {
               {[
                 { id: 'dashboard', label: 'Dashboard & Realtime', icon: LayoutDashboard },
                 { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrders > 0 ? pendingOrders : undefined },
-                { id: 'abandoned', label: 'Abandoned Checkouts', icon: AlertCircle, badge: abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length > 0 ? abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length : undefined },
+                { id: 'abandoned', label: 'Abandoned Checkouts (Manual)', icon: AlertCircle, badge: abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length > 0 ? abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length : undefined },
                 { id: 'products', label: 'Products & Catalog', icon: UtensilsCrossed },
                 { id: 'daily-deals', label: 'Daily 5 Deals (4% OFF)', icon: Flame },
                 { id: 'customers', label: 'Customers & Loyalty', icon: Users },
@@ -1302,7 +1302,7 @@ export const ShopifyAdminApp: React.FC = () => {
           )}
 
           {/* ========================================================================= */}
-          {/* TAB: ABANDONED CHECKOUTS & 10-MIN RECOVERY */}
+          {/* TAB: ABANDONED CHECKOUTS & MANUAL RECOVERY */}
           {/* ========================================================================= */}
           {activeTab === 'abandoned' && (
             <div className="space-y-6">
@@ -1310,10 +1310,10 @@ export const ShopifyAdminApp: React.FC = () => {
                 <div>
                   <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight flex items-center gap-2">
                     <AlertCircle className="w-5 h-5 text-[#e4002b]" />
-                    <span>Abandoned Checkouts & 10-Min Recovery ({abandonedCheckouts.length})</span>
+                    <span>Abandoned Checkouts & Manual Recovery ({abandonedCheckouts.length})</span>
                   </h2>
                   <p className="text-xs text-zinc-500 mt-1">
-                    Customers who added meals to bucket or entered address but dropped off. Send recovery WhatsApp within 10 minutes to recover the order.
+                    Customers who added meals to bucket or entered address but dropped off. Manual WhatsApp recovery is available; automatic 10-minute recovery requires a server scheduler. Send recovery WhatsApp within 10 minutes to recover the order.
                   </p>
                 </div>
               </div>
