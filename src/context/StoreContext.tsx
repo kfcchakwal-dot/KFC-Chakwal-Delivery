@@ -1935,15 +1935,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     pin: string,
     role: 'Super Admin' | 'Manager' = 'Manager'
   ) => {
-    const cur = settings.adminUsers || [
-      {
-        id: 'admin-1',
-        name: 'Master Admin',
-        email: 'kfcchakwal@gmail.com',
-        role: 'Super Admin',
-        addedAt: '2026-09-01',
-      },
-    ];
+    const cur = settings.adminUsers || [];
     const newAdmin = {
       id: `admin-${Date.now()}`,
       name: name.trim(),
