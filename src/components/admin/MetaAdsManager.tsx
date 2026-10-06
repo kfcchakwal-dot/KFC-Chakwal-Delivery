@@ -170,8 +170,6 @@ export const MetaAdsManager: React.FC = () => {
           <strong>Server-side CAPI:</strong> Access token browser mein store nahi kiya jayega. Meta Conversions API ke liye token hosting environment mein server secret ke taur par configure hoga.
         </div>
 
-        </div>
-
         {/* Standard Event Tracking Matrix */}
         <div className="pt-2 border-t border-zinc-100">
           <p className="text-xs font-bold text-zinc-700 mb-2">Event Tracking Status</p>
