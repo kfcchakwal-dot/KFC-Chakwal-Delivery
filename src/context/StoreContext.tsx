@@ -461,13 +461,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
 
   // Reviews
-  const [reviews, setReviews] = useState<ProductReview[]>(() => {
-    try {
-      const saved = localStorage.getItem(REVIEWS_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return INITIAL_REVIEWS;
-  });
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
 
   // Customer Account
   const [currentUser, setCurrentUser] = useState<CustomerUser | null>(() => {
