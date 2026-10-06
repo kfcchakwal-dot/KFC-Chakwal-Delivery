@@ -607,18 +607,13 @@ export const ProductPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 mb-1">
-                  Your Name (e.g. Ali - Saddar Bazar) *
+                  Verified Customer
                 </label>
-                <input
-                  type="text"
-                  value={reviewName}
-                  onChange={(e) => setReviewName(e.target.value)}
-                  placeholder="Enter your name"
-                  className={`w-full text-xs rounded-xl px-3.5 py-2.5 border focus:outline-none focus:border-[#e4002b] ${
-                    isDark ? 'bg-[#121214] border-[#2e2e38] text-white' : 'bg-white border-zinc-300 text-zinc-900'
-                  }`}
-                  required
-                />
+                <div className={`w-full text-xs rounded-xl px-3.5 py-2.5 border ${
+                  isDark ? 'bg-[#121214] border-[#2e2e38] text-white' : 'bg-white border-zinc-300 text-zinc-900'
+                }`}>
+                  {currentUser ? currentUser.fullName : 'Phone verification required'}
+                </div>
               </div>
 
               <div>
@@ -666,11 +661,15 @@ export const ProductPage: React.FC = () => {
 
               <button
                 type="submit"
-                className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold uppercase px-5 py-2.5 rounded-xl cursor-pointer shadow"
+                disabled={!currentUser}
+                className="bg-[#e4002b] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#c30025] text-white text-xs font-bold uppercase px-5 py-2.5 rounded-xl cursor-pointer shadow"
               >
                 Submit Review
               </button>
             </div>
+            {!currentUser && (
+              <p className="text-[11px] text-amber-600 font-semibold">Review dene ke liye pehle phone OTP se login karein. Review sirf delivered order ke purchased product par accept hoga.</p>
+            )}
           </form>
 
         </div>
