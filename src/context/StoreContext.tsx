@@ -557,13 +557,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState(false);
   const [isOrdersDashboardOpen, setIsOrdersDashboardOpen] = useState(false);
 
-  const [allOrders, setAllOrders] = useState<Order[]>(() => {
-    try {
-      const saved = localStorage.getItem(ALL_ORDERS_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [];
-  });
+  // Orders are loaded only from the authenticated server; local storage is never trusted for order access.
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
 
   const previousOrderCountRef = useRef<number>(allOrders.length);
   const [serverSyncStatus, setServerSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
@@ -813,7 +808,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const res = await fetch('/api/orders', { headers: await getAuthHeaders() });
       if (res.ok) {
         const data: Order[] = await res.json();
-        // If new orders arrived while on seller page, play sound!
         if (data.length > previousOrderCountRef.current && previousOrderCountRef.current > 0) {
           if (settings.orderNotificationSound !== false) {
             playNewOrderChime();
@@ -821,7 +815,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         previousOrderCountRef.current = data.length;
         setAllOrders(data);
-        localStorage.setItem(ALL_ORDERS_KEY, JSON.stringify(data));
+      } else if (res.status === 401 || res.status === 403) {
+        setAllOrders([]);
       }
     } catch {}
   };
