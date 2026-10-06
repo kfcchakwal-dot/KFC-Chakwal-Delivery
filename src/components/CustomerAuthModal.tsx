@@ -76,7 +76,7 @@ export const CustomerAuthModal: React.FC = () => {
     setOtpError('');
     setOtpBusy(true);
     setOtpMode('signup');
-    const result = await sendPhoneOtp(phone.trim(), 'customer-auth-recaptcha');
+    const result = await sendPhoneOtp(phone.trim(), 'customer-auth-send-otp');
     setOtpBusy(false);
     if (!result.success) {
       setOtpError(result.error || 'OTP send nahi ho saka. Dobara try karein.');
@@ -93,7 +93,7 @@ export const CustomerAuthModal: React.FC = () => {
     setOtpError('');
     setOtpBusy(true);
     setOtpMode('login');
-    const result = await sendPhoneOtp(loginPhone.trim(), 'customer-auth-recaptcha');
+    const result = await sendPhoneOtp(loginPhone.trim(), 'customer-auth-send-otp');
     setOtpBusy(false);
     if (!result.success) {
       setLoginError(result.error || 'OTP send nahi ho saka. Dobara try karein.');
@@ -498,8 +498,6 @@ export const CustomerAuthModal: React.FC = () => {
             </div>
 
             {/* Tabs: Sign In vs New Registration */}
-            <div id="customer-auth-recaptcha" className="flex justify-center" />
-
             <div className={`grid grid-cols-2 gap-2 p-1 rounded-xl border text-xs font-bold ${
               isDark ? 'bg-[#121214] border-zinc-800' : 'bg-zinc-100 border-zinc-200'
             }`}>
@@ -568,7 +566,7 @@ export const CustomerAuthModal: React.FC = () => {
                       <input type="tel" required placeholder="03001234567" value={loginPhone} onChange={(e) => setLoginPhone(e.target.value)} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
                       <p className="text-[10px] text-zinc-400 mt-1">Is number par Firebase verification code SMS hoga.</p>
                     </div>
-                    <button type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
+                    <button id="customer-auth-send-otp" type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
                       <span>{otpBusy ? 'Sending OTP...' : 'Send OTP & Continue'}</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
