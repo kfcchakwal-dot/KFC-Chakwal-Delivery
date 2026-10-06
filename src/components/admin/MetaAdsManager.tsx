@@ -29,7 +29,6 @@ export const MetaAdsManager: React.FC = () => {
   };
 
   const [pixelId, setPixelId] = useState(config.pixelId || '');
-  const [capiToken, setCapiToken] = useState(config.conversionsApiToken || '');
   const [testEventCode, setTestEventCode] = useState(config.testEventCode || '');
   const [copiedFeed, setCopiedFeed] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -46,7 +45,6 @@ export const MetaAdsManager: React.FC = () => {
     e.preventDefault();
     updateMetaCommerce({
       pixelId: pixelId.trim(),
-      conversionsApiToken: capiToken.trim(),
       testEventCode: testEventCode.trim(),
       catalogFeedUrl: feedUrl,
     });
@@ -64,14 +62,14 @@ export const MetaAdsManager: React.FC = () => {
             <span>Facebook, Instagram & Meta Ads Manager</span>
           </h2>
           <p className="text-xs text-zinc-500 mt-1">
-            Connect your KFC products catalog directly to Facebook Shop, Instagram Shopping, and run targeted Meta Ads with Pixel tracking.
+            Product catalog feed real hai. Meta Pixel/CAPI tracking tab active hogi jab Meta credentials server-side configure aur tracking endpoints enable hon.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm">
             <Facebook className="w-4 h-4" />
-            <span>Meta Verified Partner</span>
+            <span>Configuration Status</span>
           </span>
         </div>
       </div>
@@ -168,25 +166,15 @@ export const MetaAdsManager: React.FC = () => {
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-bold text-zinc-700 mb-1">
-            Meta Conversions API (CAPI) Access Token
-          </label>
-          <input
-            type="password"
-            value={capiToken}
-            onChange={(e) => setCapiToken(e.target.value)}
-            placeholder="EAABw..."
-            className="w-full text-xs font-mono rounded-xl px-3.5 py-2.5 border border-zinc-300 focus:outline-none focus:border-[#1877f2] bg-zinc-50 focus:bg-white"
-          />
-          <p className="text-[10px] text-zinc-500 mt-1">
-            Server-side tracking token to bypass iOS ad-blockers and Safari cookie limitations.
-          </p>
+        <div className="p-3 rounded-xl border border-amber-300 bg-amber-50 text-xs text-amber-800">
+          <strong>Server-side CAPI:</strong> Access token browser mein store nahi kiya jayega. Meta Conversions API ke liye token hosting environment mein server secret ke taur par configure hoga.
+        </div>
+
         </div>
 
         {/* Standard Event Tracking Matrix */}
         <div className="pt-2 border-t border-zinc-100">
-          <p className="text-xs font-bold text-zinc-700 mb-2">Automated Standard Events Triggered:</p>
+          <p className="text-xs font-bold text-zinc-700 mb-2">Event Tracking Status</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
             <div className="p-2 rounded-xl bg-zinc-50 border border-zinc-200 flex items-center gap-1.5 font-medium">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
