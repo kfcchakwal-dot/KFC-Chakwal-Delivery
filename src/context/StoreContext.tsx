@@ -325,6 +325,7 @@ const LOYALTY_TX_KEY = 'kfc_chakwal_loyalty_tx_v5';
 const ABANDONED_CHECKOUTS_KEY = 'kfc_chakwal_abandoned_checkouts_v5';
 const MARKETING_KEY = 'kfc_chakwal_marketing_v5';
 const CATEGORIES_KEY = 'kfc_chakwal_categories_v5';
+let customerRecaptchaVerifier: RecaptchaVerifier | null = null;
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Detect Seller mode from URL (e.g. ?app=seller or /seller)
@@ -1561,7 +1562,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsCartOpen(true);
   };
 
-  const sendPhoneOtp = async (phoneNumber: string, recaptchaContainerId: string): Promise<{ success: boolean; error?: string }> => {
+  const sendPhoneOtp = async (phoneNumber: string, recaptchaButtonId: string): Promise<{ success: boolean; error?: string }> => {
     try {
       let clean = phoneNumber.trim().replace(/[\s-]/g, '');
       if (clean.startsWith('03')) {
@@ -1570,15 +1571,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         clean = '+92' + clean;
       }
 
-      const verifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
+      if (customerRecaptchaVerifier) {
+        customerRecaptchaVerifier.clear();
+        customerRecaptchaVerifier = null;
+      }
+
+      customerRecaptchaVerifier = new RecaptchaVerifier(auth, recaptchaButtonId, {
         size: 'invisible',
       });
 
-      const confirmation = await signInWithPhoneNumber(auth, clean, verifier);
+      const confirmation = await signInWithPhoneNumber(auth, clean, customerRecaptchaVerifier);
       setPhoneConfirmationResult(confirmation);
       setIsOtpSent(true);
       return { success: true };
     } catch (err: any) {
+      customerRecaptchaVerifier?.clear();
+      customerRecaptchaVerifier = null;
       console.error('sendPhoneOtp error:', err);
       return { success: false, error: err.message || 'Failed to send SMS OTP code. Please check your phone number.' };
     }
@@ -1638,6 +1646,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       setCurrentUser(customerProfile);
+      customerRecaptchaVerifier?.clear();
+      customerRecaptchaVerifier = null;
+      setPhoneConfirmationResult(null);
       setIsCustomerAuthModalOpen(false);
       setIsOtpSent(false);
       return { success: true };
