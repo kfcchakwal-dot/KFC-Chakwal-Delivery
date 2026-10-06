@@ -202,43 +202,235 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-// POST /api/orders — authenticated customer and server-side product pricing
+// POST /api/orders — authenticated customer and server-side product/pricing/discount validation
 app.post('/api/orders', async (req, res) => {
   try {
     if (!firestoreDb || !firebaseAuth) return res.status(503).json({ error: 'Order service is not configured' });
+
     const customerAuth = await getOptionalCustomerAuth(req);
-    if (!customerAuth) return res.status(401).json({ error: 'Customer authentication required' });
-    const input = req.body;
-    if (!input || !Array.isArray(input.items) || input.items.length === 0) return res.status(400).json({ error: 'Order must contain at least one item' });
-    if (!input.customer?.fullName || !input.customer?.phone) return res.status(400).json({ error: 'Customer full name and phone are required' });
-    if (input.customer.uid && input.customer.uid !== customerAuth.uid) return res.status(403).json({ error: 'Customer identity mismatch' });
-    if (customerAuth.phone && input.customer.phone !== customerAuth.phone) return res.status(403).json({ error: 'Customer phone does not match authenticated account' });
-    let subtotal = 0; const items:any[] = [];
-    for (let i=0;i<input.items.length;i++) {
-      const item=input.items[i]; const productId=String(item?.menuItem?.id || '');
-      const snap=await firestoreDb.collection('products').doc(productId).get();
-      if(!snap.exists) return res.status(400).json({error:'Product is unavailable'});
-      const p:any=snap.data(); if(p.isAvailable===false) return res.status(400).json({error:'Product is unavailable'});
-      const qty=Math.max(1,Math.min(50,Number(item.quantity)||1));
-      const base=Number(p.sellingPrice ?? p.baseKfcPrice ?? p.basePrice ?? 0);
-      const variantId=item?.menuItem?.selectedVariantId || item?.options?.variantId;
-      const variant=Array.isArray(p.variants)?p.variants.find((v:any)=>v.id===variantId):null;
-      const price=variant?Number(variant.price):base;
-      const addonIds=Array.isArray(item?.options?.addons)?item.options.addons.map((x:any)=>String(x.id)):[];
-      const addons=Array.isArray(p.customizableOptions?.availableAddons)?p.customizableOptions.availableAddons:[];
-      const addonTotal=addonIds.reduce((s:number,id:string)=>s+Number(addons.find((x:any)=>x.id===id)?.price||0),0);
-      const unitPrice=price+addonTotal;
-      if(!Number.isFinite(unitPrice) || Math.abs(Number(item.unitPrice)-unitPrice)>0.01) return res.status(400).json({error:'Invalid product price'});
-      subtotal+=unitPrice*qty;
-      items.push({cartItemId:item.cartItemId || ('item-' + Date.now() + '-' + i),menuItem:{id:productId,name:p.name,description:p.description||'',image:p.image||'',categoryId:p.categoryId},quantity:qty,unitPrice,options:{...item.options,addons:addons.filter((x:any)=>addonIds.includes(String(x.id)))}});
+    if (!customerAuth?.uid || !customerAuth.phone) {
+      return res.status(401).json({ error: 'Customer phone authentication required' });
     }
-    const deliveryFee=Number(input.deliveryFee)>=0 && Number(input.deliveryFee)<=2000 ? Number(input.deliveryFee) : 399;
-    const total=subtotal+deliveryFee; const orderId='KFC-'+Date.now().toString().slice(-8); const now=admin.firestore.FieldValue.serverTimestamp();
-    const order={id:orderId,date:new Date().toISOString(),orderType:input.orderType||'delivery',items,subtotal,markupAmount:0,deliveryFee,discount:0,loyaltyDiscount:0,total,customer:{fullName:String(input.customer.fullName).slice(0,100),phone:customerAuth.phone||input.customer.phone,address:String(input.customer.address||'').slice(0,500),uid:customerAuth.uid},specialInstructions:String(input.specialInstructions||'').slice(0,500),paymentMethod:'cod',status:'confirmed',createdAt:now,updatedAt:now};
-    await firestoreDb.collection('orders').doc(orderId).set(order);
-    await firestoreDb.collection('customers').doc(customerAuth.uid).set({phone:order.customer.phone,fullName:order.customer.fullName,updatedAt:now},{merge:true});
-    return res.status(201).json({...order,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
-  } catch(err) { console.error('Error processing order submission:',err); return res.status(500).json({error:'Failed to save and validate order'}); }
+
+    const input = req.body || {};
+    if (!Array.isArray(input.items) || input.items.length === 0) {
+      return res.status(400).json({ error: 'Order must contain at least one item' });
+    }
+    if (!input.customer?.fullName || !input.customer?.phone || !input.customer?.address) {
+      return res.status(400).json({ error: 'Customer name, phone and address are required' });
+    }
+    if (String(input.customer.phone) !== String(customerAuth.phone)) {
+      return res.status(403).json({ error: 'Customer phone does not match authenticated account' });
+    }
+    if (input.paymentMethod !== 'cod') {
+      return res.status(400).json({ error: 'Online payment gateway is not configured. Cash on Delivery is currently available.' });
+    }
+
+    const settingsSnap = await firestoreDb.collection('storeSettings').doc('global').get();
+    const storeSettings: any = settingsSnap.exists ? settingsSnap.data() : {};
+    const productsRef = firestoreDb.collection('products');
+    const customerRef = firestoreDb.collection('customers').doc(customerAuth.uid);
+    const customerSnap = await customerRef.get();
+    const customerData: any = customerSnap.exists ? customerSnap.data() : {};
+
+    let subtotal = 0;
+    const items: any[] = [];
+
+    for (let i = 0; i < input.items.length; i++) {
+      const item = input.items[i];
+      const productId = String(item?.menuItem?.id || '');
+      if (!productId) return res.status(400).json({ error: 'Invalid product ID' });
+
+      const snap = await productsRef.doc(productId).get();
+      if (!snap.exists) return res.status(400).json({ error: 'Product is unavailable' });
+
+      const product: any = snap.data();
+      if (product.isAvailable === false) return res.status(400).json({ error: `Product "${product.name || productId}" is unavailable` });
+
+      const quantity = Number(item.quantity);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 50) {
+        return res.status(400).json({ error: 'Invalid product quantity' });
+      }
+
+      const basePrice = Number(product.sellingPrice ?? product.baseKfcPrice ?? product.basePrice ?? 0);
+      if (!Number.isFinite(basePrice) || basePrice < 0) return res.status(400).json({ error: 'Invalid product price configuration' });
+
+      const variantId = String(item?.options?.variantId || item?.menuItem?.selectedVariantId || '');
+      const variant = Array.isArray(product.variants) ? product.variants.find((v: any) => String(v.id) === variantId) : null;
+      const unitBase = variant ? Number(variant.price) : basePrice;
+      if (!Number.isFinite(unitBase) || unitBase < 0) return res.status(400).json({ error: 'Invalid product variant price' });
+
+      const requestedAddonIds = Array.isArray(item?.options?.addons)
+        ? item.options.addons.map((addon: any) => String(addon.id)).filter(Boolean)
+        : [];
+      const availableAddons = Array.isArray(product.customizableOptions?.availableAddons)
+        ? product.customizableOptions.availableAddons
+        : [];
+      const addonMap = new Map(availableAddons.map((addon: any) => [String(addon.id), addon]));
+      let addonTotal = 0;
+      for (const addonId of requestedAddonIds) {
+        const addon = addonMap.get(addonId);
+        if (!addon) return res.status(400).json({ error: 'Invalid product add-on selected' });
+        addonTotal += Number(addon.price || 0);
+      }
+
+      const unitPrice = unitBase + addonTotal;
+      subtotal += unitPrice * quantity;
+
+      items.push({
+        cartItemId: String(item.cartItemId || `item-${Date.now()}-${i}`),
+        menuItem: {
+          id: productId,
+          name: String(product.name || ''),
+          description: String(product.description || ''),
+          image: String(product.image || ''),
+          categoryId: product.categoryId,
+        },
+        quantity,
+        unitPrice,
+        options: {
+          ...(item.options || {}),
+          addons: availableAddons.filter((addon: any) => requestedAddonIds.includes(String(addon.id))),
+        },
+      });
+    }
+
+    const deliveryMethods = Array.isArray(storeSettings.deliveryMethods) ? storeSettings.deliveryMethods : [];
+    const requestedDeliveryMethodId = String(input.deliveryMethodId || '');
+    const deliveryMethod =
+      deliveryMethods.find((method: any) => method.id === requestedDeliveryMethodId && method.enabled !== false) ||
+      deliveryMethods.find((method: any) => method.isDefault && method.enabled !== false) ||
+      deliveryMethods.find((method: any) => method.enabled !== false);
+
+    if (!deliveryMethod) return res.status(400).json({ error: 'No active delivery method is configured' });
+
+    let deliveryFee = Number(deliveryMethod.price || 0);
+    if (deliveryMethod.minOrderAmount && subtotal >= Number(deliveryMethod.minOrderAmount)) {
+      deliveryFee = 0;
+    }
+
+    const discounts = Array.isArray(storeSettings.discounts) ? storeSettings.discounts : [];
+    const now = new Date();
+    const validDiscounts = discounts.filter((discount: any) => {
+      if (!discount || discount.status !== 'active') return false;
+      if (discount.startDate && new Date(discount.startDate) > now) return false;
+      if (discount.endDate && new Date(discount.endDate) < now) return false;
+      if (discount.usageLimit && Number(discount.usedCount || 0) >= Number(discount.usageLimit)) return false;
+      if (discount.minOrderAmount && subtotal < Number(discount.minOrderAmount)) return false;
+      return true;
+    });
+
+    const requestedCode = String(input.discountCode || '').trim().toUpperCase();
+    let appliedDiscount: any = null;
+    if (requestedCode) {
+      appliedDiscount = validDiscounts.find((discount: any) => String(discount.code || '').toUpperCase() === requestedCode);
+      if (!appliedDiscount) return res.status(400).json({ error: 'Discount code is invalid, expired, inactive, or unavailable for this order' });
+    } else {
+      appliedDiscount = validDiscounts.find((discount: any) => discount.isAutomatic === true);
+    }
+
+    let discountAmount = 0;
+    let freeShipping = false;
+    if (appliedDiscount) {
+      if (appliedDiscount.type === 'percentage') {
+        discountAmount = Math.round(subtotal * Number(appliedDiscount.value || 0) / 100);
+      } else if (appliedDiscount.type === 'fixed_amount') {
+        discountAmount = Math.min(subtotal, Number(appliedDiscount.value || 0));
+      } else if (appliedDiscount.type === 'free_shipping') {
+        freeShipping = true;
+      }
+    }
+
+    if (freeShipping) deliveryFee = 0;
+
+    // Loyalty points and coupon discounts are mutually exclusive.
+    const customerPoints = Math.max(0, Number(customerData.loyaltyPoints || 0));
+    const wantsPoints = Boolean(input.redeemLoyaltyPoints);
+    if (wantsPoints && appliedDiscount && discountAmount > 0) {
+      return res.status(400).json({ error: 'Loyalty points cannot be combined with a discount coupon' });
+    }
+
+    const loyaltyDiscount = wantsPoints
+      ? Math.min(customerPoints, subtotal >= 500 ? Math.max(0, subtotal) : 0)
+      : 0;
+
+    if (wantsPoints && subtotal < 500) {
+      return res.status(400).json({ error: 'Minimum order of Rs. 500 is required to redeem loyalty points' });
+    }
+
+    const vipTiers: Record<string, number> = { silver: 3, gold: 6, platinum: 8 };
+    const vipTier = String(customerData.vipTier || '');
+    const vipActive = customerData.vipStatus === 'active' && vipTiers[vipTier] !== undefined;
+    const vipDiscount = vipActive ? Math.round(subtotal * vipTiers[vipTier] / 100) : 0;
+
+    const netFoodPaid = Math.max(0, subtotal - discountAmount - loyaltyDiscount - vipDiscount);
+    const pointsEarned = Math.floor(netFoodPaid / 300) * 10;
+    const total = Math.max(0, netFoodPaid + deliveryFee);
+
+    const orderId = `CKW-${Date.now().toString().slice(-8)}`;
+    const nowIso = new Date().toISOString();
+    const order = {
+      id: orderId,
+      date: nowIso,
+      orderType: 'delivery',
+      items,
+      subtotal,
+      markupAmount: 0,
+      deliveryFee,
+      discount: discountAmount,
+      loyaltyPointsEarned: pointsEarned,
+      loyaltyPointsRedeemed: loyaltyDiscount,
+      loyaltyDiscount,
+      vipDiscount,
+      vipTierApplied: vipActive ? vipTier : undefined,
+      total,
+      customer: {
+        fullName: String(input.customer.fullName).trim().slice(0, 100),
+        phone: customerAuth.phone,
+        address: String(input.customer.address).trim().slice(0, 500),
+        uid: customerAuth.uid,
+      },
+      specialInstructions: String(input.specialInstructions || '').slice(0, 500),
+      paymentMethod: 'cod',
+      status: 'confirmed',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    const batch = firestoreDb.batch();
+    batch.set(firestoreDb.collection('orders').doc(orderId), order);
+
+    const nextPoints = Math.max(0, customerPoints - loyaltyDiscount + pointsEarned);
+    batch.set(customerRef, {
+      phone: customerAuth.phone,
+      fullName: order.customer.fullName,
+      defaultAddress: order.customer.address,
+      loyaltyPoints: nextPoints,
+      totalOrdersCount: Number(customerData.totalOrdersCount || 0) + 1,
+      totalSpent: Number(customerData.totalSpent || 0) + total,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    if (appliedDiscount?.id) {
+      const discountRef = firestoreDb.collection('discounts').doc(String(appliedDiscount.id));
+      batch.set(discountRef, {
+        ...appliedDiscount,
+        usedCount: Number(appliedDiscount.usedCount || 0) + 1,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    await batch.commit();
+
+    return res.status(201).json({
+      ...order,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    });
+  } catch (err: any) {
+    console.error('Error processing order submission:', err);
+    return res.status(500).json({ error: 'Failed to save and validate order' });
+  }
 });
 
 // PATCH /api/orders/:id/status (Admin Only)
