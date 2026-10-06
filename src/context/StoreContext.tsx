@@ -779,11 +779,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const syncStoreToServer = async (customPayload?: Record<string, any>) => {
     try {
       setServerSyncStatus('syncing');
+      const safeSettings = {
+        ...settings,
+        deliveryMethods,
+        metaCommerce: settings.metaCommerce
+          ? { ...settings.metaCommerce, conversionsApiToken: undefined }
+          : settings.metaCommerce,
+      };
       const payload = customPayload || {
-        settings: {
-          ...settings,
-          deliveryMethods,
-        },
+        settings: safeSettings,
         menuItems,
         discounts,
         policies,
@@ -791,11 +795,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
       const authHeaders = await getAuthHeaders();
       if (!authHeaders.Authorization) throw new Error('Admin authentication required');
-      await fetch('/api/store-data', {
+      const response = await fetch('/api/store-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify(payload),
       });
+      if (!response.ok) throw new Error('Server sync failed');
       setServerSyncStatus('synced');
     } catch {
       setServerSyncStatus('offline');
