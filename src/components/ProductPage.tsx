@@ -165,7 +165,7 @@ export const ProductPage: React.FC = () => {
   const avgRating =
     productReviews.length > 0
       ? (productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length).toFixed(1)
-      : '5.0';
+      : '0.0';
 
   const drinksList = [
     'Pepsi Can (345ml)',
