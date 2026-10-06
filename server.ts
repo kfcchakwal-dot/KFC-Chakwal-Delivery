@@ -261,10 +261,6 @@ app.patch('/api/orders/:id/status', verifyAdminAuth, async (req, res) => {
       updates.deliveredAt = new Date().toISOString();
     }
 
-    if (firestoreDb) {
-      await firestoreDb.collection('orders').doc(id).update(updates);
-    }
-
     if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
     await firestoreDb.collection('orders').doc(id).update(updates);
     res.json({ id, ...updates });
@@ -330,7 +326,7 @@ app.post('/api/admin/verify-domain', verifyAdminAuth, async (req, res) => {
 // GET /api/facebook-catalog.xml (Meta Commerce Manager & Google Merchant Center XML Catalog Feed)
 app.get('/api/facebook-catalog.xml', async (_req, res) => {
   try {
-    const baseUrl = process.env.APP_URL || 'https://kfcchakwaldelivery.app';
+    const baseUrl = (process.env.APP_URL || 'https://kfcchk.kintrends.com').replace(/\/$/, '');
     if (!firestoreDb) return res.status(503).send('<error>Firestore unavailable</error>');
     const productSnap = await firestoreDb.collection('products').limit(1000).get();
     const products: any[] = productSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -375,8 +371,9 @@ app.get('/api/facebook-catalog.xml', async (_req, res) => {
 app.get('/api/meta-feed.json', async (_req, res) => {
   try {
     const baseUrl = process.env.APP_URL || 'https://kfcchakwaldelivery.app';
-    const storeData = readJsonFile(STORE_DATA_FILE, {});
-    const products: any[] = storeData.products || [];
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore unavailable' });
+    const productSnap = await firestoreDb.collection('products').limit(1000).get();
+    const products: any[] = productSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     const items = products.map((p) => ({
       id: p.id,
