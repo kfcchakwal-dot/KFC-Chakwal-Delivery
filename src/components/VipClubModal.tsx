@@ -35,16 +35,24 @@ export const VipClubModal: React.FC = () => {
   const isUserVipActive = currentUser?.vipStatus === 'active';
   const isUserVipPending = currentUser?.vipStatus === 'pending' || isSent;
 
-  const handleOrderOnWhatsApp = (e: React.FormEvent) => {
+  const handleOrderOnWhatsApp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      alert('Please pehle phone OTP se login karein.');
+      return;
+    }
     if (!customerName.trim() || !phone.trim()) {
       alert('Please enter your Name and Phone Number.');
       return;
     }
 
-    // Record request in system as pending
-    requestVipMembershipWhatsApp(selectedTierId, customerName, phone, email);
-    setIsSent(true);
+    try {
+      await requestVipMembershipWhatsApp(selectedTierId, customerName, phone, email);
+      setIsSent(true);
+    } catch (error: any) {
+      alert(error?.message || 'VIP request create nahi ho saki.');
+      return;
+    }
 
     // Format WhatsApp message to 0325-2777574
     const message = 
