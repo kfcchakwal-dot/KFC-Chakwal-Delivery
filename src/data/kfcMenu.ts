@@ -141,48 +141,7 @@ export const DEFAULT_HEADER_FOOTER_CONFIG: HeaderFooterConfig = {
   footerCopyrightText: '© 2026 KFC Chakwal Delivery. All rights reserved.',
 };
 
-export const INITIAL_REVIEWS: ProductReview[] = [
-  {
-    id: 'rev-1',
-    productId: 'zinger-burger',
-    customerName: 'Hamza Malik (Civil Lines)',
-    rating: 5,
-    comment: 'Bohot fresh aur crispy Zinger tha! Chakwal mein aisi delivery pehli dafa dekhi hai.',
-    date: '2026-09-28',
-  },
-  {
-    id: 'rev-2',
-    productId: 'zinger-burger',
-    customerName: 'Dr. Tariq (Talagang Road)',
-    rating: 5,
-    comment: 'Piping hot chicken and original KFC taste. Delivery took 32 minutes only.',
-    date: '2026-09-30',
-  },
-  {
-    id: 'rev-3',
-    productId: 'krunch-burger',
-    customerName: 'Usman Ali (Bhaun Chowk)',
-    rating: 5,
-    comment: 'Value for money Krunch combo! Mayo aur crunch zabardast tha.',
-    date: '2026-10-01',
-  },
-  {
-    id: 'rev-4',
-    productId: 'family-festival-1',
-    customerName: 'Chaudhry Bilal (Satellite Town)',
-    rating: 5,
-    comment: 'Family festival deal poori family ke liye kafi thi. Dinner rolls aur drink bilkul chilled thi.',
-    date: '2026-10-02',
-  },
-  {
-    id: 'rev-5',
-    productId: 'hot-wings-10pcs',
-    customerName: 'Ayesha Khan (Line Park)',
-    rating: 5,
-    comment: 'Hot wings bohot spicy aur crunchy thay. 10/10 recommended!',
-    date: '2026-10-02',
-  },
-];
+export const INITIAL_REVIEWS: ProductReview[] = [];
 
 export const DEFAULT_CUSTOM_SECTIONS: PageSection[] = [
   {
