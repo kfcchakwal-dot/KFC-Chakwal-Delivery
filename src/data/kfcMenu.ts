@@ -296,11 +296,14 @@ export const DEFAULT_DELIVERY_METHODS: DeliveryMethod[] = [
 ];
 
 export const DEFAULT_DAILY_DEAL: DailyDealConfig = {
-  enabled: true,
-  title: "Daily Discount Deals",
-  subtitle: 'Freshly selected daily combos at flat 4% OFF (Changes daily!)',
+  enabled: false,
+  title: "Daily 5 Deals",
+  subtitle: 'Manual daily offers — automatic midnight rotation requires a server scheduler.',
   discountPercentage: 4,
   itemCount: 5,
+  selectionMode: 'manual',
+  selectedProductIds: [],
+  autoMidnightRotate: false,
 };
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
