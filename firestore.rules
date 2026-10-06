@@ -26,6 +26,10 @@ service cloud.firestore {
       allow read: if owner(uid) || admin();
       allow create: if admin() || (
         owner(uid) &&
+        request.resource.data.keys().hasOnly([
+          'fullName', 'phone', 'email', 'defaultAddress', 'savedAddresses',
+          'loyaltyPoints', 'totalSpent', 'totalOrdersCount', 'createdAt'
+        ]) &&
         request.resource.data.loyaltyPoints == 50 &&
         request.resource.data.totalSpent == 0 &&
         request.resource.data.totalOrdersCount == 0
