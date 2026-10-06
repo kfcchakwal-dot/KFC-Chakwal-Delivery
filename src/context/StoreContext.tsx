@@ -509,11 +509,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         const tokenResult = await firebaseUser.getIdTokenResult();
         let isAuthorizedAdmin = false;
-        if (tokenResult.claims.admin === true || firebaseUser.email === 'kfcchakwal@gmail.com') {
+        if (tokenResult.claims.admin === true) {
           isAuthorizedAdmin = true;
         } else {
           const adminDoc = await getDoc(doc(db, 'adminUsers', firebaseUser.uid));
-          if (adminDoc.exists() && adminDoc.data()?.role === 'admin') {
+          if (adminDoc.exists() && adminDoc.data()?.role === 'admin' && adminDoc.data()?.active !== false) {
             isAuthorizedAdmin = true;
           }
         }
