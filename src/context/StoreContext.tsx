@@ -37,7 +37,6 @@ import {
   INITIAL_KFC_ITEMS,
   DEFAULT_STORE_SETTINGS,
   DEFAULT_CHAKWAL_AREAS,
-  INITIAL_REVIEWS,
   DEFAULT_DISCOUNTS,
   DEFAULT_STORE_POLICIES,
   DEFAULT_DELIVERY_METHODS,
@@ -314,7 +313,6 @@ const AREAS_KEY = 'kfc_chakwal_areas_v5';
 const ACTIVE_ORDER_KEY = 'kfc_chakwal_active_order_v5';
 const ALL_ORDERS_KEY = 'kfc_chakwal_all_orders_v5';
 const ADMIN_AUTH_KEY = 'kcd_seller_auth_v5';
-const REVIEWS_KEY = 'kfc_chakwal_reviews_v5';
 const CUSTOMER_USER_KEY = 'kfc_chakwal_user_v5';
 const DISCOUNTS_KEY = 'kfc_chakwal_discounts_v5';
 const POLICIES_KEY = 'kfc_chakwal_policies_v5';
