@@ -561,6 +561,39 @@ app.delete('/api/customers/:id', verifyAdminAuth, async (req, res) => {
   }
 });
 
+// PATCH /api/customer/profile (Authenticated customer: own profile only)
+app.patch('/api/customer/profile', async (req, res) => {
+  try {
+    if (!firestoreDb || !firebaseAuth) return res.status(503).json({ error: 'Customer service is not configured' });
+    const customer = await getOptionalCustomerAuth(req);
+    if (!customer?.uid || !customer.phone) return res.status(401).json({ error: 'Customer authentication required' });
+
+    const input = req.body || {};
+    const updates: any = {};
+    if (typeof input.fullName === 'string') updates.fullName = input.fullName.trim().slice(0, 100);
+    if (typeof input.email === 'string') updates.email = input.email.trim().slice(0, 200);
+    if (typeof input.defaultAddress === 'string') updates.defaultAddress = input.defaultAddress.trim().slice(0, 500);
+    if (Array.isArray(input.savedAddresses)) {
+      if (input.savedAddresses.length > 20) return res.status(400).json({ error: 'Too many saved addresses' });
+      updates.savedAddresses = input.savedAddresses.slice(0, 20).map((a: any) => ({
+        id: String(a?.id || '').slice(0, 80),
+        label: String(a?.label || 'Address').trim().slice(0, 40),
+        address: String(a?.address || '').trim().slice(0, 500),
+        isDefault: Boolean(a?.isDefault),
+      })).filter((a: any) => a.id && a.address);
+    }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No valid profile changes supplied' });
+
+    updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    await firestoreDb.collection('customers').doc(customer.uid).set(updates, { merge: true });
+    const saved = await firestoreDb.collection('customers').doc(customer.uid).get();
+    return res.json({ id: saved.id, ...saved.data() });
+  } catch (err) {
+    console.error('Customer profile update error:', err);
+    return res.status(500).json({ error: 'Failed to update customer profile' });
+  }
+});
+
 // GET /api/vip (Admin ledger)
 app.get('/api/vip', verifyAdminAuth, async (_req, res) => {
   try {
