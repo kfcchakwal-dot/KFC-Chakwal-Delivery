@@ -3,7 +3,9 @@ import path from 'path';
 import fs from 'fs';
 import dns from 'dns/promises';
 import { createServer as createViteServer } from 'vite';
-import admin from 'firebase-admin';
+import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth, type Auth } from 'firebase-admin/auth';
+import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
 
 // Load Firebase configuration
 const firebaseConfigPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
@@ -20,22 +22,22 @@ if (fs.existsSync(firebaseConfigPath)) {
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId || 'gen-lang-client-0313861453';
 const FIRESTORE_DATABASE_ID = process.env.FIRESTORE_DATABASE_ID || firebaseConfig.firestoreDatabaseId || '(default)';
 
-let firestoreDb: admin.firestore.Firestore | null = null;
-let firebaseAuth: admin.auth.Auth | null = null;
+let firestoreDb: Firestore | null = null;
+let firebaseAuth: Auth | null = null;
 
 try {
-  if (!admin.apps.length) {
+  if (!getApps().length) {
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
     const credential = clientEmail && privateKey
-      ? admin.credential.cert({ projectId: PROJECT_ID, clientEmail, privateKey })
-      : admin.credential.applicationDefault();
-    admin.initializeApp({ projectId: PROJECT_ID, credential });
+      ? cert({ projectId: PROJECT_ID, clientEmail, privateKey })
+      : applicationDefault();
+    initializeApp({ projectId: PROJECT_ID, credential });
   }
   firestoreDb = FIRESTORE_DATABASE_ID && FIRESTORE_DATABASE_ID !== '(default)'
-    ? admin.firestore().database(FIRESTORE_DATABASE_ID)
-    : admin.firestore();
-  firebaseAuth = admin.auth();
+    ? getFirestore(FIRESTORE_DATABASE_ID)
+    : getFirestore();
+  firebaseAuth = getAuth();
   console.log(`[Firebase Admin] Initialized for project "${PROJECT_ID}", database "${FIRESTORE_DATABASE_ID}"`);
 } catch (err) {
   console.warn('[Firebase Admin] Initialization warning (running in hybrid mode):', err);
@@ -173,7 +175,7 @@ app.post('/api/store-data', verifyAdminAuth, async (req, res) => {
       const batch = firestoreDb.batch();
       for (const product of payload.menuItems) {
         if (!product?.id || !product?.name) continue;
-        batch.set(firestoreDb.collection('products').doc(String(product.id)), { ...product, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        batch.set(firestoreDb.collection('products').doc(String(product.id)), { ...product, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       }
       await batch.commit();
     }
@@ -418,8 +420,8 @@ app.post('/api/orders', async (req, res) => {
       specialInstructions: String(input.specialInstructions || '').slice(0, 500),
       paymentMethod: 'cod',
       status: 'confirmed',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     };
 
     const batch = firestoreDb.batch();
@@ -433,7 +435,7 @@ app.post('/api/orders', async (req, res) => {
       loyaltyPoints: nextPoints,
       totalOrdersCount: Number(customerData.totalOrdersCount || 0) + 1,
       totalSpent: Number(customerData.totalSpent || 0) + total,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
 
     if (appliedDiscount?.id) {
@@ -444,7 +446,7 @@ app.post('/api/orders', async (req, res) => {
       );
       batch.set(firestoreDb.collection('storeSettings').doc('global'), {
         discounts: updatedDiscounts,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
     }
 
@@ -530,7 +532,7 @@ app.post('/api/customers', verifyAdminAuth, async (req, res) => {
       totalOrdersCount: Math.max(0, Number(input.totalOrdersCount ?? existing.totalOrdersCount ?? 0)),
       totalSpent: Math.max(0, Number(input.totalSpent ?? existing.totalSpent ?? 0)),
       createdAt: existing.createdAt || new Date().toISOString(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     };
 
     await docRef.set(data, { merge: true });
@@ -584,7 +586,7 @@ app.patch('/api/customer/profile', async (req, res) => {
     }
     if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No valid profile changes supplied' });
 
-    updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+    updates.updatedAt = FieldValue.serverTimestamp();
     await firestoreDb.collection('customers').doc(customer.uid).set(updates, { merge: true });
     const saved = await firestoreDb.collection('customers').doc(customer.uid).get();
     return res.json({ id: saved.id, ...saved.data() });
@@ -663,14 +665,14 @@ app.patch('/api/vip/:id/status', verifyAdminAuth, async (req, res) => {
     await ref.set({
       status,
       approvedAt: status === 'approved' ? new Date().toISOString() : null,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
 
     if (data.customerId) {
       await firestoreDb.collection('customers').doc(String(data.customerId)).set({
         vipTier: status === 'approved' ? tierId : null,
         vipStatus: status === 'approved' ? 'active' : status === 'rejected' ? 'rejected' : 'pending',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
     }
 
@@ -739,7 +741,7 @@ app.post('/api/reviews', async (req, res) => {
       rating,
       comment,
       date: new Date().toISOString(),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     };
 
     await firestoreDb.collection('reviews').doc(reviewId).set(review);
