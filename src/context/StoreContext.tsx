@@ -168,7 +168,7 @@ interface StoreContextType {
 
   // Orders Management & Sound
   activeOrder: Order | null;
-  createOrder: (customer: CustomerDetails, paymentMethod: PaymentMethod, specialInstructions?: string) => Order;
+  createOrder: (customer: CustomerDetails, paymentMethod: PaymentMethod, specialInstructions?: string) => Promise<Order>;
   repeatOrder: (order: Order) => void;
   clearActiveOrder: () => void;
   allOrders: Order[];
@@ -1287,22 +1287,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
-  const createOrder = (
-    customer: CustomerDetails, 
+  const createOrder = async (
+    customer: CustomerDetails,
     paymentMethod: PaymentMethod,
     specialInstructions?: string
-  ): Order => {
+  ): Promise<Order> => {
+    if (!auth.currentUser?.phoneNumber) {
+      throw new Error('Customer authentication required. Please verify your phone again.');
+    }
+    if (paymentMethod !== 'cod') {
+      throw new Error('Online payment gateway is not configured yet. Please use Cash on Delivery.');
+    }
+    if (cart.length === 0) {
+      throw new Error('Your cart is empty.');
+    }
+
     const rawKfcSubtotal = cart.reduce((acc, ci) => {
-      const baseRaw = ci.menuItem.baseKfcPrice;
-      const addons = ci.options.addons.reduce((a, b) => a + b.price, 0);
+      const baseRaw = Number(ci.menuItem.baseKfcPrice || 0);
+      const addons = (ci.options?.addons || []).reduce((sum, addon) => sum + Number(addon.price || 0), 0);
       return acc + (baseRaw + addons) * ci.quantity;
     }, 0);
 
     const markupAmount = Math.max(0, cartSubtotal - rawKfcSubtotal);
-    const actualLoyaltyDiscount = isRedeemingPoints && canRedeemPoints ? loyaltyDiscountAmount : 0;
+    const requestedLoyaltyDiscount = isRedeemingPoints && canRedeemPoints ? loyaltyDiscountAmount : 0;
 
-    const newOrder: Order = {
-      id: `CKW-${Math.floor(100000 + Math.random() * 900000)}`,
+    const draftOrder: Order = {
+      id: `CKW-${Date.now().toString().slice(-8)}`,
       date: new Date().toISOString(),
       orderType: 'delivery',
       items: [...cart],
@@ -1311,8 +1321,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deliveryFee: effectiveDeliveryFee,
       discount: discountAmount,
       loyaltyPointsEarned: potentialPointsToEarn,
-      loyaltyPointsRedeemed: actualLoyaltyDiscount,
-      loyaltyDiscount: actualLoyaltyDiscount,
+      loyaltyPointsRedeemed: requestedLoyaltyDiscount,
+      loyaltyDiscount: requestedLoyaltyDiscount,
       vipDiscount: vipDiscountAmount,
       vipTierApplied: isVipActive && currentUser?.vipTier ? currentUser.vipTier : undefined,
       total: cartTotal,
@@ -1321,20 +1331,45 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         notes: specialInstructions || customer.notes,
       },
       specialInstructions: specialInstructions || customer.notes,
-      paymentMethod,
+      paymentMethod: 'cod',
       status: 'confirmed',
     };
 
-    // Loyalty Points notification and transaction history recording
-    if (potentialPointsToEarn > 0) {
-      setPointsEarnedNotice(potentialPointsToEarn);
+    const token = await auth.currentUser.getIdToken();
+    const response = await fetch('/api/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        ...draftOrder,
+        deliveryMethodId: selectedDeliveryMethodId,
+        discountCode: appliedDiscountCode || undefined,
+        redeemLoyaltyPoints: requestedLoyaltyDiscount > 0,
+      }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.error || 'Order could not be placed. Please try again.');
+    }
+
+    const savedOrder: Order = { ...draftOrder, ...result };
+
+    // Only update local customer/order state after the server has accepted the order.
+    const earnedPoints = Number(savedOrder.loyaltyPointsEarned || 0);
+    const redeemedPoints = Number(savedOrder.loyaltyPointsRedeemed || 0);
+
+    if (earnedPoints > 0) {
+      setPointsEarnedNotice(earnedPoints);
       const earnTx: LoyaltyTransaction = {
         id: `tx-${Date.now()}-earn`,
-        customerId: currentUser?.id || 'guest',
+        customerId: auth.currentUser.uid,
         type: 'earned',
-        points: potentialPointsToEarn,
-        description: `Earned on Order #${newOrder.id.slice(-6)}`,
-        orderId: newOrder.id,
+        points: earnedPoints,
+        description: `Earned on Order #${savedOrder.id}`,
+        orderId: savedOrder.id,
         date: new Date().toISOString(),
       };
       setLoyaltyTransactions((prev) => {
@@ -1344,14 +1379,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     }
 
-    if (actualLoyaltyDiscount > 0) {
+    if (redeemedPoints > 0) {
       const redeemTx: LoyaltyTransaction = {
         id: `tx-${Date.now()}-redeem`,
-        customerId: currentUser?.id || 'guest',
+        customerId: auth.currentUser.uid,
         type: 'redeemed',
-        points: actualLoyaltyDiscount,
-        description: `Redeemed on Order #${newOrder.id.slice(-6)}`,
-        orderId: newOrder.id,
+        points: redeemedPoints,
+        description: `Redeemed on Order #${savedOrder.id}`,
+        orderId: savedOrder.id,
         date: new Date().toISOString(),
       };
       setLoyaltyTransactions((prev) => {
@@ -1361,82 +1396,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     }
 
-    // Update Customer loyalty balance & address book
     if (currentUser) {
       const existingAddresses = currentUser.savedAddresses || [];
       const hasAddr = existingAddresses.some(
-        (a) => a.address.toLowerCase().trim() === customer.address.toLowerCase().trim()
+        (saved) => saved.address.toLowerCase().trim() === customer.address.toLowerCase().trim()
       );
       const updatedAddresses = hasAddr
         ? existingAddresses
         : [...existingAddresses, { id: `addr-${Date.now()}`, label: 'Recent Order', address: customer.address.trim() }];
 
-      const updatedBalance = Math.max(0, (currentUser.loyaltyPoints || 0) - actualLoyaltyDiscount) + potentialPointsToEarn;
       const updatedUser: CustomerUser = {
         ...currentUser,
         fullName: customer.fullName || currentUser.fullName,
         phone: customer.phone || currentUser.phone,
         address: customer.address || currentUser.address,
         savedAddresses: updatedAddresses,
-        loyaltyPoints: updatedBalance,
+        loyaltyPoints: Math.max(0, (currentUser.loyaltyPoints || 0) - redeemedPoints) + earnedPoints,
       };
       setCurrentUser(updatedUser);
-      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
-
-      // Sync customer record to server
-      const existingRecord = customerRecords.find((c) => c.phone === currentUser.phone);
-      const recordPayload: CustomerLoyaltyRecord = {
-        id: currentUser.id,
-        fullName: customer.fullName || currentUser.fullName,
-        phone: customer.phone || currentUser.phone,
-        address: customer.address || currentUser.address,
-        email: currentUser.email,
-        loyaltyPoints: updatedBalance,
-        totalOrdersCount: (existingRecord?.totalOrdersCount || 0) + 1,
-        totalSpent: (existingRecord?.totalSpent || 0) + cartTotal,
-        createdAt: currentUser.createdAt,
-        lastOrderDate: new Date().toISOString(),
-      };
-
-      fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(recordPayload),
-      }).catch(() => {});
     }
 
-    // If discount was used, increment usage count
-    if (appliedDiscount) {
-      updateDiscount(appliedDiscount.id, { usedCount: appliedDiscount.usedCount + 1 });
-    }
+    setAllOrders((prev) => [savedOrder, ...prev.filter((order) => order.id !== savedOrder.id)]);
+    setActiveOrder(savedOrder);
+    clearCart();
 
-    // Persist order first; never show success when the backend rejected it.
-    try {
-      const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
-      if (!token) throw new Error('Customer authentication required. Please verify your phone again.');
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify(newOrder),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || 'Order could not be placed.');
-      const savedOrder = { ...newOrder, ...result };
-      setAllOrders((prev) => [savedOrder, ...prev]);
-      setActiveOrder(savedOrder);
-      clearCart();
-      setIsCheckoutOpen(false);
-    } catch (error: any) {
-      console.error('Order submission failed:', error);
-      throw new Error(error?.message || 'Order could not be placed. Please try again.');
-    }
-
-    // Play chime sound
     if (settings.orderNotificationSound !== false) {
       playNewOrderChime();
     }
 
-    return newOrder;
+    return savedOrder;
   };
 
   const clearActiveOrder = () => setActiveOrder(null);
