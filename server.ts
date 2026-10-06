@@ -100,14 +100,14 @@ async function verifyAdminAuth(req: Request, res: Response, next: NextFunction) 
 }
 
 // Optional customer auth verifier
-async function getOptionalCustomerAuth(req: Request): Promise<{ uid: string; phone?: string } | null> {
+async function getOptionalCustomerAuth(req: Request): Promise<{ uid: string; phone?: string; admin?: boolean } | null> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ') || !firebaseAuth) return null;
   const token = authHeader.split('Bearer ')[1]?.trim();
   if (!token) return null;
   try {
     const decoded = await firebaseAuth.verifyIdToken(token);
-    return { uid: decoded.uid, phone: decoded.phone_number };
+    return { uid: decoded.uid, phone: decoded.phone_number, admin: decoded.admin === true };
   } catch {
     return null;
   }
@@ -118,12 +118,18 @@ async function getOptionalCustomerAuth(req: Request): Promise<{ uid: string; pho
 // =========================================================================
 
 // GET /api/store-data (Public Storefront settings & catalogue)
-app.get('/api/store-data', async (_req, res) => {
+app.get('/api/store-data', async (req, res) => {
   try {
     if (firestoreDb) {
       const docRef = await firestoreDb.collection('storeSettings').doc('global').get();
       if (docRef.exists) {
         const data: any = docRef.data() || {};
+        const auth = await getOptionalCustomerAuth(req);
+        let isAdminRequest = Boolean(auth?.admin);
+        if (!isAdminRequest && auth?.uid && firestoreDb) {
+          const adminDoc = await firestoreDb.collection('adminUsers').doc(auth.uid).get();
+          isAdminRequest = adminDoc.exists && adminDoc.data()?.role === 'admin' && adminDoc.data()?.active !== false;
+        }
         const safe = { ...data };
         const sanitizeSettings = (settings: any) => {
           if (!settings || typeof settings !== 'object') return settings;
@@ -135,8 +141,10 @@ app.get('/api/store-data', async (_req, res) => {
           }
           return clean;
         };
-        delete safe.adminUsers;
-        safe.settings = sanitizeSettings(safe.settings);
+        if (!isAdminRequest) {
+          delete safe.adminUsers;
+          safe.settings = sanitizeSettings(safe.settings);
+        }
         if (safe.metaCommerce) {
           safe.metaCommerce = sanitizeSettings(safe.metaCommerce);
         }
