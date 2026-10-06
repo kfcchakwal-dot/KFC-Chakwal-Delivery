@@ -868,25 +868,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
-    try {
-      const res = await fetch(`/api/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setAllOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: updated.status } : o))
-        );
-        if (activeOrder && activeOrder.id === orderId) {
-          setActiveOrder((prev) => (prev ? { ...prev, status } : null));
-        }
-      }
-    } catch {
-      setAllOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
-      );
+    const res = await fetch(`/api/orders/${orderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+      body: JSON.stringify({ status }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Order status update failed.');
+    setAllOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: data.status } : o))
+    );
+    if (activeOrder && activeOrder.id === orderId) {
+      setActiveOrder((prev) => (prev ? { ...prev, status: data.status } : null));
     }
   };
 
