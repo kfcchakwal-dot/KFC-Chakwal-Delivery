@@ -27,7 +27,10 @@ export const CustomerAuthModal: React.FC = () => {
     setIsCustomerAuthModalOpen,
     currentUser,
     signupUser,
-    loginUser,
+    sendPhoneOtp,
+    verifyPhoneOtp,
+    isOtpSent,
+    setIsOtpSent,
     logoutUser,
     addSavedAddress,
     deleteSavedAddress,
@@ -49,6 +52,10 @@ export const CustomerAuthModal: React.FC = () => {
   // Login form
   const [loginPhone, setLoginPhone] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [otpMode, setOtpMode] = useState<'login' | 'signup'>('login');
 
   // Add Address form
   const [isAddingAddress, setIsAddingAddress] = useState(false);
@@ -59,27 +66,65 @@ export const CustomerAuthModal: React.FC = () => {
 
   const isDark = themeMode === 'dark';
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) return;
-    if (!phone.trim() || phone.trim().length < 10) return;
-
-    signupUser({
-      fullName: fullName.trim(),
-      phone: phone.trim(),
-      address: address.trim() || 'Within 3 KM (Chakwal City)',
-      email: email.trim() || undefined,
-    });
+    if (!phone.trim() || phone.trim().length < 10) {
+      setOtpError('Please enter a valid mobile number.');
+      return;
+    }
+    setOtpError('');
+    setOtpBusy(true);
+    setOtpMode('signup');
+    const result = await sendPhoneOtp(phone.trim(), 'customer-auth-recaptcha');
+    setOtpBusy(false);
+    if (!result.success) {
+      setOtpError(result.error || 'OTP send nahi ho saka. Dobara try karein.');
+    }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginPhone.trim() || loginPhone.trim().length < 10) {
       setLoginError('Please enter a valid mobile number (e.g. 03001234567)');
       return;
     }
     setLoginError('');
-    loginUser(loginPhone.trim());
+    setOtpError('');
+    setOtpBusy(true);
+    setOtpMode('login');
+    const result = await sendPhoneOtp(loginPhone.trim(), 'customer-auth-recaptcha');
+    setOtpBusy(false);
+    if (!result.success) {
+      setLoginError(result.error || 'OTP send nahi ho saka. Dobara try karein.');
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode.trim() || otpCode.trim().length < 4) {
+      setOtpError('OTP code enter karein.');
+      return;
+    }
+    setOtpBusy(true);
+    setOtpError('');
+    const result = await verifyPhoneOtp(
+      otpCode.trim(),
+      otpMode === 'signup'
+        ? {
+            fullName: fullName.trim(),
+            defaultAddress: address.trim() || 'Within 3 KM (Chakwal City)',
+            email: email.trim() || undefined,
+          }
+        : undefined
+    );
+    setOtpBusy(false);
+    if (!result.success) {
+      setOtpError(result.error || 'OTP verify nahi ho saka.');
+      return;
+    }
+    setOtpCode('');
+    setIsOtpSent(false);
   };
 
   const handleAddAddressSubmit = (e: React.FormEvent) => {
@@ -210,7 +255,7 @@ export const CustomerAuthModal: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm text-[#e4002b]">{currentUser.fullName}</span>
                     <span className="text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                      Logged In (Persistent)
+                      Verified Account
                     </span>
                   </div>
                   <p className={isDark ? 'text-zinc-400' : 'text-zinc-600'}>
@@ -448,7 +493,7 @@ export const CustomerAuthModal: React.FC = () => {
                 <span>Apna Phone Number Enter Karein</span>
               </p>
               <p className={`text-[11px] ${isDark ? 'text-zinc-300' : 'text-zinc-600'}`}>
-                Aap iss device par hamesha login rahenge. Aapke addresses aur loyalty points automatically save rahenge.
+                Firebase Phone OTP se secure login hoga. Aapke addresses aur loyalty points aapke account ke saath save rahenge.
               </p>
             </div>
 
@@ -480,104 +525,91 @@ export const CustomerAuthModal: React.FC = () => {
               </button>
             </div>
 
-            {/* Form A: Native Sign In with Phone */}
+            {/* Secure Firebase Phone OTP Sign In */}
             {tab === 'login' && (
-              <form onSubmit={handleLogin} className="space-y-3.5 text-xs">
+              <form onSubmit={isOtpSent ? handleVerifyOtp : handleLogin} className="space-y-3.5 text-xs">
                 {loginError && (
                   <div className="p-2.5 bg-red-500/10 border border-red-500/30 text-red-500 text-xs rounded-xl font-bold">
                     {loginError}
                   </div>
                 )}
-
-                <div>
-                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                    Mobile Phone Number *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="03001234567"
-                    value={loginPhone}
-                    onChange={(e) => setLoginPhone(e.target.value)}
-                    className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${
-                      isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
-                    }`}
-                  />
-                  <p className="text-[10px] text-zinc-400 mt-1">
-                    Aapka saved profile aur points balance automatically load ho jayega.
-                  </p>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer shadow-lg shadow-red-950/20 active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <span>Sign In & Continue</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                {isOtpSent ? (
+                  <>
+                    <div>
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                        OTP Code
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        required
+                        placeholder="123456"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className={`w-full text-center text-lg tracking-[0.35em] rounded-xl px-3.5 py-3 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`}
+                      />
+                    </div>
+                    {otpError && <div className="p-2.5 bg-red-500/10 border border-red-500/30 text-red-500 text-xs rounded-xl font-bold">{otpError}</div>}
+                    <button type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
+                      <span>{otpBusy ? 'Verifying...' : 'Verify OTP & Continue'}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                    <button type="button" disabled={otpBusy} onClick={() => { setIsOtpSent(false); setOtpCode(''); setOtpError(''); }} className="w-full py-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white font-bold">
+                      Change Number
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Mobile Phone Number *</label>
+                      <input type="tel" required placeholder="03001234567" value={loginPhone} onChange={(e) => setLoginPhone(e.target.value)} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
+                      <p className="text-[10px] text-zinc-400 mt-1">Is number par Firebase verification code SMS hoga.</p>
+                    </div>
+                    <button type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
+                      <span>{otpBusy ? 'Sending OTP...' : 'Send OTP & Continue'}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
               </form>
             )}
 
-            {/* Form B: Native New Account Registration */}
+            {/* Form B: Secure Firebase Phone OTP New Account Registration */}
             {tab === 'signup' && (
-              <form onSubmit={handleSignup} className="space-y-3 text-xs">
+              <form onSubmit={isOtpSent ? handleVerifyOtp : handleSignup} className="space-y-3 text-xs">
+                {otpError && <div className="p-2.5 bg-red-500/10 border border-red-500/30 text-red-500 text-xs rounded-xl font-bold">{otpError}</div>}
                 <div>
-                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Muhammad Usman"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${
-                      isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
-                    }`}
-                  />
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Full Name *</label>
+                  <input type="text" required placeholder="e.g. Muhammad Usman" value={fullName} onChange={(e) => setFullName(e.target.value)} disabled={isOtpSent} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
                 </div>
-
                 <div>
-                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                    Mobile Phone (WhatsApp) *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="03001234567"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${
-                      isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
-                    }`}
-                  />
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Mobile Phone (WhatsApp) *</label>
+                  <input type="tel" required placeholder="03001234567" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isOtpSent} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
                 </div>
-
                 <div>
-                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                    Delivery Address (Within 3 KM) *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="House / Street / Area within 3km Chakwal"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${
-                      isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
-                    }`}
-                  />
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Delivery Address (Within 3 KM) *</label>
+                  <input type="text" required placeholder="House / Street / Area within 3km Chakwal" value={address} onChange={(e) => setAddress(e.target.value)} disabled={isOtpSent} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
                 </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer shadow-lg shadow-red-950/20 active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <span>Create Account & Get 50 Bonus Points</span>
+                <div id="customer-auth-recaptcha" className="flex justify-center" />
+                {isOtpSent ? (
+                  <>
+                    <div>
+                      <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>OTP Code</label>
+                      <input type="text" inputMode="numeric" autoComplete="one-time-code" required placeholder="123456" value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className={`w-full text-center text-lg tracking-[0.35em] rounded-xl px-3.5 py-3 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
+                    </div>
+                    <button type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
+                      <span>{otpBusy ? 'Verifying...' : 'Verify OTP & Create Account'}</span>
+                      <Sparkles className="w-4 h-4 text-amber-300" />
+                    </button>
+                    <button type="button" disabled={otpBusy} onClick={() => { setIsOtpSent(false); setOtpCode(''); setOtpError(''); }} className="w-full py-2 text-zinc-400 font-bold">Change Number</button>
+                  </>
+                ) : (
+                  <button type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer shadow-lg shadow-red-950/20 active:scale-95 flex items-center justify-center gap-2">
+                    <span>{otpBusy ? 'Sending OTP...' : 'Verify Phone & Create Account'}</span>
                     <Sparkles className="w-4 h-4 text-amber-300" />
                   </button>
-                </div>
+                )}
               </form>
             )}
 
@@ -587,10 +619,10 @@ export const CustomerAuthModal: React.FC = () => {
             }`}>
               <div className="flex items-center gap-1.5 font-bold text-emerald-500">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Device Persistent Session Active</span>
+                <span>Secure Firebase Phone Session</span>
               </div>
               <p>
-                Jab bhi aap iss phone ya computer se app open karenge, aap bina baar baar password/login dale hamesha signed in rahenge jab tak aap khud "Log Out" na karein.
+                Firebase aapka secure session manage karta hai. Logout karne par account session khatam ho jayega.
               </p>
             </div>
           </div>
