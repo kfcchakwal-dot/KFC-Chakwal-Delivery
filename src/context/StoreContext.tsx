@@ -462,17 +462,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [reviews, setReviews] = useState<ProductReview[]>([]);
 
   // Customer Account
-  const [currentUser, setCurrentUser] = useState<CustomerUser | null>(() => {
-    try {
-      const saved = localStorage.getItem(CUSTOMER_USER_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed.loyaltyPoints !== 'number') parsed.loyaltyPoints = 50;
-        return parsed;
-      }
-    } catch {}
-    return null;
-  });
+  const [currentUser, setCurrentUser] = useState<CustomerUser | null>(null);
 
   const [isCustomerAuthModalOpen, setIsCustomerAuthModalOpen] = useState(false);
 
