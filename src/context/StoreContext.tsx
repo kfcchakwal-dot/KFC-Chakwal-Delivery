@@ -757,7 +757,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     currentView
   ]);
 
-  const getAuthHeaders = async () => {
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
     const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
@@ -1883,7 +1883,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!response.ok) throw new Error(data.error || 'VIP grant failed.');
     setVipRequests((prev) => prev.map((request) => request.id === requestId ? { ...request, ...data } : request));
     setCustomerRecords((prev) => prev.map((customer) =>
-      customer.id === target.id ? { ...customer, vipTier } : customer
+      customer.id === target.id ? { ...customer, vipTier: tierId } : customer
     ));
   };
 
@@ -2336,6 +2336,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         customerNotificationAllowed,
         setCustomerNotificationAllowed,
         requestNotificationPermission,
+        sendPhoneOtp,
+        verifyPhoneOtp,
+        isOtpSent,
+        setIsOtpSent,
       }}
     >
       {children}
