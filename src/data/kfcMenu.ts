@@ -78,30 +78,30 @@ export const DEFAULT_HERO_CONFIG: HeroConfig = {
 export const DEFAULT_VIP_TIERS: VipTier[] = [
   {
     id: 'silver',
-    name: 'Silver Crunch Pass',
+    name: 'Silver Lifetime VIP Pass',
     discountPercentage: 3,
     price: 499,
-    description: 'Flat 3% Lifetime Discount on every single order across Chakwal.',
+    description: 'Flat 3% Lifetime Discount on all orders across Chakwal. Valid forever with one-time payment.',
     badgeColor: 'from-slate-400 to-zinc-600',
-    perks: ['Flat 3% Lifetime OFF', 'Priority Express Cooking', 'Silver VIP Badge', 'Valid forever with one-time payment'],
+    perks: ['Flat 3% Lifetime Discount on all orders', 'Priority Express Cooking', 'Silver VIP Badge', 'Valid forever with one-time payment'],
   },
   {
     id: 'gold',
-    name: 'Gold Feast Pass',
+    name: 'Gold Lifetime VIP Pass',
     discountPercentage: 6,
     price: 899,
-    description: 'Flat 6% Lifetime Discount on every order + free sauces & special packing.',
+    description: 'Flat 6% Lifetime Discount on all orders across Chakwal. Valid forever with one-time payment.',
     badgeColor: 'from-amber-400 to-yellow-600',
-    perks: ['Flat 6% Lifetime OFF', 'Zero Cutlery / Sauce charges', 'Gold VIP Badge', 'Free Delivery on orders above Rs. 2000'],
+    perks: ['Flat 6% Lifetime Discount on all orders', 'Zero packaging charges', 'Gold VIP Badge', 'Valid forever with one-time payment'],
   },
   {
     id: 'platinum',
-    name: 'Platinum Zinger Pass',
+    name: 'Platinum Lifetime VIP Pass',
     discountPercentage: 8,
     price: 999,
-    description: 'Ultimate 8% Lifetime Discount + VIP WhatsApp Direct Line & Instant Dispatch.',
+    description: 'Flat 8% Lifetime Discount on all orders across Chakwal. Top Priority Kallar Kahar Dispatch.',
     badgeColor: 'from-rose-500 via-red-600 to-amber-600',
-    perks: ['Flat 8% Lifetime OFF', 'Top Priority Kallar Kahar Dispatch', 'VIP Platinum Hot Badge', 'Personal Dedicated Rider fleet priority'],
+    perks: ['Flat 8% Lifetime Discount on all orders', 'Top Priority Kallar Kahar Dispatch', 'VIP Platinum Hot Badge', 'Personal Dedicated Rider fleet priority'],
   },
 ];
 
@@ -297,10 +297,10 @@ export const DEFAULT_DELIVERY_METHODS: DeliveryMethod[] = [
 
 export const DEFAULT_DAILY_DEAL: DailyDealConfig = {
   enabled: true,
-  title: "Today's Daily 5 Meal Box Specials",
+  title: "Daily Discount Deals",
   subtitle: 'Freshly selected daily combos at flat 4% OFF (Changes daily!)',
   discountPercentage: 4,
-  itemCount: 5,
+  itemCount: 6,
 };
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
@@ -314,18 +314,29 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   storeAddress: 'Chakwal City, Punjab (Deliveries from KFC Kallar Kahar Motorway)',
   openingHours: 'Orders Open: 10:00 AM - 04:00 PM (Delivery by 08:00 PM)',
   isStoreOpen: true,
-  announcementText: '🍗 KFC Picked from Kallar Kahar Motorway & Delivered in Chakwal (Within 3 KM)! Order before 4:00 PM for Delivery by 8:00 PM.',
+  announcementText: '🍗 Fresh KFC Picked from Kallar Kahar Motorway & Delivered in Chakwal (Within 3 KM)! Order before 4:00 PM for Delivery by 8:00 PM.',
   showAnnouncement: true,
-  adminPin: '7860',
   themeMode: 'light', // Default day theme as requested
   headingFont: 'Barlow Condensed',
   bodyFont: 'Plus Jakarta Sans',
   descriptionWordLimit: 25, // Controllable word limit (max 300)
   deliveryRadiusText: 'Within 3 KM of Chakwal City',
-  kallarKaharNotice: 'Ye KFC Chakwal Delivery ek alag se delivery service hai hamari, Hum Kallar Kahar Motorway wali KFC branch se KFC pick kar ky Chakwal mein daily deliver karty hein.',
+  kallarKaharNotice: 'KFC Chakwal Delivery ek independent delivery service hai hamari, Hum Kallar Kahar Motorway wali KFC branch se fresh meal pick kar ky Chakwal mein daily deliver karty hein.',
   sameDayOrderCutoff: '4:00 PM',
   sameDayDeliveryBy: '8:00 PM',
   orderNotificationSound: true,
+  customAppIconUrl: '/pwa-512.png',
+  customPreloaderLogoUrl: '/logo.svg',
+  adminUsers: [
+    { id: 'admin-1', name: 'Master Admin', email: 'kfcchakwal@gmail.com', role: 'Super Admin', addedAt: '2026-09-01' }
+  ],
+  homepageVideo: {
+    enabled: true,
+    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-frying-crispy-chicken-tenders-in-oil-42630-large.mp4',
+    title: 'Fresh Hot Chicken · Kallar Kahar to Chakwal',
+    subtitle: 'Insulated Tamper-Evident Delivery Daily by 8:00 PM',
+    position: 'middle',
+  },
   deliveryMethods: DEFAULT_DELIVERY_METHODS,
   dailyDeal: DEFAULT_DAILY_DEAL,
   socialLinks: {
@@ -340,15 +351,15 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     badgeText: '⚡ Picked from Kallar Kahar & Delivered in Chakwal',
     headline: 'Same-Day Delivery Before 8:00 PM',
     estimatedTime: 'Delivered by 8:00 PM (Order before 4 PM)',
-    description: 'Hum Kallar Kahar Motorway wali KFC branch se authentic sealed KFC pick kar ke Chakwal city (within 3km) deliver karte hain. Daily 4 baje se pehle order karein aur sham 8 baje tak receive karein.',
+    description: 'Hum Kallar Kahar Motorway branch se authentic sealed hot KFC pick kar ke Chakwal city (within 3km) deliver karte hain. Daily 4 baje se pehle order karein aur sham 8 baje tak receive karein.',
     deliveryFeeText: 'Flat Rs. 399',
     buttonText: 'Order Now',
   },
   customSections: DEFAULT_CUSTOM_SECTIONS,
   headerFooter: {
-    logoUrl: '',
+    logoUrl: '/logo.svg',
     headerTitle: 'KFC CHAKWAL DELIVERY',
-    footerAboutText: 'KFC Chakwal Delivery: Hum Kallar Kahar Motorway wali official KFC branch se authentic sealed hot KFC pick kar ke Chakwal city (within 3km) daily deliver karte hain.',
+    footerAboutText: 'KFC Chakwal Delivery: Hum Kallar Kahar Motorway branch se authentic sealed hot KFC pick kar ke Chakwal city (within 3km) daily deliver karte hain.',
     footerCopyrightText: '© 2026 KFC Chakwal Delivery. All rights reserved. Phone: +92 325 2777574',
   },
   hero: DEFAULT_HERO_CONFIG,
@@ -365,6 +376,52 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     autoSyncOrders: false,
   },
 };
+
+export interface BeverageOption {
+  id: string;
+  name: string;
+  volume: string;
+  image: string;
+  price: number;
+}
+
+export const BEVERAGE_OPTIONS: BeverageOption[] = [
+  {
+    id: 'pepsi-can',
+    name: 'Pepsi (345ml)',
+    volume: 'Chilled Can',
+    image: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=200&auto=format&fit=crop&q=80',
+    price: 130,
+  },
+  {
+    id: '7up-can',
+    name: '7UP (345ml)',
+    volume: 'Chilled Can',
+    image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=200&auto=format&fit=crop&q=80',
+    price: 130,
+  },
+  {
+    id: 'mirinda-can',
+    name: 'Mirinda (345ml)',
+    volume: 'Chilled Can',
+    image: 'https://images.unsplash.com/photo-1543253687-c931c8e01820?w=200&auto=format&fit=crop&q=80',
+    price: 130,
+  },
+  {
+    id: 'dew-can',
+    name: 'Mountain Dew (345ml)',
+    volume: 'Chilled Can',
+    image: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=200&auto=format&fit=crop&q=80',
+    price: 130,
+  },
+  {
+    id: 'water-pet',
+    name: 'Aquafina Water (500ml)',
+    volume: 'Chilled Bottle',
+    image: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=200&auto=format&fit=crop&q=80',
+    price: 90,
+  },
+];
 
 // Common customizable addons with food thumbnail images
 export const BURGER_ADDONS: MenuItemAddon[] = [

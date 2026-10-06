@@ -1,17 +1,21 @@
-const CACHE_NAME = 'kfc-chakwal-v1';
+const CACHE_NAME = 'kfc-chakwal-v2';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/logo.svg',
   '/pwa-192.png',
   '/pwa-512.png',
-  '/apple-touch-icon.png'
+  '/apple-touch-icon.png',
+  '/favicon.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_URLS);
+      return Promise.allSettled(
+        PRECACHE_URLS.map((url) => cache.add(url).catch(() => {}))
+      );
     }).then(() => self.skipWaiting())
   );
 });

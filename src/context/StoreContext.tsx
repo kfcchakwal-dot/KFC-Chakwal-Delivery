@@ -49,6 +49,21 @@ import {
   KFC_CATEGORIES,
 } from '../data/kfcMenu';
 import { playNewOrderChime } from '../utils/audioNotification';
+import { auth, db } from '../lib/firebase';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult,
+} from 'firebase/auth';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 interface StoreContextType {
   // Store Settings
@@ -187,6 +202,10 @@ interface StoreContextType {
   signupUser: (data: { fullName: string; phone: string; address: string; email?: string }) => void;
   loginUser: (phone: string) => boolean;
   logoutUser: () => void;
+  sendPhoneOtp: (phoneNumber: string, recaptchaContainerId: string) => Promise<{ success: boolean; error?: string }>;
+  verifyPhoneOtp: (otpCode: string, profileDetails?: { fullName: string; defaultAddress?: string; email?: string }) => Promise<{ success: boolean; error?: string }>;
+  isOtpSent: boolean;
+  setIsOtpSent: (sent: boolean) => void;
   addSavedAddress: (label: string, address: string) => void;
   deleteSavedAddress: (addressId: string) => void;
   isCustomerAuthModalOpen: boolean;
@@ -209,7 +228,7 @@ interface StoreContextType {
   setIsAdmin: (isAdmin: boolean) => void;
   isAdminLoginModalOpen: boolean;
   setIsAdminLoginModalOpen: (open: boolean) => void;
-  loginAdmin: (pin: string) => boolean;
+  loginAdmin: (emailOrPin: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   logoutAdmin: () => void;
   isOrdersDashboardOpen: boolean;
   setIsOrdersDashboardOpen: (open: boolean) => void;
@@ -263,6 +282,27 @@ interface StoreContextType {
   // Categories / Collections Management
   categories: Category[];
   addCategory: (cat: Category) => void;
+
+  // Order Editing (Shopify Style)
+  editOrder: (orderId: string, updatedFields: Partial<Order>) => void;
+
+  // Single Customer Management
+  addCustomer: (customer: Partial<CustomerLoyaltyRecord>) => void;
+  updateCustomer: (customerId: string, updated: Partial<CustomerLoyaltyRecord>) => void;
+  deleteCustomer: (customerId: string) => void;
+
+  // Lifetime VIP Pass actions
+  requestVipMembershipWhatsApp: (tierId: VipTierId, customerName: string, phone: string, email?: string) => VipMembershipRequest;
+  grantVipMembershipManual: (customerPhoneOrId: string, tierId: VipTierId) => void;
+
+  // Admin Users
+  addAdminUser: (name: string, email: string, pin: string, role?: 'Super Admin' | 'Manager') => void;
+  deleteAdminUser: (adminId: string) => void;
+
+  // Customer Push Notification Preferences
+  customerNotificationAllowed: boolean;
+  setCustomerNotificationAllowed: (allowed: boolean) => void;
+  requestNotificationPermission: () => Promise<boolean>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -453,16 +493,65 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   // Admin / Seller Auth
-  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('admin') === 'true') return true;
-      if (window.location.pathname.startsWith('/admin')) return true;
-      return localStorage.getItem(ADMIN_AUTH_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [phoneConfirmationResult, setPhoneConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [isOtpSent, setIsOtpSent] = useState<boolean>(false);
+
+  // Monitor Firebase Auth state change for Admin and Phone Customer
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        setIsAdmin(false);
+        return;
+      }
+
+      // Check Admin permissions
+      try {
+        const tokenResult = await firebaseUser.getIdTokenResult();
+        let isAuthorizedAdmin = false;
+        if (tokenResult.claims.admin === true || firebaseUser.email === 'kfcchakwal@gmail.com') {
+          isAuthorizedAdmin = true;
+        } else {
+          const adminDoc = await getDoc(doc(db, 'adminUsers', firebaseUser.uid));
+          if (adminDoc.exists() && adminDoc.data()?.role === 'admin') {
+            isAuthorizedAdmin = true;
+          }
+        }
+        setIsAdmin(isAuthorizedAdmin);
+      } catch (err) {
+        console.warn('Admin status evaluation notice:', err);
+      }
+
+      // Sync customer profile if phone authenticated
+      if (firebaseUser.phoneNumber) {
+        try {
+          const customerDocRef = doc(db, 'customers', firebaseUser.uid);
+          const customerDoc = await getDoc(customerDocRef);
+          if (customerDoc.exists()) {
+            const data = customerDoc.data() as any;
+            setCurrentUser({
+              id: firebaseUser.uid,
+              fullName: data.fullName || 'Customer',
+              phone: firebaseUser.phoneNumber,
+              email: data.email,
+              address: data.defaultAddress || '',
+              defaultAddress: data.defaultAddress || '',
+              savedAddresses: data.savedAddresses || [],
+              loyaltyPoints: data.loyaltyPoints || 0,
+              vipTier: data.vipTier,
+              totalSpent: data.totalSpent || 0,
+              ordersCount: data.totalOrdersCount || 0,
+              createdAt: data.createdAt || new Date().toISOString(),
+            });
+          }
+        } catch (e) {
+          console.warn('Customer profile sync notice:', e);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState(false);
   const [isOrdersDashboardOpen, setIsOrdersDashboardOpen] = useState(false);
@@ -652,6 +741,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Ensures hardware back button closes the top-most modal/drawer rather than
   // abruptly exiting the application.
   // =========================================================================
+  useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const prodId = urlParams.get('product');
+      if (prodId) {
+        const found = menuItems.find((m) => m.id === prodId);
+        if (found) {
+          setSelectedProduct(found);
+          setCurrentView('product');
+        }
+      }
+    } catch {}
+  }, [menuItems]);
+
   const hasModalOrSubpageOpen = Boolean(
     selectedItemForCustomization ||
     isCheckoutOpen ||
@@ -837,19 +940,48 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const loginAdmin = (pin: string): boolean => {
-    if (pin.trim() === settings.adminPin || pin.trim() === '7860') {
-      setIsAdmin(true);
-      localStorage.setItem(ADMIN_AUTH_KEY, 'true');
-      setIsAdminLoginModalOpen(false);
-      return true;
+  const loginAdmin = async (emailOrPin: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const email = emailOrPin.includes('@') ? emailOrPin.trim() : `${emailOrPin.trim()}@kfcchakwaldelivery.app`;
+      const pwd = password || emailOrPin;
+      const cred = await signInWithEmailAndPassword(auth, email, pwd);
+      const user = cred.user;
+      const tokenResult = await user.getIdTokenResult();
+
+      let isAuthorizedAdmin = false;
+      if (tokenResult.claims.admin === true || user.email === 'kfcchakwal@gmail.com') {
+        isAuthorizedAdmin = true;
+      } else {
+        const adminDoc = await getDoc(doc(db, 'adminUsers', user.uid));
+        if (adminDoc.exists() && adminDoc.data()?.role === 'admin') {
+          isAuthorizedAdmin = true;
+        }
+      }
+
+      if (isAuthorizedAdmin) {
+        setIsAdmin(true);
+        setIsAdminLoginModalOpen(false);
+        return { success: true };
+      } else {
+        await signOut(auth);
+        setIsAdmin(false);
+        return { success: false, error: 'Access denied: You do not have administrator permissions.' };
+      }
+    } catch (err: any) {
+      console.error('Admin authentication failure:', err);
+      let msg = 'Authentication failed. Please verify your administrator credentials.';
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        msg = 'Invalid administrator email or password.';
+      }
+      return { success: false, error: msg };
     }
-    return false;
   };
 
-  const logoutAdmin = () => {
+  const logoutAdmin = async () => {
+    try {
+      await signOut(auth);
+    } catch {}
     setIsAdmin(false);
-    localStorage.removeItem(ADMIN_AUTH_KEY);
     const url = new URL(window.location.href);
     url.searchParams.delete('admin');
     url.searchParams.delete('app');
@@ -1172,7 +1304,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ];
     });
 
-    setIsCartOpen(true);
+    // Do not force open modal on add, sticky bottom cart bar appears cleanly
   };
 
   const updateCartQuantity = (cartItemId: string, newQty: number) => {
@@ -1349,11 +1481,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearActiveOrder = () => setActiveOrder(null);
 
-  // Theme toggle
-  const themeMode: ThemeMode = settings.themeMode || 'light';
+  // Theme toggle: Permanently light/day theme as requested by user
+  const themeMode: ThemeMode = 'light';
   const toggleTheme = () => {
-    const nextMode: ThemeMode = themeMode === 'dark' ? 'light' : 'dark';
-    updateSettings({ themeMode: nextMode });
+    updateSettings({ themeMode: 'light' });
   };
 
   // Product View
@@ -1504,7 +1635,96 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsCartOpen(true);
   };
 
-  const logoutUser = () => {
+  const sendPhoneOtp = async (phoneNumber: string, recaptchaContainerId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      let clean = phoneNumber.trim().replace(/[\s-]/g, '');
+      if (clean.startsWith('03')) {
+        clean = '+92' + clean.slice(1);
+      } else if (!clean.startsWith('+')) {
+        clean = '+92' + clean;
+      }
+
+      const verifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
+        size: 'invisible',
+      });
+
+      const confirmation = await signInWithPhoneNumber(auth, clean, verifier);
+      setPhoneConfirmationResult(confirmation);
+      setIsOtpSent(true);
+      return { success: true };
+    } catch (err: any) {
+      console.error('sendPhoneOtp error:', err);
+      return { success: false, error: err.message || 'Failed to send SMS OTP code. Please check your phone number.' };
+    }
+  };
+
+  const verifyPhoneOtp = async (
+    otpCode: string,
+    profileDetails?: { fullName: string; defaultAddress?: string; email?: string }
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!phoneConfirmationResult) {
+        return { success: false, error: 'OTP session expired. Please request a new code.' };
+      }
+      const cred = await phoneConfirmationResult.confirm(otpCode.trim());
+      const user = cred.user;
+
+      const userDocRef = doc(db, 'customers', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      let customerProfile: CustomerUser;
+      if (userDoc.exists()) {
+        const data = userDoc.data() as any;
+        customerProfile = {
+          id: user.uid,
+          fullName: profileDetails?.fullName || data.fullName || 'Customer',
+          phone: user.phoneNumber || data.phone || '',
+          email: profileDetails?.email || data.email,
+          address: profileDetails?.defaultAddress || data.defaultAddress || '',
+          defaultAddress: profileDetails?.defaultAddress || data.defaultAddress || '',
+          savedAddresses: data.savedAddresses || [],
+          loyaltyPoints: data.loyaltyPoints || 0,
+          vipTier: data.vipTier,
+          totalSpent: data.totalSpent || 0,
+          ordersCount: data.totalOrdersCount || 0,
+          createdAt: data.createdAt || new Date().toISOString(),
+        };
+        if (profileDetails?.fullName && profileDetails.fullName !== data.fullName) {
+          await updateDoc(userDocRef, { fullName: profileDetails.fullName });
+        }
+      } else {
+        customerProfile = {
+          id: user.uid,
+          fullName: profileDetails?.fullName || 'Customer',
+          phone: user.phoneNumber || '',
+          email: profileDetails?.email,
+          address: profileDetails?.defaultAddress || '',
+          defaultAddress: profileDetails?.defaultAddress || '',
+          savedAddresses: profileDetails?.defaultAddress
+            ? [{ id: `addr-${Date.now()}`, label: 'Home', address: profileDetails.defaultAddress, isDefault: true }]
+            : [],
+          loyaltyPoints: 50,
+          totalSpent: 0,
+          ordersCount: 0,
+          createdAt: new Date().toISOString(),
+        };
+        await setDoc(userDocRef, customerProfile);
+      }
+
+      setCurrentUser(customerProfile);
+      setIsCustomerAuthModalOpen(false);
+      setIsOtpSent(false);
+      return { success: true };
+    } catch (err: any) {
+      console.error('verifyPhoneOtp error:', err);
+      return { success: false, error: err.message || 'Invalid or expired OTP code' };
+    }
+  };
+
+  const logoutUser = async () => {
+    try {
+      await signOut(auth);
+    } catch {}
     setCurrentUser(null);
     localStorage.removeItem(CUSTOMER_USER_KEY);
     setIsRedeemingPoints(false);
@@ -1617,6 +1837,215 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
     setVipRequests(nextReqs);
     localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(nextReqs));
+  };
+
+  // WhatsApp-First Lifetime VIP Pass Order (No TID required)
+  const requestVipMembershipWhatsApp = (
+    tierId: VipTierId,
+    customerName: string,
+    phone: string,
+    email?: string
+  ): VipMembershipRequest => {
+    const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
+    const newReq: VipMembershipRequest = {
+      id: `vip-req-${Date.now()}`,
+      customerId: currentUser?.id || `cust-${Date.now()}`,
+      customerName: customerName.trim(),
+      phone: phone.trim(),
+      email: email?.trim(),
+      tierId,
+      amount: tier.price,
+      paymentMethod: 'whatsapp',
+      requestedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+    const nextReqs = [newReq, ...vipRequests.filter((r) => r.phone !== phone.trim() || r.status === 'approved')];
+    setVipRequests(nextReqs);
+    localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(nextReqs));
+
+    if (currentUser) {
+      const updatedUser: CustomerUser = {
+        ...currentUser,
+        vipTier: tierId,
+        vipStatus: 'pending',
+      };
+      setCurrentUser(updatedUser);
+      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+    }
+    return newReq;
+  };
+
+  // Manually grant Lifetime VIP Pass by admin
+  const grantVipMembershipManual = (customerPhoneOrId: string, tierId: VipTierId) => {
+    const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
+    const newReq: VipMembershipRequest = {
+      id: `vip-grant-${Date.now()}`,
+      customerId: customerPhoneOrId,
+      customerName: 'VIP Customer',
+      phone: customerPhoneOrId,
+      tierId,
+      amount: tier.price,
+      paymentMethod: 'bank_transfer',
+      requestedAt: new Date().toISOString(),
+      status: 'approved',
+      approvedAt: new Date().toISOString(),
+      notes: 'Manually granted by admin',
+    };
+    const nextReqs = [newReq, ...vipRequests];
+    setVipRequests(nextReqs);
+    localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(nextReqs));
+
+    setCustomerRecords((prev) =>
+      prev.map((c) =>
+        c.phone === customerPhoneOrId || c.id === customerPhoneOrId ? { ...c, vipTier: tierId } : c
+      )
+    );
+
+    if (currentUser && (currentUser.phone === customerPhoneOrId || currentUser.id === customerPhoneOrId)) {
+      const updatedUser: CustomerUser = {
+        ...currentUser,
+        vipTier: tierId,
+        vipStatus: 'active',
+      };
+      setCurrentUser(updatedUser);
+      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+    }
+  };
+
+  // Order Editing (Shopify-style: add/remove items, adjust quantities, discount, shipping, customer details)
+  const editOrder = (orderId: string, updatedFields: Partial<Order>) => {
+    setAllOrders((prev) => {
+      const next = prev.map((ord) => {
+        if (ord.id !== orderId) return ord;
+        const merged: Order = { ...ord, ...updatedFields };
+        if (updatedFields.items) {
+          const sub = updatedFields.items.reduce((s, it) => s + it.unitPrice * it.quantity, 0);
+          merged.subtotal = sub;
+          merged.total = Math.max(
+            0,
+            sub +
+              (merged.deliveryFee || 0) -
+              (merged.discount || 0) -
+              (merged.loyaltyDiscount || 0) -
+              (merged.vipDiscount || 0)
+          );
+        }
+        return merged;
+      });
+      localStorage.setItem(ALL_ORDERS_KEY, JSON.stringify(next));
+      const target = next.find((o) => o.id === orderId);
+      if (target) {
+        fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(target),
+        }).catch(() => {});
+      }
+      return next;
+    });
+  };
+
+  // Single Customer Manual Add, Edit, Delete
+  const addCustomer = (customerData: Partial<CustomerLoyaltyRecord>) => {
+    const newCust: CustomerLoyaltyRecord = {
+      id: `cust-${Date.now()}`,
+      fullName: customerData.fullName || 'Customer',
+      phone: customerData.phone || '03001234567',
+      email: customerData.email || '',
+      address: customerData.address || 'Chakwal City',
+      loyaltyPoints: customerData.loyaltyPoints ?? 50,
+      vipTier: customerData.vipTier,
+      totalOrdersCount: customerData.totalOrdersCount ?? 0,
+      totalSpent: customerData.totalSpent ?? 0,
+      createdAt: new Date().toISOString(),
+    };
+    setCustomerRecords((prev) => {
+      const next = [newCust, ...prev];
+      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(next));
+      return next;
+    });
+    fetch('/api/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newCust),
+    }).catch(() => {});
+  };
+
+  const updateCustomer = (customerId: string, updatedData: Partial<CustomerLoyaltyRecord>) => {
+    setCustomerRecords((prev) => {
+      const next = prev.map((c) =>
+        c.id === customerId || c.phone === customerId ? { ...c, ...updatedData } : c
+      );
+      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const deleteCustomer = (customerId: string) => {
+    setCustomerRecords((prev) => {
+      const next = prev.filter((c) => c.id !== customerId && c.phone !== customerId);
+      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Admin User Authorization Management
+  const addAdminUser = (
+    name: string,
+    email: string,
+    pin: string,
+    role: 'Super Admin' | 'Manager' = 'Manager'
+  ) => {
+    const cur = settings.adminUsers || [
+      {
+        id: 'admin-1',
+        name: 'Master Admin',
+        email: 'kfcchakwal@gmail.com',
+        role: 'Super Admin',
+        addedAt: '2026-09-01',
+      },
+    ];
+    const newAdmin = {
+      id: `admin-${Date.now()}`,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      role,
+      addedAt: new Date().toISOString(),
+    };
+    updateSettings({ adminUsers: [...cur, newAdmin] });
+  };
+
+  const deleteAdminUser = (adminId: string) => {
+    const cur = settings.adminUsers || [];
+    if (cur.length <= 1) {
+      alert('At least one admin user must be maintained in the system.');
+      return;
+    }
+    updateSettings({ adminUsers: cur.filter((a) => a.id !== adminId) });
+  };
+
+  // Push / Web Notification Permission
+  const [customerNotificationAllowed, setCustomerNotificationAllowed] = useState<boolean>(() => {
+    return localStorage.getItem('kfc_notifications_allowed') === 'true';
+  });
+
+  const requestNotificationPermission = async (): Promise<boolean> => {
+    if (!('Notification' in window)) {
+      setCustomerNotificationAllowed(true);
+      localStorage.setItem('kfc_notifications_allowed', 'true');
+      return true;
+    }
+    try {
+      const res = await Notification.requestPermission();
+      const granted = res === 'granted';
+      setCustomerNotificationAllowed(granted);
+      localStorage.setItem('kfc_notifications_allowed', granted ? 'true' : 'false');
+      return granted;
+    } catch {
+      setCustomerNotificationAllowed(true);
+      localStorage.setItem('kfc_notifications_allowed', 'true');
+      return true;
+    }
   };
 
   // Custom Domain Integration
@@ -1914,6 +2343,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         importCustomersCSV,
         categories,
         addCategory,
+        editOrder,
+        addCustomer,
+        updateCustomer,
+        deleteCustomer,
+        requestVipMembershipWhatsApp,
+        grantVipMembershipManual,
+        addAdminUser,
+        deleteAdminUser,
+        customerNotificationAllowed,
+        setCustomerNotificationAllowed,
+        requestNotificationPermission,
       }}
     >
       {children}

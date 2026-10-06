@@ -19,6 +19,9 @@ import { InstallAppModal } from './components/InstallAppModal';
 import { ShopifyAdminApp } from './components/admin/ShopifyAdminApp';
 import { Preloader } from './components/Preloader';
 import { DailyDealsSection } from './components/DailyDealsSection';
+import { HomepageVideoSection } from './components/HomepageVideoSection';
+import { LoyaltyPointsBanner } from './components/LoyaltyPointsBanner';
+import { NotificationPermissionPrompt } from './components/NotificationPermissionPrompt';
 import { PoliciesModal } from './components/PoliciesModal';
 import { DailyDealsPopupModal } from './components/DailyDealsPopupModal';
 import { LoyaltyProgramModal } from './components/LoyaltyProgramModal';
@@ -183,8 +186,14 @@ const MainShop: React.FC = () => {
         <>
           <HeroBanner />
 
+          {/* Loyalty Points Balance & Quick Redeem Callout Banner */}
+          <LoyaltyPointsBanner />
+
           {/* Daily 5 Random Meal Box Specials with Flat 4% OFF */}
           <DailyDealsSection />
+
+          {/* Featured Homepage Brand Video Section */}
+          <HomepageVideoSection />
 
           {/* Dynamic Page Sections - e.g. Image with Text placeholders placed by Admin */}
           <PageSectionsRenderer page="home" />
@@ -374,6 +383,7 @@ const MainShop: React.FC = () => {
       <LoyaltyProgramModal />
       <VipClubModal />
       <PointsEarnedNotification />
+      <NotificationPermissionPrompt />
     </div>
   );
 };

@@ -61,7 +61,8 @@ import {
   MessageCircle,
   Mail,
   CheckSquare,
-  Square
+  Square,
+  Edit3
 } from 'lucide-react';
 import { DiscountsManager } from './DiscountsManager';
 import { PageSectionsBuilder } from '../PageSectionsBuilder';
@@ -70,7 +71,9 @@ import { ImageUploadPicker } from '../ImageUploadPicker';
 import { CustomDomainManager } from './CustomDomainManager';
 import { MetaAdsManager } from './MetaAdsManager';
 import { VipClubManager } from './VipClubManager';
-import { CategoryId, MenuItem, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant } from '../../types';
+import { OrderEditModal } from './OrderEditModal';
+import { BulkProductEditor } from './BulkProductEditor';
+import { CategoryId, MenuItem, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
 import { KFC_CATEGORIES } from '../../data/kfcMenu';
 
 type SellerTab = 
@@ -153,7 +156,10 @@ export const ShopifyAdminApp: React.FC = () => {
   const [productCategoryFilter, setProductCategoryFilter] = useState<CategoryId | 'all'>('all');
 
   // Products sub-tabs inside products section
-  const [productSubTab, setProductSubTab] = useState<'catalog' | 'inventory' | 'collections' | 'bulk-csv' | 'media-pdf' | 'meta-ads'>('catalog');
+  const [productSubTab, setProductSubTab] = useState<'catalog' | 'bulk-editor' | 'inventory' | 'collections' | 'bulk-csv' | 'media-pdf' | 'meta-ads'>('catalog');
+
+  // Edit Order modal state
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   // Add Collection Modal state
   const [isAddingCollection, setIsAddingCollection] = useState(false);
@@ -1235,8 +1241,17 @@ export const ShopifyAdminApp: React.FC = () => {
                           </p>
                         </div>
 
-                        {/* Status Change Buttons */}
+                        {/* Status Change Buttons & Order Edit */}
                         <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingOrder(order)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 flex items-center gap-1.5 shadow-xs"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-[#e4002b]" />
+                            <span>Edit Order</span>
+                          </button>
+
                           <button
                             onClick={() => updateOrderStatus(order.id, 'kitchen')}
                             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
@@ -1463,6 +1478,7 @@ export const ShopifyAdminApp: React.FC = () => {
               <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-zinc-100 rounded-2xl border border-zinc-200 text-xs font-bold">
                 {[
                   { id: 'catalog', label: 'All Products', icon: UtensilsCrossed, count: menuItems.length },
+                  { id: 'bulk-editor', label: 'Bulk Quick Editor', icon: Sparkles },
                   { id: 'inventory', label: 'Inventory & Stock', icon: Boxes },
                   { id: 'collections', label: 'Collections', icon: FolderPlus, count: categories.length },
                   { id: 'bulk-csv', label: 'Bulk CSV & Upload', icon: FileSpreadsheet },
@@ -1805,6 +1821,13 @@ export const ShopifyAdminApp: React.FC = () => {
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* SUBTAB: BULK QUICK IN-LINE EDITOR */}
+              {productSubTab === 'bulk-editor' && (
+                <div className="space-y-4">
+                  <BulkProductEditor />
                 </div>
               )}
 
@@ -3053,6 +3076,14 @@ export const ShopifyAdminApp: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Admin Order Modification & Customization Modal */}
+      {editingOrder && (
+        <OrderEditModal
+          order={editingOrder}
+          onClose={() => setEditingOrder(null)}
+        />
       )}
 
     </div>

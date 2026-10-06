@@ -143,43 +143,40 @@ export const Header: React.FC = () => {
               </button>
             </div>
 
-            {/* 2. MIDDLE: Logo & Store Name (Perfect Center) */}
+            {/* 2. MIDDLE: Logo & Store Name (Replaced with uploaded emblem logo) */}
             <button
               onClick={goHome}
-              className="flex-1 min-w-0 mx-1 flex items-center justify-center gap-1.5 focus:outline-none cursor-pointer overflow-hidden py-1 active:scale-98 transition-transform"
+              className="flex-1 min-w-0 mx-1 flex items-center justify-center gap-2 focus:outline-none cursor-pointer overflow-hidden py-1 active:scale-98 transition-transform"
             >
-              {/* KFC 3 Iconic Stripes */}
-              <div className="flex gap-0.5 h-6 items-center shrink-0">
-                <span className="w-1.5 h-6 bg-[#e4002b] rounded-[1px] transform -skew-x-6"></span>
-                <span className="w-1.5 h-5 bg-white border border-zinc-300 rounded-[1px] transform -skew-x-6"></span>
-                <span className="w-1.5 h-6 bg-[#e4002b] rounded-[1px] transform -skew-x-6"></span>
-              </div>
-
-              <div className="flex flex-col text-center min-w-0 truncate">
+              <img
+                src="/logo.svg"
+                alt="KFC Chakwal Delivery"
+                className="w-10 h-10 object-contain rounded-full shadow-sm shrink-0 bg-white border border-zinc-200"
+                onError={(e) => {
+                  e.currentTarget.src = '/pwa-192.png';
+                }}
+              />
+              <div className="flex flex-col text-left min-w-0 truncate">
                 <span 
                   style={{ fontFamily: settings.headingFont || 'Barlow Condensed' }}
-                  className={`text-sm sm:text-base font-black uppercase tracking-tight leading-none truncate ${
-                    isDark ? 'text-white' : 'text-zinc-900'
-                  }`}
+                  className="text-sm sm:text-base font-black uppercase tracking-tight leading-none truncate text-zinc-900"
                 >
                   {settings.storeName}
                 </span>
-                <span className="text-[8px] text-zinc-400 font-bold uppercase tracking-wider truncate mt-0.5">
-                  Within 3 KM
+                <span className="text-[8px] text-[#e4002b] font-black uppercase tracking-wider truncate mt-0.5">
+                  Chakwal Delivery · Within 3 KM
                 </span>
               </div>
             </button>
 
-            {/* 3. RIGHT SIDE: Wishlist, Search, Day/Night, Cart icons */}
+            {/* 3. RIGHT SIDE: Wishlist, Search, Cart icons */}
             <div className="flex items-center gap-1.5 shrink-0">
               
               {/* Wishlist Icon */}
               <button
                 type="button"
                 onClick={openWishlist}
-                className={`min-w-[38px] min-h-[38px] flex items-center justify-center relative p-2 rounded-xl border transition-colors cursor-pointer active:scale-95 ${
-                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-zinc-300 hover:bg-[#25252d]' : 'bg-zinc-100 border-zinc-300 text-zinc-700 hover:bg-zinc-200'
-                }`}
+                className="min-w-[38px] min-h-[38px] flex items-center justify-center relative p-2 rounded-xl border transition-colors cursor-pointer active:scale-95 bg-zinc-100 border-zinc-300 text-zinc-700 hover:bg-zinc-200"
                 title="Wishlist"
                 aria-label="Wishlist"
               >
@@ -198,25 +195,12 @@ export const Header: React.FC = () => {
                 className={`min-w-[38px] min-h-[38px] flex items-center justify-center p-2 rounded-xl border transition-colors cursor-pointer active:scale-95 ${
                   isSearchOpen
                     ? 'bg-[#e4002b] text-white border-[#e4002b]'
-                    : isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-zinc-300 hover:bg-[#25252d]' : 'bg-zinc-100 border-zinc-300 text-zinc-700 hover:bg-zinc-200'
+                    : 'bg-zinc-100 border-zinc-300 text-zinc-700 hover:bg-zinc-200'
                 }`}
                 title="Search items"
                 aria-label="Toggle search"
               >
                 <Search className="w-4 h-4" />
-              </button>
-
-              {/* Day / Night Theme Switch */}
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className={`min-w-[38px] min-h-[38px] flex items-center justify-center p-2 rounded-xl border transition-colors cursor-pointer active:scale-95 ${
-                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-amber-400 hover:bg-[#25252d]' : 'bg-zinc-100 border-zinc-300 text-indigo-600 hover:bg-zinc-200'
-                }`}
-                title={isDark ? 'Day Mode' : 'Night Mode'}
-                aria-label="Toggle Day/Night"
-              >
-                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
 
               {/* Cart / Bucket Icon */}
@@ -333,24 +317,25 @@ export const Header: React.FC = () => {
         <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20 gap-4">
             
-            {/* Logo and Brand */}
+            {/* Logo and Brand (Replaced with uploaded emblem logo) */}
             <button
               onClick={goHome}
-              className="flex items-center gap-3 group focus:outline-none text-left cursor-pointer shrink-0"
+              className="flex items-center gap-3.5 group focus:outline-none text-left cursor-pointer shrink-0"
             >
-              <div className="flex gap-1 h-8 items-center shrink-0">
-                <span className="w-2.5 h-8 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
-                <span className="w-2.5 h-7 bg-white border border-zinc-300 rounded-sm transform -skew-x-6"></span>
-                <span className="w-2.5 h-8 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
-              </div>
+              <img
+                src="/logo.svg"
+                alt="KFC Chakwal Delivery"
+                className="w-12 h-12 object-contain rounded-full shadow-sm shrink-0 bg-white border border-zinc-200 group-hover:scale-105 transition-transform"
+                onError={(e) => {
+                  e.currentTarget.src = '/pwa-192.png';
+                }}
+              />
 
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span 
                     style={{ fontFamily: settings.headingFont || 'Barlow Condensed' }}
-                    className={`text-2xl font-black uppercase tracking-tight leading-none ${
-                      isDark ? 'text-white' : 'text-zinc-900'
-                    }`}
+                    className="text-2xl font-black uppercase tracking-tight leading-none text-zinc-900"
                   >
                     {settings.storeName}
                   </span>
@@ -358,7 +343,7 @@ export const Header: React.FC = () => {
                     Within 3 KM
                   </span>
                 </div>
-                <span className="text-[11px] text-zinc-400 font-medium tracking-tight mt-0.5">
+                <span className="text-[11px] text-zinc-500 font-semibold tracking-tight mt-0.5">
                   Fresh from Kallar Kahar Motorway · Order by 4 PM for 8 PM Delivery
                 </span>
               </div>
@@ -366,9 +351,7 @@ export const Header: React.FC = () => {
 
             {/* Desktop Center: Delivery Coverage & Search with Live Dropdown & Meal Box Suggestions */}
             <div className="flex items-center gap-3 flex-1 max-w-xl mx-4">
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold shrink-0 ${
-                isDark ? 'bg-[#18181c] border-[#292933] text-zinc-200' : 'bg-zinc-50 border-zinc-200 text-zinc-800'
-              }`}>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold shrink-0 bg-zinc-50 border-zinc-200 text-zinc-800">
                 <MapPin className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />
                 <span>Coverage: Within 3 KM (Chakwal)</span>
               </div>
@@ -379,15 +362,13 @@ export const Header: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search Zingers, Krunch, Family Deals..."
-                  className={`w-full border text-xs rounded-xl pl-8 pr-7 py-2.5 focus:outline-none focus:border-[#e4002b] transition-colors ${
-                    isDark ? 'bg-[#18181c] border-[#292933] text-white placeholder-zinc-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 placeholder-zinc-400'
-                  }`}
+                  className="w-full border text-xs rounded-xl pl-8 pr-7 py-2.5 focus:outline-none focus:border-[#e4002b] transition-colors bg-zinc-50 border-zinc-200 text-zinc-900 placeholder-zinc-400"
                 />
                 <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-3 pointer-events-none" />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-white"
+                    className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-zinc-800"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -395,9 +376,7 @@ export const Header: React.FC = () => {
 
                 {/* Desktop Live Instant Search Dropdown */}
                 {matchingItems.length > 0 && (
-                  <div className={`absolute top-full left-0 right-0 mt-1 rounded-2xl border shadow-2xl z-50 overflow-hidden divide-y ${
-                    isDark ? 'bg-[#16161c] border-[#2b2b35] divide-zinc-800' : 'bg-white border-zinc-200 divide-zinc-100'
-                  }`}>
+                  <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl border shadow-2xl z-50 overflow-hidden divide-y bg-white border-zinc-200 divide-zinc-100">
                     {matchingItems.map((item) => (
                       <div
                         key={item.id}
@@ -417,13 +396,13 @@ export const Header: React.FC = () => {
                             }}
                           />
                           <div className="truncate">
-                            <h4 className={`font-bold text-xs truncate ${isDark ? 'text-white' : 'text-zinc-900'}`}>{item.name}</h4>
+                            <h4 className="font-bold text-xs truncate text-zinc-900">{item.name}</h4>
                             <p className="text-[11px] text-zinc-400 truncate">{item.description}</p>
                           </div>
                         </div>
 
                         <div className="text-right shrink-0">
-                          <span className="font-mono font-bold text-xs text-emerald-400">
+                          <span className="font-mono font-bold text-xs text-emerald-600">
                             {formatPKR(getItemEffectivePrice(item))}
                           </span>
                         </div>
@@ -437,25 +416,11 @@ export const Header: React.FC = () => {
             {/* Desktop Right Actions */}
             <div className="flex items-center gap-2.5 shrink-0">
               
-              {/* Day / Night Theme */}
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
-                  isDark ? 'bg-[#1c1c1f] hover:bg-[#25252a] border-[#2e2e33] text-amber-400' : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-amber-600'
-                }`}
-                title={isDark ? 'Switch to Day Mode' : 'Switch to Night Mode'}
-              >
-                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-indigo-600" />}
-              </button>
-
               {/* Wishlist */}
               <button
                 type="button"
                 onClick={openWishlist}
-                className={`relative p-2.5 rounded-xl border transition-all cursor-pointer ${
-                  isDark ? 'bg-[#1c1c1f] hover:bg-[#25252a] border-[#2e2e33] text-zinc-300 hover:text-white' : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-700'
-                }`}
+                className="relative p-2.5 rounded-xl border transition-all cursor-pointer bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-700"
                 title="Wishlist"
               >
                 <Heart className={`w-4 h-4 ${wishlist.length > 0 ? 'text-[#e4002b] fill-[#e4002b]' : ''}`} />

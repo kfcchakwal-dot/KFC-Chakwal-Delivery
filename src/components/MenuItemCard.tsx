@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MenuItem, BadgePosition } from '../types';
 import { useStore } from '../context/StoreContext';
-import { Heart, Plus, Flame, SlidersHorizontal, Tag } from 'lucide-react';
+import { Heart, Plus, Flame, SlidersHorizontal, Tag, Share2, Check } from 'lucide-react';
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -20,6 +20,8 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
     viewProduct,
     themeMode,
   } = useStore();
+
+  const [copiedShare, setCopiedShare] = useState(false);
 
   const isDark = themeMode === 'dark';
   const isFavorite = wishlist.includes(item.id);
@@ -69,6 +71,27 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
   const handleCustomizeUpgrade = (e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedItemForCustomization(item);
+  };
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/?product=${encodeURIComponent(item.id)}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: item.name,
+          text: `Check out ${item.name} on KFC Chakwal Delivery!`,
+          url: shareUrl,
+        });
+        return;
+      } catch {}
+    }
+    // Fallback: Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedShare(true);
+      setTimeout(() => setCopiedShare(false), 2500);
+    } catch {}
   };
 
   return (
@@ -141,22 +164,45 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
           )}
         </div>
 
-        {/* Wishlist toggle */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleWishlist(item.id);
-          }}
-          className={`absolute top-2 right-2 p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-all cursor-pointer z-20 ${
-            isFavorite
-              ? 'bg-[#e4002b] text-white shadow-md'
-              : 'bg-black/50 text-zinc-300 hover:text-white hover:bg-black/80'
-          }`}
-          title={isFavorite ? 'Remove from wishlist' : 'Save to wishlist'}
-        >
-          <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
-        </button>
+        {/* Card Top Right Actions: Share & Wishlist */}
+        <div className="absolute top-2 right-2 flex items-center gap-1 z-20">
+          {/* Share Button */}
+          <button
+            type="button"
+            onClick={handleShare}
+            className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-all cursor-pointer shadow-md ${
+              copiedShare
+                ? 'bg-emerald-600 text-white'
+                : 'bg-black/60 text-white hover:bg-black/80 hover:text-white'
+            }`}
+            title={copiedShare ? 'Link copied!' : `Share ${item.name}`}
+            aria-label={`Share ${item.name}`}
+          >
+            {copiedShare ? (
+              <Check className="w-3.5 h-3.5 text-white" />
+            ) : (
+              <Share2 className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+          {/* Wishlist toggle */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleWishlist(item.id);
+            }}
+            className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-all cursor-pointer ${
+              isFavorite
+                ? 'bg-[#e4002b] text-white shadow-md'
+                : 'bg-black/60 text-white hover:text-white hover:bg-black/80'
+            }`}
+            title={isFavorite ? 'Remove from wishlist' : 'Save to wishlist'}
+            aria-label="Save to wishlist"
+          >
+            <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+        </div>
 
         {/* Image bottom badge */}
         <div className="absolute bottom-1.5 right-2 text-[9px] sm:text-[10px] text-zinc-300 bg-black/75 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 rounded border border-white/10 font-mono tabular-nums">

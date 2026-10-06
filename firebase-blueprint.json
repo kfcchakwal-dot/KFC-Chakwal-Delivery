@@ -1,0 +1,248 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "KFC menu item or deal product",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "basePrice": { "type": "number" },
+        "sellingPrice": { "type": "number" },
+        "comparePrice": { "type": "number" },
+        "categoryId": { "type": "string" },
+        "image": { "type": "string" },
+        "isAvailable": { "type": "boolean" },
+        "badge": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "basePrice", "categoryId"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Menu categories such as Everyday Value, Meal Boxes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "image": { "type": "string" },
+        "displayOrder": { "type": "number" }
+      },
+      "required": ["id", "name"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order with validated pricing and status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "orderType": { "type": "string" },
+        "subtotal": { "type": "number" },
+        "markupAmount": { "type": "number" },
+        "deliveryFee": { "type": "number" },
+        "discount": { "type": "number" },
+        "loyaltyDiscount": { "type": "number" },
+        "vipDiscount": { "type": "number" },
+        "total": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "specialInstructions": { "type": "string" },
+        "deliveredAt": { "type": "string" },
+        "reviewRequestedAt": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "total", "status", "paymentMethod"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer profile with loyalty and contact data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "phone": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "defaultAddress": { "type": "string" },
+        "loyaltyPoints": { "type": "number" },
+        "vipTier": { "type": "string" },
+        "totalOrdersCount": { "type": "number" },
+        "totalSpent": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "phone", "fullName"]
+    },
+    "Discount": {
+      "title": "Discount",
+      "description": "Promotional coupons and discounts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "type": { "type": "string" },
+        "value": { "type": "number" },
+        "minOrderAmount": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "usedCount": { "type": "number" }
+      },
+      "required": ["id", "code", "type", "value"]
+    },
+    "DeliveryMethod": {
+      "title": "DeliveryMethod",
+      "description": "Configured delivery zone or method",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "minOrderAmount": { "type": "number" },
+        "estimatedDeliveryTime": { "type": "string" },
+        "isDefault": { "type": "boolean" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "name", "price"]
+    },
+    "VipMember": {
+      "title": "VipMember",
+      "description": "Colonel's VIP Club member status and benefits",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "phone": { "type": "string" },
+        "customerName": { "type": "string" },
+        "tierId": { "type": "string" },
+        "totalSpent": { "type": "number" },
+        "ordersCompleted": { "type": "number" },
+        "joinedAt": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "phone", "tierId"]
+    },
+    "MarketingCampaign": {
+      "title": "MarketingCampaign",
+      "description": "WhatsApp or promotional campaigns",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "channel": { "type": "string" },
+        "message": { "type": "string" },
+        "recipientsCount": { "type": "number" },
+        "status": { "type": "string" },
+        "sentAt": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "channel", "message"]
+    },
+    "AbandonedCheckout": {
+      "title": "AbandonedCheckout",
+      "description": "Inactivity drop-off session for 10-minute recovery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "total": { "type": "number" },
+        "recoveryStatus": { "type": "string" },
+        "abandonedAt": { "type": "string" },
+        "recoveredAt": { "type": "string" }
+      },
+      "required": ["id", "phone", "total", "abandonedAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Customer meal ratings and feedback",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "rating", "customerName"]
+    },
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Global store settings, contact details, fonts, delivery fees",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string" },
+        "deliveryFee": { "type": "number" },
+        "phone": { "type": "string" },
+        "whatsappNumber": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["storeName", "deliveryFee"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized admin and staff accounts with role access",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "role"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Public menu items catalog"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Public menu categories"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Order records. Customer can read own, admins can read and update status"
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Customer profiles. Owner can read/update own, admin can read/manage"
+    },
+    "/discounts/{discountId}": {
+      "schema": "Discount",
+      "description": "Discounts and coupon codes"
+    },
+    "/deliveryMethods/{methodId}": {
+      "schema": "DeliveryMethod",
+      "description": "Delivery zones and methods"
+    },
+    "/vipMembers/{memberId}": {
+      "schema": "VipMember",
+      "description": "VIP Club memberships"
+    },
+    "/marketingCampaigns/{campaignId}": {
+      "schema": "MarketingCampaign",
+      "description": "Marketing campaign history"
+    },
+    "/abandonedCheckouts/{checkoutId}": {
+      "schema": "AbandonedCheckout",
+      "description": "Abandoned cart sessions"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Customer meal ratings"
+    },
+    "/storeSettings/global": {
+      "schema": "StoreSettings",
+      "description": "Global store configuration"
+    },
+    "/adminUsers/{adminId}": {
+      "schema": "AdminUser",
+      "description": "Protected admin users allowlist"
+    }
+  }
+}

@@ -14,7 +14,41 @@ import {
   Bike,
   Sparkles,
   ShoppingBag,
+  Share2,
 } from 'lucide-react';
+
+const BEVERAGE_INFO: Record<string, { image: string; tag: string; bg: string }> = {
+  'Pepsi Can (345ml)': {
+    image: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&w=150&q=80',
+    tag: 'Pepsi',
+    bg: 'from-blue-600 to-blue-800'
+  },
+  '7Up Can (345ml)': {
+    image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=150&q=80',
+    tag: '7Up',
+    bg: 'from-emerald-500 to-green-700'
+  },
+  'Mirinda Can (345ml)': {
+    image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=150&q=80',
+    tag: 'Mirinda',
+    bg: 'from-orange-500 to-amber-600'
+  },
+  'Mountain Dew Can (345ml)': {
+    image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=150&q=80',
+    tag: 'Dew',
+    bg: 'from-lime-500 to-green-700'
+  },
+  'Diet Pepsi Can (345ml)': {
+    image: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&w=150&q=80',
+    tag: 'Diet',
+    bg: 'from-zinc-700 to-zinc-900'
+  },
+  'Aquafina Mineral Water': {
+    image: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?auto=format&fit=crop&w=150&q=80',
+    tag: 'Water',
+    bg: 'from-cyan-500 to-blue-600'
+  },
+};
 
 export const ProductPage: React.FC = () => {
   const {
@@ -44,13 +78,11 @@ export const ProductPage: React.FC = () => {
 
   // Customization state
   const [quantity, setQuantity] = useState(1);
-  const [spiceLevel, setSpiceLevel] = useState<'Hot & Crispy' | 'Original Recipe'>(
-    item.isSpicy ? 'Hot & Crispy' : 'Original Recipe'
-  );
   const [drink, setDrink] = useState<string>('Pepsi Can (345ml)');
   const [selectedAddons, setSelectedAddons] = useState<MenuItemAddon[]>([]);
   const [instructions, setInstructions] = useState('');
   const [addedAnimation, setAddedAnimation] = useState(false);
+  const [copiedShare, setCopiedShare] = useState(false);
 
   // Review Form state
   const [reviewName, setReviewName] = useState('');
@@ -74,7 +106,6 @@ export const ProductPage: React.FC = () => {
     addToCart(
       item,
       {
-        spiceLevel: item.customizableOptions?.allowSpiceLevel ? spiceLevel : undefined,
         drink: item.customizableOptions?.allowDrinkChoice ? drink : undefined,
         addons: selectedAddons,
         specialInstructions: instructions.trim() || undefined,
@@ -83,6 +114,25 @@ export const ProductPage: React.FC = () => {
     );
     setAddedAnimation(true);
     setTimeout(() => setAddedAnimation(false), 2000);
+  };
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/?product=${encodeURIComponent(item.id)}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: item.name,
+          text: `Check out ${item.name} on KFC Chakwal Delivery!`,
+          url: shareUrl,
+        });
+        return;
+      } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedShare(true);
+      setTimeout(() => setCopiedShare(false), 2500);
+    } catch {}
   };
 
   const handleReviewSubmit = (e: React.FormEvent) => {
@@ -211,39 +261,54 @@ export const ProductPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Wishlist toggle */}
-              <button
-                type="button"
-                onClick={() => toggleWishlist(item.id)}
-                className={`absolute top-4 right-4 p-3 rounded-full backdrop-blur-md transition-all cursor-pointer shadow-lg z-10 ${
-                  isFavorite
-                    ? 'bg-[#e4002b] text-white'
-                    : isDark ? 'bg-black/60 text-white hover:bg-black/90' : 'bg-white/80 text-zinc-700 hover:bg-white'
-                }`}
-                title={isFavorite ? 'Remove from Wishlist' : 'Add to Wishlist'}
-              >
-                <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
-              </button>
+              {/* Share & Wishlist actions */}
+              <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className={`p-3 rounded-full backdrop-blur-md transition-all cursor-pointer shadow-lg ${
+                    copiedShare
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white/90 text-zinc-800 hover:bg-white hover:text-[#e4002b]'
+                  }`}
+                  title={copiedShare ? 'Product Link Copied!' : 'Share Product'}
+                  aria-label="Share product"
+                >
+                  <Share2 className="w-5 h-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => toggleWishlist(item.id)}
+                  className={`p-3 rounded-full backdrop-blur-md transition-all cursor-pointer shadow-lg ${
+                    isFavorite
+                      ? 'bg-[#e4002b] text-white'
+                      : 'bg-white/90 text-zinc-800 hover:bg-white hover:text-[#e4002b]'
+                  }`}
+                  title={isFavorite ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                  aria-label="Add to wishlist"
+                >
+                  <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+                </button>
+              </div>
             </div>
 
             {/* Quick Guarantees Strip */}
-            <div className={`p-4 rounded-2xl border grid grid-cols-3 gap-2 text-center text-xs ${
-              isDark ? 'bg-[#16161a] border-[#26262e] text-zinc-300' : 'bg-white border-zinc-200 text-zinc-700'
-            }`}>
+            <div className="p-4 rounded-2xl border bg-white border-zinc-200 text-zinc-700 grid grid-cols-3 gap-2 text-center text-xs shadow-2xs">
               <div className="space-y-0.5">
                 <Bike className="w-4 h-4 text-[#e4002b] mx-auto mb-1" />
-                <p className="font-bold">Rs. {settings.deliveryFee}</p>
-                <p className="text-[10px] text-zinc-400">Flat Chakwal Delivery</p>
+                <p className="font-bold text-zinc-900">Rs. {settings.deliveryFee}</p>
+                <p className="text-[10px] text-zinc-500">Flat Chakwal Delivery</p>
               </div>
-              <div className="space-y-0.5 border-x border-zinc-700/40">
-                <ShieldCheck className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
-                <p className="font-bold">100% Halal</p>
-                <p className="text-[10px] text-zinc-400">Fried to Order</p>
+              <div className="space-y-0.5 border-x border-zinc-200">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 mx-auto mb-1" />
+                <p className="font-bold text-zinc-900">100% Halal</p>
+                <p className="text-[10px] text-zinc-500">Fried to Order</p>
               </div>
               <div className="space-y-0.5">
-                <Star className="w-4 h-4 text-amber-400 mx-auto mb-1 fill-amber-400" />
-                <p className="font-bold">{avgRating} / 5.0</p>
-                <p className="text-[10px] text-zinc-400">{productReviews.length} Reviews</p>
+                <Star className="w-4 h-4 text-amber-500 mx-auto mb-1 fill-amber-500" />
+                <p className="font-bold text-zinc-900">{avgRating} / 5.0</p>
+                <p className="text-[10px] text-zinc-500">{productReviews.length} Reviews</p>
               </div>
             </div>
           </div>
@@ -252,14 +317,21 @@ export const ProductPage: React.FC = () => {
           <div className="lg:col-span-6 space-y-6">
             
             {/* Header info */}
-            <div className="space-y-2 border-b pb-5 border-zinc-700/30">
-              <span className="text-xs font-bold uppercase tracking-widest text-[#e4002b]">
-                KFC Chakwal Official Menu
-              </span>
-              <h1 className="font-kfc text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight leading-none">
+            <div className="space-y-2 border-b pb-5 border-zinc-200">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-widest text-[#e4002b]">
+                  KFC Chakwal Delivery Menu
+                </span>
+                {copiedShare && (
+                  <span className="text-xs text-emerald-600 font-bold animate-pulse">
+                    ✓ Share link copied!
+                  </span>
+                )}
+              </div>
+              <h1 className="font-kfc text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight leading-none text-zinc-950">
                 {item.name}
               </h1>
-              <p className={`text-sm leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-600'}`}>
+              <p className="text-sm leading-relaxed text-zinc-600">
                 {item.description}
               </p>
 
@@ -274,24 +346,22 @@ export const ProductPage: React.FC = () => {
                   </span>
                 )}
                 {hasComparePrice && discountPercent > 0 && (
-                  <span className="text-xs font-black uppercase text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                  <span className="text-xs font-black uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold">
                     Save {discountPercent}%
                   </span>
                 )}
-                <span className="text-xs text-zinc-400">
+                <span className="text-xs text-zinc-500 font-medium">
                   (Single Unit Price in PKR)
                 </span>
               </div>
             </div>
 
             {/* CUSTOMIZE & UPGRADE SECTION */}
-            <div className={`p-5 rounded-2xl border space-y-5 ${
-              isDark ? 'bg-[#161619] border-[#292932]' : 'bg-white border-zinc-200'
-            }`}>
-              <div className="flex items-center justify-between border-b pb-3 border-zinc-700/30">
+            <div className="p-5 rounded-2xl border bg-white border-zinc-200 shadow-sm space-y-5">
+              <div className="flex items-center justify-between border-b pb-3 border-zinc-200">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <h3 className="font-kfc text-xl font-black uppercase tracking-wider">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <h3 className="font-kfc text-xl font-black uppercase tracking-wider text-zinc-900">
                     Customize & Upgrade Meal
                   </h3>
                 </div>
@@ -300,67 +370,52 @@ export const ProductPage: React.FC = () => {
                 </span>
               </div>
 
-              {/* 1. Spice / Coating Level */}
-              {item.customizableOptions?.allowSpiceLevel && (
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 block">
-                    Choose Flavor / Coating:
-                  </label>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => setSpiceLevel('Hot & Crispy')}
-                      className={`p-3 rounded-xl border text-left text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
-                        spiceLevel === 'Hot & Crispy'
-                          ? isDark ? 'border-[#e4002b] bg-[#e4002b]/15 text-white' : 'border-[#e4002b] bg-red-50 text-[#e4002b]'
-                          : isDark ? 'border-[#2d2d38] bg-[#121214] text-zinc-400' : 'border-zinc-200 bg-zinc-50 text-zinc-600'
-                      }`}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <Flame className="w-3.5 h-3.5 text-amber-500" />
-                        Hot & Crispy (Spicy)
-                      </span>
-                      {spiceLevel === 'Hot & Crispy' && <Check className="w-4 h-4 text-[#e4002b]" />}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setSpiceLevel('Original Recipe')}
-                      className={`p-3 rounded-xl border text-left text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
-                        spiceLevel === 'Original Recipe'
-                          ? isDark ? 'border-[#e4002b] bg-[#e4002b]/15 text-white' : 'border-[#e4002b] bg-red-50 text-[#e4002b]'
-                          : isDark ? 'border-[#2d2d38] bg-[#121214] text-zinc-400' : 'border-zinc-200 bg-zinc-50 text-zinc-600'
-                      }`}
-                    >
-                      <span>Original Recipe (Mild)</span>
-                      {spiceLevel === 'Original Recipe' && <Check className="w-4 h-4 text-[#e4002b]" />}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 2. Drink Choice */}
+              {/* Beverage Choice with Image Thumbnails */}
               {item.customizableOptions?.allowDrinkChoice && (
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 block">
-                    Select Beverage (Included):
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {drinksList.map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => setDrink(d)}
-                        className={`p-2.5 rounded-xl border text-left text-xs font-medium transition-all cursor-pointer flex items-center justify-between ${
-                          drink === d
-                            ? isDark ? 'border-[#e4002b] bg-[#e4002b]/15 text-white font-bold' : 'border-[#e4002b] bg-red-50 text-[#e4002b] font-bold'
-                            : isDark ? 'border-[#2d2d38] bg-[#121214] text-zinc-400' : 'border-zinc-200 bg-zinc-50 text-zinc-600'
-                        }`}
-                      >
-                        <span className="truncate">{d}</span>
-                        {drink === d && <Check className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />}
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-700 block">
+                      Select Chilled Beverage (Included):
+                    </label>
+                    <span className="text-[10px] font-bold text-emerald-600 uppercase bg-emerald-50 px-2 py-0.5 rounded">
+                      Included Free
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {drinksList.map((d) => {
+                      const bev = BEVERAGE_INFO[d];
+                      const isSelected = drink === d;
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setDrink(d)}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                            isSelected
+                              ? 'border-[#e4002b] bg-red-50 text-zinc-950 font-bold shadow-xs'
+                              : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300'
+                          }`}
+                        >
+                          {bev?.image ? (
+                            <img
+                              src={bev.image}
+                              alt={d}
+                              className="w-9 h-9 rounded-lg object-cover shrink-0 border border-zinc-200 shadow-xs"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-zinc-200 flex items-center justify-center text-xs font-bold shrink-0">
+                              🥤
+                            </div>
+                          )}
+                          <div className="truncate flex-1 min-w-0">
+                            <span className="truncate block text-xs font-bold">{d}</span>
+                            <span className="text-[10px] text-zinc-500 font-medium">Chilled Can (345ml)</span>
+                          </div>
+                          {isSelected && <Check className="w-4 h-4 text-[#e4002b] shrink-0" />}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

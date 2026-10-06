@@ -51,6 +51,8 @@ export interface MenuItem {
   variants?: ProductVariant[]; // Flexible product variants
   customBadgeText?: string;
   customBadgePosition?: BadgePosition;
+  allowedBeverageIds?: string[];
+  allowedAddonIds?: string[];
   customizableOptions?: {
     allowSpiceLevel?: boolean;
     allowDrinkChoice?: boolean;
@@ -172,7 +174,7 @@ export interface StoreSettings {
   isStoreOpen: boolean;
   announcementText: string;
   showAnnouncement: boolean;
-  adminPin: string;
+  adminPin?: string;
   themeMode: ThemeMode;
   headingFont: 'Barlow Condensed' | 'Plus Jakarta Sans' | 'Oswald' | 'Inter' | 'Roboto';
   bodyFont: 'Plus Jakarta Sans' | 'Inter' | 'Roboto' | 'Barlow Condensed';
@@ -203,6 +205,8 @@ export interface StoreSettings {
   customDomain?: CustomDomainConfig;
   metaCommerce?: MetaCommerceConfig;
   autoReview?: AutoReviewConfig;
+  adminUsers?: { id: string; name: string; email: string; role: 'Super Admin' | 'Manager'; addedAt: string }[];
+  homepageVideo?: { enabled: boolean; videoUrl: string; title: string; subtitle: string; position: 'top' | 'middle' | 'bottom' };
 }
 
 export interface CustomDomainConfig {
@@ -244,10 +248,11 @@ export interface VipMembershipRequest {
   customerId: string;
   customerName: string;
   phone: string;
+  email?: string;
   tierId: VipTierId;
   amount: number;
-  paymentMethod: 'jazzcash' | 'easypaisa' | 'bank_transfer';
-  transactionId: string;
+  paymentMethod?: 'jazzcash' | 'easypaisa' | 'bank_transfer' | 'whatsapp';
+  transactionId?: string;
   screenshot?: string;
   requestedAt: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -342,7 +347,7 @@ export interface CustomerLoyaltyRecord {
   lastOrderDate?: string;
 }
 
-export type OrderType = 'delivery'; // Self pickup removed as requested
+export type OrderType = 'delivery' | 'self_pickup';
 
 export type PaymentMethod = 'cod' | 'jazzcash' | 'easypaisa' | 'bank_transfer';
 
