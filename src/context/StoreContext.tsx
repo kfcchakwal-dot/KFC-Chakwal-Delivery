@@ -1465,18 +1465,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateDiscount(appliedDiscount.id, { usedCount: appliedDiscount.usedCount + 1 });
     }
 
-    // Save order
-    setAllOrders((prev) => [newOrder, ...prev]);
-    setActiveOrder(newOrder);
-    clearCart();
-    setIsCheckoutOpen(false);
-
-    // Save to server
-    fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newOrder),
-    }).catch(() => {});
+    // Persist order first; never show success when the backend rejected it.
+    try {
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+      if (!token) throw new Error('Customer authentication required. Please verify your phone again.');
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify(newOrder),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Order could not be placed.');
+      const savedOrder = { ...newOrder, ...result };
+      setAllOrders((prev) => [savedOrder, ...prev]);
+      setActiveOrder(savedOrder);
+      clearCart();
+      setIsCheckoutOpen(false);
+    } catch (error: any) {
+      console.error('Order submission failed:', error);
+      throw new Error(error?.message || 'Order could not be placed. Please try again.');
+    }
 
     // Play chime sound
     if (settings.orderNotificationSound !== false) {
