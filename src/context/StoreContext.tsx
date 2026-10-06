@@ -830,6 +830,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     currentView
   ]);
 
+  const getAuthHeaders = async () => {
+    const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const syncStoreToServer = async (customPayload?: Record<string, any>) => {
     try {
       setServerSyncStatus('syncing');
@@ -843,9 +848,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         policies,
         chakwalAreas,
       };
+      const authHeaders = await getAuthHeaders();
+      if (!authHeaders.Authorization) throw new Error('Admin authentication required');
       await fetch('/api/store-data', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify(payload),
       });
       setServerSyncStatus('synced');
@@ -857,7 +864,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Orders Fetch & Sound Trigger
   const fetchOrders = async () => {
     try {
-      const res = await fetch('/api/orders');
+      const res = await fetch('/api/orders', { headers: await getAuthHeaders() });
       if (res.ok) {
         const data: Order[] = await res.json();
         // If new orders arrived while on seller page, play sound!
@@ -882,7 +889,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Customers Fetch
   const fetchCustomers = async () => {
     try {
-      const res = await fetch('/api/customers');
+      const res = await fetch('/api/customers', { headers: await getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         setCustomerRecords(data);
@@ -921,7 +928,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const res = await fetch(`/api/orders/${orderId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         body: JSON.stringify({ status }),
       });
       if (res.ok) {
