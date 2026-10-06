@@ -106,28 +106,28 @@ export const DEFAULT_VIP_TIERS: VipTier[] = [
 ];
 
 export const DEFAULT_CUSTOM_DOMAIN_CONFIG: CustomDomainConfig = {
-  domain: '',
-  status: 'unconfigured',
-  aRecord: '34.120.54.21',
-  cnameRecord: 'cname.kfcchakwaldelivery.app',
-  txtVerification: 'kfc-verify=c794408e-894c-4201',
+  domain: 'kfcchk.kintrends.com',
+  status: 'pending_verification',
+  aRecord: '',
+  cnameRecord: '',
+  txtVerification: '',
   sslActive: false,
 };
 
 export const DEFAULT_META_COMMERCE_CONFIG: MetaCommerceConfig = {
   pixelId: '',
   conversionsApiToken: '',
-  catalogFeedUrl: 'https://ais-pre-mxjiqhos6xebtb32yfuilk-41775555479.asia-southeast1.run.app/api/facebook-catalog.xml',
+  catalogFeedUrl: 'https://kfcchk.kintrends.com/api/facebook-catalog.xml',
   testEventCode: '',
-  instagramShoppingEnabled: true,
-  facebookShopEnabled: true,
+  instagramShoppingEnabled: false,
+  facebookShopEnabled: false,
   trackAddToCart: true,
   trackInitiateCheckout: true,
   trackPurchase: true,
 };
 
 export const DEFAULT_AUTO_REVIEW_CONFIG: AutoReviewConfig = {
-  enabled: true,
+  enabled: false,
   delayHours: 12,
   rewardPoints: 20,
   whatsappTemplate: 'Assalam o Alaikum {customer_name}! Umeed hai aap ka KFC meal bohot crispy aur piping hot tha. Baraye mehrbani 1 minute nikaal kar apna star rating aur review dein: {review_link}. Review submit karny par aapko 20 FREE Loyalty Points milenge!',
@@ -300,7 +300,7 @@ export const DEFAULT_DAILY_DEAL: DailyDealConfig = {
   title: "Daily Discount Deals",
   subtitle: 'Freshly selected daily combos at flat 4% OFF (Changes daily!)',
   discountPercentage: 4,
-  itemCount: 6,
+  itemCount: 5,
 };
 
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
