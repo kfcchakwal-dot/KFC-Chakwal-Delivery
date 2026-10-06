@@ -42,10 +42,10 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
   {
     id: 'jazzcash',
     name: 'JazzCash',
-    enabled: true,
+    enabled: false,
     accountNumber: '+92 325 2777574',
     accountTitle: 'KFC Chakwal Delivery',
-    instructions: 'Send payment to +92 325 2777574 & share screenshot/TID to WhatsApp.',
+    instructions: 'Online payment gateway is not configured yet.',
   },
   {
     id: 'easypaisa',
