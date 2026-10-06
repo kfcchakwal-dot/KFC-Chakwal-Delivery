@@ -125,10 +125,20 @@ app.get('/api/store-data', async (_req, res) => {
       if (docRef.exists) {
         const data: any = docRef.data() || {};
         const safe = { ...data };
+        const sanitizeSettings = (settings: any) => {
+          if (!settings || typeof settings !== 'object') return settings;
+          const clean = { ...settings };
+          delete clean.adminUsers;
+          if (clean.metaCommerce) {
+            clean.metaCommerce = { ...clean.metaCommerce };
+            delete clean.metaCommerce.conversionsApiToken;
+          }
+          return clean;
+        };
         delete safe.adminUsers;
+        safe.settings = sanitizeSettings(safe.settings);
         if (safe.metaCommerce) {
-          safe.metaCommerce = { ...safe.metaCommerce };
-          delete safe.metaCommerce.conversionsApiToken;
+          safe.metaCommerce = sanitizeSettings(safe.metaCommerce);
         }
         return res.json(safe);
       }
