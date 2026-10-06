@@ -1970,9 +1970,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const requestNotificationPermission = async (): Promise<boolean> => {
     if (!('Notification' in window)) {
-      setCustomerNotificationAllowed(true);
-      localStorage.setItem('kfc_notifications_allowed', 'true');
-      return true;
+      setCustomerNotificationAllowed(false);
+      localStorage.setItem('kfc_notifications_allowed', 'false');
+      return false;
     }
     try {
       const res = await Notification.requestPermission();
@@ -1981,9 +1981,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('kfc_notifications_allowed', granted ? 'true' : 'false');
       return granted;
     } catch {
-      setCustomerNotificationAllowed(true);
-      localStorage.setItem('kfc_notifications_allowed', 'true');
-      return true;
+      setCustomerNotificationAllowed(false);
+      localStorage.setItem('kfc_notifications_allowed', 'false');
+      return false;
     }
   };
 
