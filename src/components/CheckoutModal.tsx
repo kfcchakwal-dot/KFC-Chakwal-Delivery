@@ -54,6 +54,7 @@ export const CheckoutModal: React.FC = () => {
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod');
   const [formError, setFormError] = useState('');
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   
   // Add new address inline
   const [isAddingNewAddress, setIsAddingNewAddress] = useState(false);
