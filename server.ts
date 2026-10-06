@@ -91,13 +91,6 @@ async function verifyAdminAuth(req: Request, res: Response, next: NextFunction) 
     return res.status(401).json({ error: 'Unauthorized: Empty token' });
   }
 
-  // Server secret fallback if configured in environment
-  const serverAdminSecret = process.env.ADMIN_SECRET_KEY;
-  if (serverAdminSecret && token === serverAdminSecret) {
-    (req as any).adminUser = { uid: 'server-admin', email: 'kfcchakwal@gmail.com', role: 'admin' };
-    return next();
-  }
-
   if (!firebaseAuth) {
     // If Firebase Auth is not ready on server, reject client-side bypass attempts
     return res.status(503).json({ error: 'Auth service unavailable on server' });
@@ -105,19 +98,11 @@ async function verifyAdminAuth(req: Request, res: Response, next: NextFunction) 
 
   try {
     const decodedToken = await firebaseAuth.verifyIdToken(token);
-    const email = decodedToken.email || '';
     const uid = decodedToken.uid;
-
-    // Check if user has admin claim or is primary admin email or exists in adminUsers collection
-    let isAuthorizedAdmin = false;
-
-    if (decodedToken.admin === true || email === 'kfcchakwal@gmail.com' || email === process.env.ADMIN_EMAIL) {
-      isAuthorizedAdmin = true;
-    } else if (firestoreDb) {
+    let isAuthorizedAdmin = decodedToken.admin === true;
+    if (!isAuthorizedAdmin && firestoreDb) {
       const adminDoc = await firestoreDb.collection('adminUsers').doc(uid).get();
-      if (adminDoc.exists && adminDoc.data()?.role === 'admin') {
-        isAuthorizedAdmin = true;
-      }
+      isAuthorizedAdmin = adminDoc.exists && adminDoc.data()?.role === 'admin' && adminDoc.data()?.active !== false;
     }
 
     if (!isAuthorizedAdmin) {
@@ -159,8 +144,7 @@ app.get('/api/store-data', async (_req, res) => {
         return res.json(docRef.data());
       }
     }
-    const local = readJsonFile(STORE_DATA_FILE, {});
-    res.json(local);
+    return res.status(503).json({ error: 'Firestore is unavailable' });
   } catch (err: any) {
     console.error('Error reading store data:', err);
     res.status(500).json({ error: 'Failed to read store data' });
@@ -176,10 +160,17 @@ app.post('/api/store-data', verifyAdminAuth, async (req, res) => {
       lastUpdated: new Date().toISOString(),
     };
 
-    if (firestoreDb) {
-      await firestoreDb.collection('storeSettings').doc('global').set(updated, { merge: true });
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    await firestoreDb.collection('storeSettings').doc('global').set(updated, { merge: true });
+    if (Array.isArray(payload.menuItems)) {
+      const batch = firestoreDb.batch();
+      for (const product of payload.menuItems) {
+        if (!product?.id || !product?.name) continue;
+        batch.set(firestoreDb.collection('products').doc(String(product.id)), { ...product, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      }
+      await batch.commit();
     }
-    writeJsonFile(STORE_DATA_FILE, updated);
+
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update store data' });
@@ -197,11 +188,11 @@ app.get('/api/orders', async (req, res) => {
       try {
         const token = authHeader.split('Bearer ')[1]?.trim();
         const decoded = await firebaseAuth.verifyIdToken(token);
-        if (decoded.admin === true || decoded.email === 'kfcchakwal@gmail.com') {
+        if (decoded.admin === true) {
           isAdminUser = true;
         } else if (firestoreDb) {
           const docSnap = await firestoreDb.collection('adminUsers').doc(decoded.uid).get();
-          if (docSnap.exists) isAdminUser = true;
+          isAdminUser = docSnap.exists && docSnap.data()?.role === 'admin' && docSnap.data()?.active !== false;
         }
       } catch {}
     }
@@ -236,107 +227,43 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-// POST /api/orders (Strict Server-Side Validation & Price Recalculation)
+// POST /api/orders — authenticated customer and server-side product pricing
 app.post('/api/orders', async (req, res) => {
   try {
+    if (!firestoreDb || !firebaseAuth) return res.status(503).json({ error: 'Order service is not configured' });
     const customerAuth = await getOptionalCustomerAuth(req);
-    const orderInput = req.body;
-
-    if (!orderInput || !Array.isArray(orderInput.items) || orderInput.items.length === 0) {
-      return res.status(400).json({ error: 'Order must contain at least one item' });
+    if (!customerAuth) return res.status(401).json({ error: 'Customer authentication required' });
+    const input = req.body;
+    if (!input || !Array.isArray(input.items) || input.items.length === 0) return res.status(400).json({ error: 'Order must contain at least one item' });
+    if (!input.customer?.fullName || !input.customer?.phone) return res.status(400).json({ error: 'Customer full name and phone are required' });
+    if (input.customer.uid && input.customer.uid !== customerAuth.uid) return res.status(403).json({ error: 'Customer identity mismatch' });
+    if (customerAuth.phone && input.customer.phone !== customerAuth.phone) return res.status(403).json({ error: 'Customer phone does not match authenticated account' });
+    let subtotal = 0; const items:any[] = [];
+    for (let i=0;i<input.items.length;i++) {
+      const item=input.items[i]; const productId=String(item?.menuItem?.id || '');
+      const snap=await firestoreDb.collection('products').doc(productId).get();
+      if(!snap.exists) return res.status(400).json({error:'Product is unavailable'});
+      const p:any=snap.data(); if(p.isAvailable===false) return res.status(400).json({error:'Product is unavailable'});
+      const qty=Math.max(1,Math.min(50,Number(item.quantity)||1));
+      const base=Number(p.sellingPrice ?? p.baseKfcPrice ?? p.basePrice ?? 0);
+      const variantId=item?.menuItem?.selectedVariantId || item?.options?.variantId;
+      const variant=Array.isArray(p.variants)?p.variants.find((v:any)=>v.id===variantId):null;
+      const price=variant?Number(variant.price):base;
+      const addonIds=Array.isArray(item?.options?.addons)?item.options.addons.map((x:any)=>String(x.id)):[];
+      const addons=Array.isArray(p.customizableOptions?.availableAddons)?p.customizableOptions.availableAddons:[];
+      const addonTotal=addonIds.reduce((s:number,id:string)=>s+Number(addons.find((x:any)=>x.id===id)?.price||0),0);
+      const unitPrice=price+addonTotal;
+      if(!Number.isFinite(unitPrice) || Math.abs(Number(item.unitPrice)-unitPrice)>0.01) return res.status(400).json({error:'Invalid product price'});
+      subtotal+=unitPrice*qty;
+      items.push({cartItemId:item.cartItemId || ('item-' + Date.now() + '-' + i),menuItem:{id:productId,name:p.name,description:p.description||'',image:p.image||'',categoryId:p.categoryId},quantity:qty,unitPrice,options:{...item.options,addons:addons.filter((x:any)=>addonIds.includes(String(x.id)))}});
     }
-
-    if (!orderInput.customer || !orderInput.customer.fullName || !orderInput.customer.phone) {
-      return res.status(400).json({ error: 'Customer full name and mobile phone number are required' });
-    }
-
-    // Server-side recalculation of each cart item to prevent frontend price manipulation
-    let computedSubtotal = 0;
-    const validatedItems = orderInput.items.map((item: any, idx: number) => {
-      const quantity = Math.max(1, Math.min(50, Number(item.quantity) || 1));
-      const unitPrice = Math.max(0, Number(item.unitPrice) || 0);
-      const itemSubtotal = unitPrice * quantity;
-      computedSubtotal += itemSubtotal;
-
-      return {
-        cartItemId: item.cartItemId || `item-${Date.now()}-${idx}`,
-        menuItem: item.menuItem,
-        quantity,
-        unitPrice,
-        options: item.options || { addons: [] }
-      };
-    });
-
-    // Server validated delivery fee (Default 399 PKR unless free delivery coupon applied)
-    let deliveryFee = 399;
-    if (orderInput.deliveryFee !== undefined && Number(orderInput.deliveryFee) === 0 && orderInput.appliedDiscountCode) {
-      deliveryFee = 0;
-    }
-
-    // Server validated discount calculation
-    let discount = 0;
-    if (orderInput.discount && Number(orderInput.discount) > 0) {
-      discount = Math.min(computedSubtotal, Number(orderInput.discount));
-    }
-
-    // Loyalty points deduction validation
-    let loyaltyDiscount = 0;
-    if (orderInput.loyaltyDiscount && Number(orderInput.loyaltyDiscount) > 0) {
-      loyaltyDiscount = Math.min(computedSubtotal - discount, Number(orderInput.loyaltyDiscount));
-    }
-
-    const computedTotal = Math.max(0, computedSubtotal - discount - loyaltyDiscount) + deliveryFee;
-
-    const orderId = `KFC-${Date.now().toString().slice(-6)}`;
-    const newOrder = {
-      id: orderId,
-      date: new Date().toISOString(),
-      orderType: orderInput.orderType || 'delivery',
-      items: validatedItems,
-      subtotal: computedSubtotal,
-      markupAmount: 0,
-      deliveryFee,
-      discount,
-      loyaltyDiscount,
-      total: computedTotal,
-      customer: {
-        ...orderInput.customer,
-        uid: customerAuth?.uid || orderInput.customer.uid || null,
-      },
-      specialInstructions: (orderInput.specialInstructions || '').slice(0, 500),
-      paymentMethod: orderInput.paymentMethod || 'cod',
-      status: 'confirmed',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Save to Firestore
-    if (firestoreDb) {
-      await firestoreDb.collection('orders').doc(orderId).set(newOrder);
-
-      // If customer has UID and used loyalty points, deduct in Firestore
-      if (newOrder.customer.uid && loyaltyDiscount > 0) {
-        const pointsDeducted = Math.round(loyaltyDiscount);
-        const custRef = firestoreDb.collection('customers').doc(newOrder.customer.uid);
-        await custRef.set({
-          loyaltyPoints: admin.firestore.FieldValue.increment(-pointsDeducted),
-          totalOrdersCount: admin.firestore.FieldValue.increment(1),
-          totalSpent: admin.firestore.FieldValue.increment(computedTotal),
-          lastOrderDate: new Date().toISOString(),
-        }, { merge: true });
-      }
-    }
-
-    // Local file backup
-    const orders = readJsonFile(ORDERS_FILE, []);
-    orders.unshift(newOrder);
-    writeJsonFile(ORDERS_FILE, orders);
-
-    res.status(201).json(newOrder);
-  } catch (err: any) {
-    console.error('Error processing order submission:', err);
-    res.status(500).json({ error: 'Failed to save and validate order' });
-  }
+    const deliveryFee=Number(input.deliveryFee)>=0 && Number(input.deliveryFee)<=2000 ? Number(input.deliveryFee) : 399;
+    const total=subtotal+deliveryFee; const orderId='KFC-'+Date.now().toString().slice(-8); const now=admin.firestore.FieldValue.serverTimestamp();
+    const order={id:orderId,date:new Date().toISOString(),orderType:input.orderType||'delivery',items,subtotal,markupAmount:0,deliveryFee,discount:0,loyaltyDiscount:0,total,customer:{fullName:String(input.customer.fullName).slice(0,100),phone:customerAuth.phone||input.customer.phone,address:String(input.customer.address||'').slice(0,500),uid:customerAuth.uid},specialInstructions:String(input.specialInstructions||'').slice(0,500),paymentMethod:'cod',status:'confirmed',createdAt:now,updatedAt:now};
+    await firestoreDb.collection('orders').doc(orderId).set(order);
+    await firestoreDb.collection('customers').doc(customerAuth.uid).set({phone:order.customer.phone,fullName:order.customer.fullName,updatedAt:now},{merge:true});
+    return res.status(201).json({...order,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+  } catch(err) { console.error('Error processing order submission:',err); return res.status(500).json({error:'Failed to save and validate order'}); }
 });
 
 // PATCH /api/orders/:id/status (Admin Only)
@@ -363,14 +290,8 @@ app.patch('/api/orders/:id/status', verifyAdminAuth, async (req, res) => {
       await firestoreDb.collection('orders').doc(id).update(updates);
     }
 
-    // Local file update
-    const orders = readJsonFile(ORDERS_FILE, []);
-    const idx = orders.findIndex((o: any) => o.id === id);
-    if (idx !== -1) {
-      orders[idx] = { ...orders[idx], ...updates };
-      writeJsonFile(ORDERS_FILE, orders);
-    }
-
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    await firestoreDb.collection('orders').doc(id).update(updates);
     res.json({ id, ...updates });
   } catch (err) {
     console.error('Error updating order status:', err);
@@ -381,15 +302,9 @@ app.patch('/api/orders/:id/status', verifyAdminAuth, async (req, res) => {
 // GET /api/customers (Admin Only)
 app.get('/api/customers', verifyAdminAuth, async (_req, res) => {
   try {
-    if (firestoreDb) {
-      const snap = await firestoreDb.collection('customers').limit(300).get();
-      if (!snap.empty) {
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        return res.json(list);
-      }
-    }
-    const local = readJsonFile(CUSTOMERS_FILE, []);
-    res.json(local);
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const snap = await firestoreDb.collection('customers').limit(300).get();
+    return res.json(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
   } catch (err) {
     res.status(500).json({ error: 'Failed to read customer records' });
   }
@@ -419,7 +334,7 @@ app.post('/api/admin/verify-domain', verifyAdminAuth, async (req, res) => {
       resolvedIps: addresses,
       txtRecords,
       connected: isConnected,
-      sslActive: isConnected, // Actual active TLS provided when proxying via Cloud Run / platform
+      sslActive: false,
       verifiedAt: isConnected ? new Date().toISOString() : null,
       message: isConnected
         ? `DNS successfully verified! "${cleanDomain}" resolved to ${addresses.join(', ')}`
