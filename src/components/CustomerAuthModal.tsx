@@ -498,12 +498,14 @@ export const CustomerAuthModal: React.FC = () => {
             </div>
 
             {/* Tabs: Sign In vs New Registration */}
+            <div id="customer-auth-recaptcha" className="flex justify-center" />
+
             <div className={`grid grid-cols-2 gap-2 p-1 rounded-xl border text-xs font-bold ${
               isDark ? 'bg-[#121214] border-zinc-800' : 'bg-zinc-100 border-zinc-200'
             }`}>
               <button
                 type="button"
-                onClick={() => setTab('login')}
+                onClick={() => { setTab('login'); setIsOtpSent(false); setOtpCode(''); setOtpError(''); setLoginError(''); }}
                 className={`py-2 rounded-lg transition-colors cursor-pointer ${
                   tab === 'login' 
                     ? 'bg-[#e4002b] text-white shadow' 
@@ -514,7 +516,7 @@ export const CustomerAuthModal: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setTab('signup')}
+                onClick={() => { setTab('signup'); setIsOtpSent(false); setOtpCode(''); setOtpError(''); setLoginError(''); }}
                 className={`py-2 rounded-lg transition-colors cursor-pointer ${
                   tab === 'signup' 
                     ? 'bg-[#e4002b] text-white shadow' 
@@ -591,7 +593,6 @@ export const CustomerAuthModal: React.FC = () => {
                   <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Delivery Address (Within 3 KM) *</label>
                   <input type="text" required placeholder="House / Street / Area within 3km Chakwal" value={address} onChange={(e) => setAddress(e.target.value)} disabled={isOtpSent} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
                 </div>
-                <div id="customer-auth-recaptcha" className="flex justify-center" />
                 {isOtpSent ? (
                   <>
                     <div>
