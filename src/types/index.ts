@@ -403,12 +403,15 @@ export interface CustomerUser {
   fullName: string;
   phone: string;
   address: string;
+  defaultAddress?: string;
   savedAddresses?: CustomerAddress[];
   email?: string;
   loyaltyPoints: number; // 10 points per Rs 300 spent
   vipTier?: VipTierId;
-  vipStatus?: 'active' | 'pending' | 'none';
+  vipStatus?: 'active' | 'pending' | 'none' | 'rejected';
   createdAt: string;
+  totalSpent?: number;
+  ordersCount?: number;
 }
 
 export type DiscountType = 'percentage' | 'fixed_amount' | 'free_shipping';
