@@ -553,6 +553,71 @@ app.delete('/api/customers/:id', verifyAdminAuth, async (req, res) => {
   }
 });
 
+// GET /api/reviews (Public storefront reviews)
+app.get('/api/reviews', async (req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const productId = String(req.query.productId || '').trim();
+    let query: FirebaseFirestore.Query = firestoreDb.collection('reviews').orderBy('date', 'desc').limit(200);
+    if (productId) query = firestoreDb.collection('reviews').where('productId', '==', productId).orderBy('date', 'desc').limit(100);
+    const snap = await query.get();
+    return res.json(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  } catch (err) {
+    console.error('Error reading reviews:', err);
+    return res.status(500).json({ error: 'Failed to read reviews' });
+  }
+});
+
+// POST /api/reviews (Authenticated customer; delivered-order verification)
+app.post('/api/reviews', async (req, res) => {
+  try {
+    if (!firestoreDb || !firebaseAuth) return res.status(503).json({ error: 'Review service is not configured' });
+    const customer = await getOptionalCustomerAuth(req);
+    if (!customer?.uid || !customer.phone) return res.status(401).json({ error: 'Customer authentication required' });
+
+    const productId = String(req.body?.productId || '').trim();
+    const rating = Number(req.body?.rating);
+    const comment = String(req.body?.comment || '').trim();
+    if (!productId || !Number.isInteger(rating) || rating < 1 || rating > 5 || !comment || comment.length > 1000) {
+      return res.status(400).json({ error: 'Valid product, rating and review comment are required' });
+    }
+
+    const delivered = await firestoreDb.collection('orders')
+      .where('customer.uid', '==', customer.uid)
+      .where('status', '==', 'delivered')
+      .limit(50)
+      .get();
+
+    const hasPurchased = delivered.docs.some((orderDoc) => {
+      const order: any = orderDoc.data();
+      return Array.isArray(order.items) && order.items.some((item: any) => String(item?.menuItem?.id) === productId);
+    });
+    if (!hasPurchased) {
+      return res.status(403).json({ error: 'Review sirf delivered order ke product par submit kiya ja sakta hai.' });
+    }
+
+    const customerSnap = await firestoreDb.collection('customers').doc(customer.uid).get();
+    const customerData: any = customerSnap.exists ? customerSnap.data() : {};
+    const reviewId = `rev-${Date.now()}-${customer.uid.slice(0, 8)}`;
+    const review = {
+      id: reviewId,
+      productId,
+      customerUid: customer.uid,
+      customerName: String(customerData.fullName || 'Verified Customer').slice(0, 100),
+      rating,
+      comment,
+      date: new Date().toISOString(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await firestoreDb.collection('reviews').doc(reviewId).set(review);
+    return res.status(201).json({ ...review, createdAt: new Date().toISOString() });
+  } catch (err: any) {
+    console.error('Error creating review:', err);
+    return res.status(500).json({ error: 'Failed to submit review' });
+  }
+});
+
 // POST /api/admin/verify-domain (Real DNS Verification using Node.js dns resolver)
 app.post('/api/admin/verify-domain', verifyAdminAuth, async (req, res) => {
   const { domain } = req.body;
