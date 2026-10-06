@@ -123,7 +123,14 @@ app.get('/api/store-data', async (_req, res) => {
     if (firestoreDb) {
       const docRef = await firestoreDb.collection('storeSettings').doc('global').get();
       if (docRef.exists) {
-        return res.json(docRef.data());
+        const data: any = docRef.data() || {};
+        const safe = { ...data };
+        delete safe.adminUsers;
+        if (safe.metaCommerce) {
+          safe.metaCommerce = { ...safe.metaCommerce };
+          delete safe.metaCommerce.conversionsApiToken;
+        }
+        return res.json(safe);
       }
     }
     return res.status(503).json({ error: 'Firestore is unavailable' });
