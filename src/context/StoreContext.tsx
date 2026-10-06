@@ -469,17 +469,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   // Customer Account
-  const [currentUser, setCurrentUser] = useState<CustomerUser | null>(() => {
-    try {
-      const saved = localStorage.getItem(CUSTOMER_USER_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed.loyaltyPoints !== 'number') parsed.loyaltyPoints = 50;
-        return parsed;
-      }
-    } catch {}
-    return null;
-  });
+  // Customer identity is sourced only from Firebase Auth. Local storage is never trusted as authentication.
+  const [currentUser, setCurrentUser] = useState<CustomerUser | null>(null);
 
   const [isCustomerAuthModalOpen, setIsCustomerAuthModalOpen] = useState(false);
 
@@ -502,8 +493,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         setIsAdmin(false);
+        setCurrentUser(null);
+        localStorage.removeItem(CUSTOMER_USER_KEY);
         return;
       }
+
+      // Never retain a stale customer profile while Firebase is resolving the active identity.
+      setCurrentUser(null);
+      localStorage.removeItem(CUSTOMER_USER_KEY);
 
       // Check Admin permissions
       try {
@@ -519,10 +516,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         setIsAdmin(isAuthorizedAdmin);
       } catch (err) {
+        setIsAdmin(false);
         console.warn('Admin status evaluation notice:', err);
       }
 
-      // Sync customer profile if phone authenticated
+      // Sync customer profile only for Firebase phone-authenticated customers.
       if (firebaseUser.phoneNumber) {
         try {
           const customerDocRef = doc(db, 'customers', firebaseUser.uid);
@@ -543,10 +541,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               ordersCount: data.totalOrdersCount || 0,
               createdAt: data.createdAt || new Date().toISOString(),
             });
+          } else {
+            // Authenticated phone user without a profile is still a valid Firebase identity,
+            // but must not inherit a stale local profile.
+            setCurrentUser(null);
           }
         } catch (e) {
+          setCurrentUser(null);
           console.warn('Customer profile sync notice:', e);
         }
+      } else {
+        setCurrentUser(null);
       }
     });
 
