@@ -582,15 +582,16 @@ app.post('/api/reviews', async (req, res) => {
       return res.status(400).json({ error: 'Valid product, rating and review comment are required' });
     }
 
-    const delivered = await firestoreDb.collection('orders')
+    const customerOrders = await firestoreDb.collection('orders')
       .where('customer.uid', '==', customer.uid)
-      .where('status', '==', 'delivered')
-      .limit(50)
+      .limit(100)
       .get();
 
-    const hasPurchased = delivered.docs.some((orderDoc) => {
+    const hasPurchased = customerOrders.docs.some((orderDoc) => {
       const order: any = orderDoc.data();
-      return Array.isArray(order.items) && order.items.some((item: any) => String(item?.menuItem?.id) === productId);
+      return order.status === 'delivered' &&
+        Array.isArray(order.items) &&
+        order.items.some((item: any) => String(item?.menuItem?.id) === productId);
     });
     if (!hasPurchased) {
       return res.status(403).json({ error: 'Review sirf delivered order ke product par submit kiya ja sakta hai.' });
