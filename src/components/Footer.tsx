@@ -244,6 +244,15 @@ export const Footer: React.FC = () => {
             <p>
               Independent Chakwal express food delivery · Flat Rs {settings.deliveryFee} · Hot & Fresh.
             </p>
+            <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">|</span>
+            <a
+              href="/?app=seller"
+              className="text-zinc-500 hover:text-[#e4002b] transition flex items-center gap-1 font-medium"
+              title="KCD Seller Operations Portal"
+            >
+              <Lock className="w-3 h-3 inline" />
+              <span>Seller Portal</span>
+            </a>
           </div>
         </div>
       </div>

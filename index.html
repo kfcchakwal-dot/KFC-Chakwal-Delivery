@@ -34,9 +34,16 @@
         window.dispatchEvent(new CustomEvent('pwa-prompt-ready'));
       });
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(function() {});
-        });
+        var registerSW = function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(err) {
+            console.warn('SW register error:', err);
+          });
+        };
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+          registerSW();
+        } else {
+          window.addEventListener('load', registerSW);
+        }
       }
     </script>
     <script type="module" src="/src/main.tsx"></script>

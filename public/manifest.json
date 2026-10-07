@@ -9,6 +9,13 @@
   "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#e4002b",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "food",
+    "shopping",
+    "lifestyle"
+  ],
   "icons": [
     {
       "src": "/pwa-192.png",
@@ -20,7 +27,45 @@
       "src": "/pwa-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/pwa-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "KFC Menu & Deals",
+      "short_name": "Menu",
+      "description": "Order fresh hot KFC Meals in Chakwal",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/pwa-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Admin Portal",
+      "short_name": "Admin",
+      "description": "KFC Chakwal Manager Dashboard",
+      "url": "/?app=seller",
+      "icons": [
+        {
+          "src": "/pwa-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ],
   "prefer_related_applications": false

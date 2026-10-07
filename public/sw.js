@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kfc-chakwal-v3';
+const CACHE_NAME = 'kfc-chakwal-v4';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -6,6 +6,8 @@ const PRECACHE_URLS = [
   '/logo.svg',
   '/pwa-192.png',
   '/pwa-512.png',
+  '/pwa-maskable-192.png',
+  '/pwa-maskable-512.png',
   '/apple-touch-icon.png',
   '/favicon.png'
 ];

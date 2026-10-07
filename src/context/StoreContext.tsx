@@ -326,11 +326,18 @@ const CATEGORIES_KEY = 'kfc_chakwal_categories_v5';
 let customerRecaptchaVerifier: RecaptchaVerifier | null = null;
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Detect Seller mode from URL (e.g. ?app=seller or /seller)
+  // Detect Seller mode from URL (e.g. ?app=seller, /seller, /admin, ?admin=portal)
   const [isSellerMode, setIsSellerMode] = useState<boolean>(() => {
     try {
       const url = new URL(window.location.href);
-      return url.searchParams.get('app') === 'seller' || url.pathname.startsWith('/seller');
+      return (
+        url.searchParams.get('app') === 'seller' ||
+        url.searchParams.get('admin') === 'portal' ||
+        url.searchParams.get('admin') === 'true' ||
+        url.searchParams.get('view') === 'admin' ||
+        url.pathname.startsWith('/seller') ||
+        url.pathname.startsWith('/admin')
+      );
     } catch {
       return false;
     }
