@@ -1794,6 +1794,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const approveVipRequest = async (requestId: string) => {
     if (!requestId) throw new Error('VIP request ID is missing.');
+    if (!requestId) throw new Error('VIP request ID could not be determined.');
+
     const response = await fetch(`/api/vip/${encodeURIComponent(requestId)}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
