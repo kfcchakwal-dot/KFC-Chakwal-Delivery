@@ -1796,14 +1796,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!requestId) throw new Error('VIP request ID is missing.');
     if (!requestId) throw new Error('VIP request ID could not be determined.');
 
-    const response = await fetch(`/api/vip/${encodeURIComponent(requestId)}/status`, {
+    const safeRequestId = requestId;
+    if (!safeRequestId) throw new Error('VIP request ID could not be determined.');
+
+    const response = await fetch(`/api/vip/${encodeURIComponent(safeRequestId)}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
       body: JSON.stringify({ status: 'approved' }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || 'VIP approval failed.');
-    setVipRequests((prev) => prev.map((request) => request.id === requestId ? { ...request, ...data } : request));
+    setVipRequests((prev) => prev.map((request) => request.id === safeRequestId ? { ...request, ...data } : request));
     if (currentUser && data.customerId === currentUser.id) {
       setCurrentUser((prev) => prev ? { ...prev, vipTier: data.tierId, vipStatus: 'active' } : prev);
     }
