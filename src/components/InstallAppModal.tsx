@@ -10,6 +10,7 @@ export const InstallAppModal: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [showAndroidGuide, setShowAndroidGuide] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
@@ -65,7 +66,9 @@ export const InstallAppModal: React.FC = () => {
 
     const prompt = (window as any).deferredPrompt as BeforeInstallPromptEvent | null || deferredPrompt;
     if (!prompt) {
-      // Browser has not exposed a native install prompt yet. Never fake an install.
+      // Chrome only exposes this prompt when the live site passes its installability checks.
+      // Never fake an installation; give the user a real browser fallback instead.
+      setShowAndroidGuide(true);
       return;
     }
 
@@ -96,6 +99,22 @@ export const InstallAppModal: React.FC = () => {
         {isIOS ? <Apple className="w-4 h-4" /> : <Smartphone className="w-4 h-4" />}
         <span>Install App</span>
       </button>
+
+      {showAndroidGuide && (
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
+          <div className="w-full max-w-sm rounded-3xl bg-white text-zinc-900 shadow-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-5 h-5" />
+                <h3 className="font-black text-lg">Install KFC App</h3>
+              </div>
+              <button type="button" onClick={() => setShowAndroidGuide(false)} className="p-2 rounded-full bg-zinc-100" aria-label="Close"><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-sm text-zinc-700">Chrome ne abhi native install prompt available nahi kiya. Chrome menu <strong>⋮</strong> khol kar <strong>Install app</strong> ya <strong>Add to Home screen</strong> select karein.</p>
+            <div className="mt-4 p-3 rounded-2xl bg-zinc-50 text-xs text-zinc-600 flex gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0" /><span>Agar Chrome mein bhi “This app cannot be installed” aaye, to live deployment/HTTPS, manifest aur service worker installability ko verify karna zaroori hai.</span></div>
+          </div>
+        </div>
+      )}
 
       {showIOSGuide && (
         <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
