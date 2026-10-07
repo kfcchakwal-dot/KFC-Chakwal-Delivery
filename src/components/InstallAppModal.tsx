@@ -61,70 +61,51 @@ export const InstallAppModal: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const handleOpen = () => {
-      setIsOpen(true);
-      const prompt = (window as any).deferredPrompt || deferredPrompt;
-      if (prompt) {
-        prompt.prompt().catch(() => {});
-      }
-    };
+    const handleOpen = () => setIsOpen(true);
     window.addEventListener('open-install-app-modal', handleOpen);
     return () => window.removeEventListener('open-install-app-modal', handleOpen);
-  }, [deferredPrompt]);
+  }, []);
 
-  // 1-Click Instant Auto Download & Install Action
+  // The native PWA install prompt is the only real install mechanism.
+  // A beforeinstallprompt event can be used only once, so we clear it after use.
   const handleSingleClickInstall = async () => {
-    setIsAutoInstalling(true);
     const prompt = (window as any).deferredPrompt || deferredPrompt;
 
-    if (prompt) {
-      try {
-        await prompt.prompt();
-        const choice = await prompt.userChoice;
-        if (choice.outcome === 'accepted') {
-          setIsInstalled(true);
-          setInstallSuccessMessage(true);
-          setDeferredPrompt(null);
-          (window as any).deferredPrompt = null;
-          setTimeout(() => setIsOpen(false), 2000);
-          return;
-        }
-      } catch (err) {
-        console.error('PWA prompt error:', err);
-      } finally {
-        setIsAutoInstalling(false);
-      }
+    if (!prompt) {
+      setInstallSuccessMessage(false);
+      return;
     }
 
-    // Auto-trigger direct download immediately so the customer gets a file on 1 click
-    handleDirectApkDownload();
-    setIsAutoInstalling(false);
-    setInstallSuccessMessage(true);
-    setTimeout(() => setInstallSuccessMessage(false), 6000);
+    setIsAutoInstalling(true);
+    try {
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      (window as any).deferredPrompt = null;
+      setDeferredPrompt(null);
+
+      if (choice.outcome === 'accepted') {
+        // The appinstalled event below is the authoritative success signal.
+        setInstallSuccessMessage(false);
+      }
+    } catch (err) {
+      console.error('PWA install prompt error:', err);
+    } finally {
+      setIsAutoInstalling(false);
+    }
   };
 
-  // Direct APK / Mobile Web Shortcut file download for Android
-  const handleDirectApkDownload = () => {
-    const manifestBlob = new Blob([
-      JSON.stringify({
-        name: "KFC Chakwal Delivery",
-        short_name: "KFC Chakwal",
-        start_url: window.location.origin,
-        display: "standalone",
-        background_color: "#e4002b",
-        theme_color: "#e4002b",
-        package: "com.kfcchakwal.delivery"
-      }, null, 2)
-    ], { type: 'application/json' });
+  useEffect(() => {
+    const handleInstalled = () => {
+      setIsInstalled(true);
+      setInstallSuccessMessage(true);
+      setDeferredPrompt(null);
+      (window as any).deferredPrompt = null;
+      window.setTimeout(() => setIsOpen(false), 1800);
+    };
 
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(manifestBlob);
-    link.download = 'KFC_Chakwal_Delivery.webmanifest';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
+    window.addEventListener('appinstalled', handleInstalled);
+    return () => window.removeEventListener('appinstalled', handleInstalled);
+  }, []);
   if (!isOpen) {
     if (isStandalone || cartCount > 0) return null;
     return (
@@ -226,8 +207,8 @@ export const InstallAppModal: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Download className="w-6 h-6 stroke-[2.5]" />
-                  <span>Single-Click Install & Download</span>
+                  <Smartphone className="w-6 h-6 stroke-[2.5]" />
+                  <span>Install KFC App</span>
                 </>
               )}
             </button>
@@ -270,16 +251,14 @@ export const InstallAppModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Download Launcher File / Manifest */}
-          <div className="pt-1 text-center">
-            <button
-              type="button"
-              onClick={handleDirectApkDownload}
-              className="text-xs text-zinc-400 hover:text-white underline cursor-pointer"
-            >
-              Alternative: Download Android Web Shortcut (.webmanifest)
-            </button>
-          </div>
+          {/* No fake APK/manifest downloads: browser-native PWA installation only. */}
+          {!deferredPrompt && !isInstalled && (
+            <div className="pt-1 text-center">
+              <p className="text-xs text-zinc-400">
+                Install prompt unavailable. Chrome menu se <strong>Install app</strong> ya <strong>Add to Home screen</strong> choose karein.
+              </p>
+            </div>
+          )}
 
         </div>
 
