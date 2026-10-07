@@ -1794,25 +1794,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const approveVipRequest = async (requestId: string) => {
     if (!requestId) throw new Error('VIP request ID is missing.');
-    if (!requestId) throw new Error('VIP request ID could not be determined.');
 
-    const safeRequestId = requestId;
-    if (!safeRequestId) throw new Error('VIP request ID could not be determined.');
-
-    const response = await fetch(`/api/vip/${encodeURIComponent(safeRequestId)}/status`, {
+    const response = await fetch(`/api/vip/${encodeURIComponent(requestId)}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
       body: JSON.stringify({ status: 'approved' }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || 'VIP approval failed.');
-    setVipRequests((prev) => prev.map((request) => request.id === safeRequestId ? { ...request, ...data } : request));
+    setVipRequests((prev) => prev.map((request) => request.id === requestId ? { ...request, ...data } : request));
     if (currentUser && data.customerId === currentUser.id) {
       setCurrentUser((prev) => prev ? { ...prev, vipTier: data.tierId, vipStatus: 'active' } : prev);
     }
   };
 
   const rejectVipRequest = async (requestId: string) => {
+    if (!requestId) throw new Error('VIP request ID is missing.');
     const response = await fetch(`/api/vip/${encodeURIComponent(requestId)}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
@@ -1820,7 +1817,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || 'VIP rejection failed.');
-    setVipRequests((prev) => prev.map((request) => request.id === safeRequestId ? { ...request, ...data } : request));
+    setVipRequests((prev) => prev.map((request) => request.id === requestId ? { ...request, ...data } : request));
     if (currentUser && data.customerId === currentUser.id) {
       setCurrentUser((prev) => prev ? { ...prev, vipStatus: 'rejected', vipTier: undefined } : prev);
     }
@@ -1891,7 +1888,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || 'VIP grant failed.');
-    setVipRequests((prev) => prev.map((request) => request.id === requestId ? { ...request, ...data } : request));
+    setVipRequests((prev) => prev.map((request) => request.id === safeRequestId ? { ...request, ...data } : request));
     setCustomerRecords((prev) => prev.map((customer) =>
       customer.id === target.id ? { ...customer, vipTier: tierId } : customer
     ));
