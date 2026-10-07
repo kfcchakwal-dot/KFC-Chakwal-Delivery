@@ -685,17 +685,6 @@ export const Header: React.FC = () => {
                   </span>
                 </button>
 
-                {/* Install App Button */}
-                <button
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent('open-install-app-modal'));
-                    setIsMobileDrawerOpen(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[#e4002b] hover:bg-[#c30025] text-white font-bold cursor-pointer shadow-md"
-                >
-                  <Smartphone className="w-4 h-4" />
-                  <span>Install KFC Mobile App (1-Click)</span>
-                </button>
               </div>
             </div>
 
