@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kfc-chakwal-v2';
+const CACHE_NAME = 'kfc-chakwal-v3';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -36,8 +36,13 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // Skip API routes so orders and server data are always live
-  if (url.pathname.startsWith('/api/')) {
+  // API, manifest and service-worker script must always use the network.
+  // This prevents stale application metadata from breaking PWA updates/installability.
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname === '/manifest.json' ||
+    url.pathname === '/sw.js'
+  ) {
     return;
   }
 
