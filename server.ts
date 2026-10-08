@@ -217,6 +217,106 @@ app.post('/api/store-data', verifyAdminAuth, async (req, res) => {
   }
 });
 
+// =========================================================================
+// ADMIN USER ACCESS MANAGEMENT
+// =========================================================================
+app.get('/api/admin/users', verifyAdminAuth, async (_req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const snap = await firestoreDb.collection('adminUsers').get();
+    const users = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return res.json(users);
+  } catch (err) {
+    console.error('[Admin Users] List failed:', err);
+    return res.status(500).json({ error: 'Failed to load admin users' });
+  }
+});
+
+app.post('/api/admin/users', verifyAdminAuth, async (req, res) => {
+  try {
+    if (!firestoreDb || !firebaseAuth) return res.status(503).json({ error: 'Firebase Admin is unavailable' });
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const name = String(req.body?.name || '').trim().slice(0, 100);
+    const role = req.body?.role === 'manager' ? 'manager' : 'admin';
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+
+    let userRecord;
+    try {
+      userRecord = await firebaseAuth.getUserByEmail(email);
+    } catch (err: any) {
+      if (err?.code === 'auth/user-not-found') {
+        return res.status(404).json({
+          error: 'Firebase Authentication account not found. Pehle Firebase Authentication mein is email ka account create karein, phir yahan add karein.'
+        });
+      }
+      throw err;
+    }
+
+    await firestoreDb.collection('adminUsers').doc(userRecord.uid).set({
+      uid: userRecord.uid,
+      email,
+      name: name || userRecord.displayName || email.split('@')[0],
+      role,
+      active: true,
+      permissions: role === 'admin' ? ['*'] : ['orders', 'customers', 'products'],
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return res.json({
+      uid: userRecord.uid,
+      email,
+      name: name || userRecord.displayName || email.split('@')[0],
+      role,
+      active: true,
+      permissions: role === 'admin' ? ['*'] : ['orders', 'customers', 'products'],
+    });
+  } catch (err: any) {
+    console.error('[Admin Users] Add failed:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to add admin user' });
+  }
+});
+
+app.patch('/api/admin/users/:uid/status', verifyAdminAuth, async (req, res) => {
+  try {
+    if (!firestoreDb || !firebaseAuth) return res.status(503).json({ error: 'Firebase Admin is unavailable' });
+    const uid = String(req.params.uid || '').trim();
+    const active = Boolean(req.body?.active);
+    const requesterUid = String((req as any).adminUser?.uid || '');
+    if (!uid) return res.status(400).json({ error: 'User UID is required' });
+    if (uid === requesterUid && !active) return res.status(400).json({ error: 'Aap apna khud ka admin access disable nahi kar sakte.' });
+
+    await firestoreDb.collection('adminUsers').doc(uid).set({
+      active,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return res.json({ uid, active });
+  } catch (err: any) {
+    console.error('[Admin Users] Status update failed:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to update admin user' });
+  }
+});
+
+app.delete('/api/admin/users/:uid', verifyAdminAuth, async (req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const uid = String(req.params.uid || '').trim();
+    const requesterUid = String((req as any).adminUser?.uid || '');
+    if (!uid) return res.status(400).json({ error: 'User UID is required' });
+    if (uid === requesterUid) return res.status(400).json({ error: 'Aap apna khud ka admin access remove nahi kar sakte.' });
+
+    await firestoreDb.collection('adminUsers').doc(uid).delete();
+    return res.json({ success: true, uid });
+  } catch (err: any) {
+    console.error('[Admin Users] Remove failed:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to remove admin user' });
+  }
+});
+
 // GET /api/shopify/status — safe connection status (never exposes credentials)
 app.get('/api/shopify/status', (_req, res) => {
   res.json(getShopifyConfigStatus());
