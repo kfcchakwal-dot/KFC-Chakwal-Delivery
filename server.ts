@@ -133,14 +133,20 @@ async function verifyAdminAuth(req: Request, res: Response, next: NextFunction) 
 }
 
 // Optional customer auth verifier
-async function getOptionalCustomerAuth(req: Request): Promise<{ uid: string; phone?: string; admin?: boolean } | null> {
+async function getOptionalCustomerAuth(req: Request): Promise<{ uid: string; email?: string; phone?: string; emailVerified?: boolean; admin?: boolean } | null> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ') || !firebaseAuth) return null;
   const token = authHeader.split('Bearer ')[1]?.trim();
   if (!token) return null;
   try {
     const decoded = await firebaseAuth.verifyIdToken(token);
-    return { uid: decoded.uid, phone: decoded.phone_number, admin: decoded.admin === true };
+    return {
+      uid: decoded.uid,
+      email: decoded.email,
+      phone: decoded.phone_number,
+      emailVerified: decoded.email_verified === true,
+      admin: decoded.admin === true,
+    };
   } catch {
     return null;
   }
@@ -405,8 +411,8 @@ app.post('/api/orders', async (req, res) => {
     if (!firestoreDb || !firebaseAuth) return res.status(503).json({ error: 'Order service is not configured' });
 
     const customerAuth = await getOptionalCustomerAuth(req);
-    if (!customerAuth?.uid || !customerAuth.phone) {
-      return res.status(401).json({ error: 'Customer phone authentication required' });
+    if (!customerAuth?.uid) {
+      return res.status(401).json({ error: 'Customer authentication required' });
     }
 
     const input = req.body || {};
@@ -416,8 +422,9 @@ app.post('/api/orders', async (req, res) => {
     if (!input.customer?.fullName || !input.customer?.phone || !input.customer?.address) {
       return res.status(400).json({ error: 'Customer name, phone and address are required' });
     }
-    if (String(input.customer.phone) !== String(customerAuth.phone)) {
-      return res.status(403).json({ error: 'Customer phone does not match authenticated account' });
+    const orderPhone = String(input.customer.phone).trim();
+    if (!orderPhone || orderPhone.length < 10) {
+      return res.status(400).json({ error: 'Valid customer mobile number is required for delivery' });
     }
     if (input.paymentMethod !== 'cod') {
       return res.status(400).json({ error: 'Online payment gateway is not configured. Cash on Delivery is currently available.' });
@@ -583,7 +590,7 @@ app.post('/api/orders', async (req, res) => {
       total,
       customer: {
         fullName: String(input.customer.fullName).trim().slice(0, 100),
-        phone: customerAuth.phone,
+        phone: orderPhone,
         address: String(input.customer.address).trim().slice(0, 500),
         uid: customerAuth.uid,
       },
@@ -599,7 +606,7 @@ app.post('/api/orders', async (req, res) => {
 
     const nextPoints = Math.max(0, customerPoints - loyaltyDiscount + pointsEarned);
     batch.set(customerRef, {
-      phone: customerAuth.phone,
+      phone: orderPhone,
       fullName: order.customer.fullName,
       defaultAddress: order.customer.address,
       loyaltyPoints: nextPoints,
@@ -738,7 +745,7 @@ app.patch('/api/customer/profile', async (req, res) => {
   try {
     if (!firestoreDb || !firebaseAuth) return res.status(503).json({ error: 'Customer service is not configured' });
     const customer = await getOptionalCustomerAuth(req);
-    if (!customer?.uid || !customer.phone) return res.status(401).json({ error: 'Customer authentication required' });
+    if (!customer?.uid) return res.status(401).json({ error: 'Customer authentication required' });
 
     const input = req.body || {};
     const updates: any = {};
@@ -782,7 +789,7 @@ app.post('/api/vip/request', async (req, res) => {
   try {
     if (!firestoreDb || !firebaseAuth) return res.status(503).json({ error: 'VIP service is not configured' });
     const authUser = await getOptionalCustomerAuth(req);
-    if (!authUser?.uid || !authUser.phone) return res.status(401).json({ error: 'Customer authentication required' });
+    if (!authUser?.uid) return res.status(401).json({ error: 'Customer authentication required' });
 
     const tierId = String(req.body?.tierId || '');
     const tierMap: Record<string, { price: number; discountPercentage: number }> = {
