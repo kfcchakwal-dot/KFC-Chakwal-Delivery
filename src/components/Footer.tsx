@@ -1,9 +1,9 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
-import { MapPin, Phone, Clock, ShieldCheck, Bike, Lock, Share2, FileText, Smartphone } from 'lucide-react';
+import { MapPin, Phone, Clock, ShieldCheck, Bike, Share2, FileText, Smartphone } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { settings, setIsAdminLoginModalOpen, isAdmin, themeMode, openPolicyModal } = useStore();
+  const { settings, themeMode, openPolicyModal } = useStore();
 
   const isDark = themeMode === 'dark';
   const logoUrl = settings.headerFooter?.logoUrl;
@@ -222,22 +222,7 @@ export const Footer: React.FC = () => {
         <div className={`mt-8 pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] ${
           isDark ? 'border-[#1c1c22] text-zinc-500' : 'border-zinc-200 text-zinc-500'
         }`}>
-          <p 
-            onClick={() => {
-              // Secret 5-click gesture to access admin if needed
-              const now = Date.now();
-              const lastClick = (window as any).__lastAdminClick || 0;
-              const count = (now - lastClick < 2000) ? ((window as any).__adminClickCount || 0) + 1 : 1;
-              (window as any).__lastAdminClick = now;
-              (window as any).__adminClickCount = count;
-              if (count >= 5) {
-                (window as any).__adminClickCount = 0;
-                setIsAdminLoginModalOpen(true);
-              }
-            }}
-            className="cursor-default select-none"
-            title="KFC Chakwal Delivery"
-          >
+          <p className="select-none" title="KFC Chakwal Delivery">
             {copyrightText}
           </p>
           <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 text-center sm:text-right">
@@ -245,14 +230,7 @@ export const Footer: React.FC = () => {
               Independent Chakwal express food delivery · Flat Rs {settings.deliveryFee} · Hot & Fresh.
             </p>
             <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">|</span>
-            <a
-              href="/?app=seller"
-              className="text-zinc-500 hover:text-[#e4002b] transition flex items-center gap-1 font-medium"
-              title="KCD Seller Operations Portal"
-            >
-              <Lock className="w-3 h-3 inline" />
-              <span>Seller Portal</span>
-            </a>
+            <span className="text-zinc-500">Customer Store</span>
           </div>
         </div>
       </div>
