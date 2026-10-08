@@ -487,9 +487,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return;
       }
 
+      let isAuthorizedAdmin = false;
       try {
         const tokenResult = await firebaseUser.getIdTokenResult();
-        let isAuthorizedAdmin = tokenResult.claims.admin === true;
+        isAuthorizedAdmin = tokenResult.claims.admin === true;
         if (!isAuthorizedAdmin) {
           const adminDoc = await getDoc(doc(db, 'adminUsers', firebaseUser.uid));
           isAuthorizedAdmin =
@@ -1668,130 +1669,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsCartOpen(true);
   };
 
-  const sendPhoneOtp = async (phoneNumber: string, recaptchaButtonId: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-      let clean = phoneNumber.trim().replace(/[\s-]/g, '');
-      if (clean.startsWith('03')) {
-        clean = '+92' + clean.slice(1);
-      } else if (!clean.startsWith('+')) {
-        clean = '+92' + clean;
-      }
-
-      if (customerRecaptchaVerifier) {
-        customerRecaptchaVerifier.clear();
-        customerRecaptchaVerifier = null;
-      }
-
-      customerRecaptchaVerifier = new RecaptchaVerifier(auth, recaptchaButtonId, {
-        size: 'invisible',
-      });
-
-      const confirmation = await signInWithPhoneNumber(auth, clean, customerRecaptchaVerifier);
-      setPhoneConfirmationResult(confirmation);
-      setIsOtpSent(true);
-      return { success: true };
-    } catch (err: any) {
-      customerRecaptchaVerifier?.clear();
-      customerRecaptchaVerifier = null;
-      console.error('sendPhoneOtp error:', err);
-      if (err?.code === 'auth/operation-not-allowed') {
-        return {
-          success: false,
-          error: 'Firebase Phone Authentication disabled hai. Firebase Console > Authentication > Sign-in method mein Phone enable karein aur SMS region policy mein Pakistan (+92) allow karein.'
-        };
-      }
-      if (err?.code === 'auth/unauthorized-domain') {
-        return {
-          success: false,
-          error: 'Is app ka domain Firebase Authorized Domains mein add nahi hai. Deployed domain aur custom domain dono Firebase Authentication > Settings > Authorized domains mein add karein.'
-        };
-      }
-      if (err?.code === 'auth/quota-exceeded') {
-        return { success: false, error: 'Firebase SMS limit temporarily exceed ho gayi hai. Kuch der baad dobara try karein.' };
-      }
-      if (err?.code === 'auth/invalid-phone-number') {
-        return { success: false, error: 'Mobile number valid format mein enter karein, example: 03251234567.' };
-      }
-      return { success: false, error: err.message || 'Failed to send SMS OTP code. Please check your phone number.' };
-    }
-  };
-
-  const verifyPhoneOtp = async (
-    otpCode: string,
-    profileDetails?: { fullName: string; defaultAddress?: string; email?: string }
-  ): Promise<{ success: boolean; error?: string }> => {
-    try {
-      if (!phoneConfirmationResult) {
-        return { success: false, error: 'OTP session expired. Please request a new code.' };
-      }
-      const cred = await phoneConfirmationResult.confirm(otpCode.trim());
-      const user = cred.user;
-
-      const userDocRef = doc(db, 'customers', user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      let customerProfile: CustomerUser;
-      if (userDoc.exists()) {
-        const data = userDoc.data() as any;
-        customerProfile = {
-          id: user.uid,
-          fullName: profileDetails?.fullName || data.fullName || 'Customer',
-          phone: user.phoneNumber || data.phone || '',
-          email: profileDetails?.email || data.email,
-          address: profileDetails?.defaultAddress || data.defaultAddress || '',
-          defaultAddress: profileDetails?.defaultAddress || data.defaultAddress || '',
-          savedAddresses: data.savedAddresses || [],
-          loyaltyPoints: data.loyaltyPoints || 0,
-          vipTier: data.vipTier,
-          vipStatus: data.vipStatus,
-          totalSpent: data.totalSpent || 0,
-          ordersCount: data.totalOrdersCount || 0,
-          createdAt: data.createdAt || new Date().toISOString(),
-        };
-        if (profileDetails?.fullName && profileDetails.fullName !== data.fullName) {
-          await updateDoc(userDocRef, { fullName: profileDetails.fullName });
-        }
-      } else {
-        customerProfile = {
-          id: user.uid,
-          fullName: profileDetails?.fullName || 'Customer',
-          phone: user.phoneNumber || '',
-          email: profileDetails?.email,
-          address: profileDetails?.defaultAddress || '',
-          defaultAddress: profileDetails?.defaultAddress || '',
-          savedAddresses: profileDetails?.defaultAddress
-            ? [{ id: `addr-${Date.now()}`, label: 'Home', address: profileDetails.defaultAddress, isDefault: true }]
-            : [],
-          loyaltyPoints: 50,
-          totalSpent: 0,
-          ordersCount: 0,
-          createdAt: new Date().toISOString(),
-        };
-        await setDoc(userDocRef, customerProfile);
-      }
-
-      setCurrentUser(customerProfile);
-      customerRecaptchaVerifier?.clear();
-      customerRecaptchaVerifier = null;
-      setPhoneConfirmationResult(null);
-      setIsCustomerAuthModalOpen(false);
-      setIsOtpSent(false);
-      return { success: true };
-    } catch (err: any) {
-      console.error('verifyPhoneOtp error:', err);
-      return { success: false, error: err.message || 'Invalid or expired OTP code' };
-    }
-  };
-
-  const logoutUser = async () => {
-    try {
-      await signOut(auth);
-    } catch {}
-    setCurrentUser(null);
-    localStorage.removeItem(CUSTOMER_USER_KEY);
-    setIsRedeemingPoints(false);
-  };
-
   const openPolicyModal = (slug?: string) => {
     if (slug) setActivePolicySlug(slug);
     setIsPoliciesModalOpen(true);
@@ -2350,6 +2227,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentUser,
         signupUser,
         loginUser,
+        signInWithGoogle,
         logoutUser,
         addSavedAddress,
         deleteSavedAddress,
@@ -2402,10 +2280,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         customerNotificationAllowed,
         setCustomerNotificationAllowed,
         requestNotificationPermission,
-        sendPhoneOtp,
-        verifyPhoneOtp,
-        isOtpSent,
-        setIsOtpSent,
       }}
     >
       {children}
