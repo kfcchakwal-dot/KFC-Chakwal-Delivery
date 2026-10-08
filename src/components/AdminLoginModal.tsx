@@ -7,12 +7,14 @@ export const AdminLoginModal: React.FC = () => {
     isAdminLoginModalOpen,
     setIsAdminLoginModalOpen,
     loginAdmin,
+    resetAdminPassword,
   } = useStore();
 
   const [email, setEmail] = useState('kfcchakwal@gmail.com');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
 
   if (!isAdminLoginModalOpen) return null;
 
@@ -127,6 +129,22 @@ export const AdminLoginModal: React.FC = () => {
             ) : (
               <span>Sign In to Admin Portal</span>
             )}
+          </button>
+          <button
+            type="button"
+            disabled={resetBusy || isLoading}
+            onClick={async () => {
+              setResetBusy(true);
+              setErrorMessage('');
+              const result = await resetAdminPassword(email.trim());
+              setResetBusy(false);
+              setErrorMessage(result.success
+                ? 'Password reset email bhej di gayi hai. Inbox/spam check karein.'
+                : (result.error || 'Password reset email send nahi ho saka.'));
+            }}
+            className="w-full py-2 text-xs font-bold text-zinc-400 hover:text-white disabled:opacity-50 cursor-pointer"
+          >
+            {resetBusy ? 'Sending reset email...' : 'Forgot / Reset Admin Password'}
           </button>
         </form>
 
