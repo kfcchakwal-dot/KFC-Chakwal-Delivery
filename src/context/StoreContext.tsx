@@ -555,6 +555,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [allOrders, setAllOrders] = useState<Order[]>([]);
 
   const previousOrderCountRef = useRef<number>(allOrders.length);
+  const ordersInitializedRef = useRef(false);
   const [serverSyncStatus, setServerSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
 
   // Categories / Collections
@@ -831,7 +832,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const data: Order[] = snap.docs
         .map((d) => ({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      if (data.length > previousOrderCountRef.current && previousOrderCountRef.current > 0) {
+      if (ordersInitializedRef.current && data.length > previousOrderCountRef.current) {
         if (settings.orderNotificationSound !== false) {
           playNewOrderChime();
           if ('Notification' in window && Notification.permission === 'granted') {
@@ -843,6 +844,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
       previousOrderCountRef.current = data.length;
+      ordersInitializedRef.current = true;
       setAllOrders(data);
     } catch (error) {
       console.warn('Orders Firestore sync notice:', error);
