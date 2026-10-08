@@ -2320,6 +2320,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isAdminLoginModalOpen,
         setIsAdminLoginModalOpen,
         loginAdmin,
+        resetAdminPassword,
         logoutAdmin,
         currentView,
         setCurrentView,
