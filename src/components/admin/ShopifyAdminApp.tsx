@@ -134,6 +134,7 @@ export const ShopifyAdminApp: React.FC = () => {
     syncStoreToServer,
     isAdmin,
     loginAdmin,
+    resetAdminPassword,
     logoutAdmin,
     playOrderSound,
     goHome,
@@ -153,6 +154,7 @@ export const ShopifyAdminApp: React.FC = () => {
   const [sellerEmail, setSellerEmail] = useState('');
   const [sellerPassword, setSellerPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [sellerResetBusy, setSellerResetBusy] = useState(false);
   const [adminUsers, setAdminUsers] = useState<Array<{ uid: string; email: string; name?: string; role?: string; active?: boolean }>>([]);
   const [newAdminName, setNewAdminName] = useState('');
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -362,6 +364,22 @@ export const ShopifyAdminApp: React.FC = () => {
               className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white font-bold text-sm py-3 px-4 rounded-xl shadow-lg transition active:scale-95 cursor-pointer"
             >
               Sign In to KCD Seller
+            </button>
+            <button
+              type="button"
+              disabled={sellerResetBusy}
+              onClick={async () => {
+                setSellerResetBusy(true);
+                setLoginError('');
+                const result = await resetAdminPassword(sellerEmail.trim());
+                setSellerResetBusy(false);
+                setLoginError(result.success
+                  ? 'Password reset email bhej di gayi hai. Inbox/spam check karein.'
+                  : (result.error || 'Password reset email send nahi ho saka.'));
+              }}
+              className="w-full py-2 text-xs font-bold text-zinc-500 hover:text-[#e4002b] disabled:opacity-50"
+            >
+              {sellerResetBusy ? 'Sending reset email...' : 'Forgot / Reset Admin Password'}
             </button>
           </form>
 
