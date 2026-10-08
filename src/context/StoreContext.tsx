@@ -1308,9 +1308,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     paymentMethod: PaymentMethod,
     specialInstructions?: string
   ): Promise<Order> => {
-    if (!auth.currentUser) {
-      throw new Error('Please sign in before placing your order.');
-    }
     if (paymentMethod !== 'cod') {
       throw new Error('Online payment gateway is not configured yet. Please use Cash on Delivery.');
     }
@@ -1352,14 +1349,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const user = auth.currentUser;
-    if (!user) throw new Error('Please sign in before placing your order.');
 
     const savedOrder: Order = {
       ...draftOrder,
       customer: {
         ...draftOrder.customer,
-        uid: user.uid,
-      } as CustomerDetails & { uid: string },
+        ...(user ? { uid: user.uid } : {}),
+      } as CustomerDetails & { uid?: string },
     } as Order;
 
     const firestoreOrder = JSON.parse(JSON.stringify({
@@ -1375,7 +1371,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const earnedPoints = Number(savedOrder.loyaltyPointsEarned || 0);
     const redeemedPoints = Number(savedOrder.loyaltyPointsRedeemed || 0);
 
-    if (earnedPoints > 0) {
+    if (user && earnedPoints > 0) {
       setPointsEarnedNotice(earnedPoints);
       const earnTx: LoyaltyTransaction = {
         id: `tx-${Date.now()}-earn`,
@@ -1393,7 +1389,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     }
 
-    if (redeemedPoints > 0) {
+    if (user && redeemedPoints > 0) {
       const redeemTx: LoyaltyTransaction = {
         id: `tx-${Date.now()}-redeem`,
         customerId: auth.currentUser.uid,
