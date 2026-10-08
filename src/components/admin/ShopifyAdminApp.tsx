@@ -2065,7 +2065,7 @@ export const ShopifyAdminApp: React.FC = () => {
                       onChange={(e) => updateDailyDealConfig({ collectionCategory: e.target.value as CategoryId })}
                       className="w-full bg-white border border-zinc-300 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-[#e4002b]"
                     >
-                      {KFC_CATEGORIES.map((c) => (
+                      {categories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name} ({menuItems.filter(m => m.categoryId === c.id).length} products)
                         </option>
@@ -2938,7 +2938,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     onChange={(e) => setEditingItem({ ...editingItem, categoryId: e.target.value as CategoryId })}
                     className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2"
                   >
-                    {KFC_CATEGORIES.map((c) => (
+                    {categories.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
@@ -3056,7 +3056,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     onChange={(e) => setNewProdCat(e.target.value as CategoryId)}
                     className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2"
                   >
-                    {KFC_CATEGORIES.map((c) => (
+                    {categories.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
@@ -3131,6 +3131,71 @@ export const ShopifyAdminApp: React.FC = () => {
                   className="bg-[#e4002b] hover:bg-[#c30025] text-white font-bold px-5 py-2 rounded-xl cursor-pointer"
                 >
                   Add Product
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ADD COLLECTION MODAL */}
+      {/* ========================================================================= */}
+      {isAddingCollection && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-zinc-200 rounded-3xl shadow-2xl overflow-hidden">
+            <div className="bg-zinc-50 p-4 border-b border-zinc-200 flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-zinc-900 text-sm uppercase">Add New Collection</h3>
+                <p className="text-[11px] text-zinc-500 mt-0.5">Shopify-style category/collection for grouping products.</p>
+              </div>
+              <button type="button" onClick={() => setIsAddingCollection(false)} className="text-zinc-500 hover:text-zinc-900 p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCollectionSubmit} className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="block text-zinc-700 font-bold mb-1">Collection Name *</label>
+                <input
+                  type="text"
+                  value={newColName}
+                  onChange={(e) => setNewColName(e.target.value)}
+                  placeholder="e.g. Family Feast, Ramadan Deals, Burgers"
+                  className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#e4002b]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-700 font-bold mb-1">Collection Description / Subtitle</label>
+                <input
+                  type="text"
+                  value={newColSubtitle}
+                  onChange={(e) => setNewColSubtitle(e.target.value)}
+                  placeholder="Short description shown under the collection"
+                  className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2.5"
+                />
+              </div>
+
+              <ImageUploadPicker
+                label="Collection Image"
+                value={newColImage}
+                onChange={(url) => setNewColImage(url)}
+                aspectRatio="landscape"
+                helperText="Optional collection cover image."
+              />
+
+              <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-[11px] leading-relaxed">
+                <strong>How it works:</strong> Collection banne ke baad Add/Edit Product mein isi collection ko select karein. Product us collection mein automatically show hoga.
+              </div>
+
+              <div className="pt-4 border-t border-zinc-200 flex justify-end gap-2">
+                <button type="button" onClick={() => setIsAddingCollection(false)} className="px-4 py-2 rounded-xl text-zinc-600 bg-zinc-100 hover:bg-zinc-200">
+                  Cancel
+                </button>
+                <button type="submit" className="bg-[#e4002b] hover:bg-[#c30025] text-white font-bold px-5 py-2 rounded-xl cursor-pointer">
+                  Create Collection
                 </button>
               </div>
             </form>
