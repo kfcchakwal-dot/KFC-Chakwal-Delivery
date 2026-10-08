@@ -1,8 +1,7 @@
-const CACHE_NAME = 'kfc-chakwal-v5';
+const CACHE_NAME = 'kfc-chakwal-v6';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
-  '/manifest.json',
   '/logo.svg',
   '/pwa-192.png',
   '/pwa-512.png',
