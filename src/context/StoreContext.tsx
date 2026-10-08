@@ -50,13 +50,14 @@ import {
 import { playNewOrderChime } from '../utils/audioNotification';
 import { auth, db } from '../lib/firebase';
 import {
+  GoogleAuthProvider,
+  signInWithPopup,
   signInWithEmailAndPassword,
-  sendPasswordResetEmail,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
   signOut,
   onAuthStateChanged,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  ConfirmationResult,
+  updateProfile,
 } from 'firebase/auth';
 import {
   doc,
@@ -199,13 +200,10 @@ interface StoreContextType {
 
   // Customer Account
   currentUser: CustomerUser | null;
-  signupUser: (data: { fullName: string; phone: string; address: string; email?: string }) => void;
-  loginUser: (phone: string) => boolean;
+  signupUser: (data: { fullName: string; email: string; password: string }) => Promise<{ success: boolean; error?: string }>;
+  loginUser: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   logoutUser: () => void;
-  sendPhoneOtp: (phoneNumber: string, recaptchaContainerId: string) => Promise<{ success: boolean; error?: string }>;
-  verifyPhoneOtp: (otpCode: string, profileDetails?: { fullName: string; defaultAddress?: string; email?: string }) => Promise<{ success: boolean; error?: string }>;
-  isOtpSent: boolean;
-  setIsOtpSent: (sent: boolean) => void;
   addSavedAddress: (label: string, address: string) => void;
   deleteSavedAddress: (addressId: string) => void;
   isCustomerAuthModalOpen: boolean;
@@ -228,8 +226,7 @@ interface StoreContextType {
   setIsAdmin: (isAdmin: boolean) => void;
   isAdminLoginModalOpen: boolean;
   setIsAdminLoginModalOpen: (open: boolean) => void;
-  loginAdmin: (emailOrPin: string, password?: string) => Promise<{ success: boolean; error?: string }>;
-  resetAdminPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  loginAdmin: () => Promise<{ success: boolean; error?: string }>;
   logoutAdmin: () => void;
   isOrdersDashboardOpen: boolean;
   setIsOrdersDashboardOpen: (open: boolean) => void;
@@ -325,7 +322,6 @@ const LOYALTY_TX_KEY = 'kfc_chakwal_loyalty_tx_v5';
 const ABANDONED_CHECKOUTS_KEY = 'kfc_chakwal_abandoned_checkouts_v5';
 const MARKETING_KEY = 'kfc_chakwal_marketing_v5';
 const CATEGORIES_KEY = 'kfc_chakwal_categories_v5';
-let customerRecaptchaVerifier: RecaptchaVerifier | null = null;
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Detect Seller mode from URL (e.g. ?app=seller, /seller, /admin, ?admin=portal)
@@ -479,10 +475,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Admin / Seller Auth
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [phoneConfirmationResult, setPhoneConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [isOtpSent, setIsOtpSent] = useState<boolean>(false);
 
-  // Monitor Firebase Auth state change for Admin and Phone Customer
+  // Monitor Firebase Auth state for Admin and free Google/email Customer login
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
@@ -493,46 +487,51 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return;
       }
 
-      // Check Admin permissions
       try {
         const tokenResult = await firebaseUser.getIdTokenResult();
-        let isAuthorizedAdmin = false;
-        if (tokenResult.claims.admin === true) {
-          isAuthorizedAdmin = true;
-        } else {
+        let isAuthorizedAdmin = tokenResult.claims.admin === true;
+        if (!isAuthorizedAdmin) {
           const adminDoc = await getDoc(doc(db, 'adminUsers', firebaseUser.uid));
-          if (adminDoc.exists() && adminDoc.data()?.role === 'admin' && adminDoc.data()?.active !== false) {
-            isAuthorizedAdmin = true;
-          }
+          isAuthorizedAdmin =
+            adminDoc.exists() &&
+            adminDoc.data()?.role === 'admin' &&
+            adminDoc.data()?.active !== false;
         }
         setIsAdmin(isAuthorizedAdmin);
       } catch (err) {
         console.warn('Admin status evaluation notice:', err);
+        setIsAdmin(false);
       }
 
-      // Sync customer profile if phone authenticated
-      if (firebaseUser.phoneNumber) {
+      // Load/create customer profile for Google or verified email accounts.
+      if (!isAuthorizedAdmin) {
         try {
           const customerDocRef = doc(db, 'customers', firebaseUser.uid);
           const customerDoc = await getDoc(customerDocRef);
-          if (customerDoc.exists()) {
-            const data = customerDoc.data() as any;
-            setCurrentUser({
-              id: firebaseUser.uid,
-              fullName: data.fullName || 'Customer',
-              phone: firebaseUser.phoneNumber,
-              email: data.email,
-              address: data.defaultAddress || '',
-              defaultAddress: data.defaultAddress || '',
-              savedAddresses: data.savedAddresses || [],
-              loyaltyPoints: data.loyaltyPoints || 0,
-              vipTier: data.vipTier,
-              vipStatus: data.vipStatus,
-              totalSpent: data.totalSpent || 0,
-              ordersCount: data.totalOrdersCount || 0,
-              createdAt: data.createdAt || new Date().toISOString(),
-            });
+          const data: any = customerDoc.exists() ? customerDoc.data() : {};
+          const customerProfile: CustomerUser = {
+            id: firebaseUser.uid,
+            fullName: data.fullName || firebaseUser.displayName || 'Customer',
+            phone: data.phone || firebaseUser.phoneNumber || '',
+            email: data.email || firebaseUser.email || '',
+            address: data.defaultAddress || '',
+            defaultAddress: data.defaultAddress || '',
+            savedAddresses: data.savedAddresses || [],
+            loyaltyPoints: Number(data.loyaltyPoints || 50),
+            vipTier: data.vipTier,
+            vipStatus: data.vipStatus,
+            totalSpent: Number(data.totalSpent || 0),
+            ordersCount: Number(data.totalOrdersCount || 0),
+            createdAt: data.createdAt || new Date().toISOString(),
+          };
+          if (!customerDoc.exists()) {
+            await setDoc(customerDocRef, {
+              ...customerProfile,
+              phone: data.phone || firebaseUser.phoneNumber || '',
+              email: firebaseUser.email || '',
+            }, { merge: true });
           }
+          setCurrentUser(customerProfile);
         } catch (e) {
           console.warn('Customer profile sync notice:', e);
         }
@@ -898,66 +897,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const loginAdmin = async (emailOrPin: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+  const loginAdmin = async (): Promise<{ success: boolean; error?: string }> => {
     try {
-      const email = emailOrPin.trim().toLowerCase();
-      if (!email || !email.includes('@') || !password) {
-        return { success: false, error: 'Administrator email aur password required hain.' };
-      }
-
-      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const cred = await signInWithPopup(auth, provider);
       const user = cred.user;
-      const tokenResult = await user.getIdTokenResult();
-
-      let isAuthorizedAdmin = tokenResult.claims.admin === true;
-      if (!isAuthorizedAdmin) {
-        const adminDoc = await getDoc(doc(db, 'adminUsers', user.uid));
-        isAuthorizedAdmin =
-          adminDoc.exists() &&
-          adminDoc.data()?.role === 'admin' &&
-          adminDoc.data()?.active !== false;
-      }
+      const adminDoc = await getDoc(doc(db, 'adminUsers', user.uid));
+      const isAuthorizedAdmin =
+        adminDoc.exists() &&
+        adminDoc.data()?.role === 'admin' &&
+        adminDoc.data()?.active !== false;
 
       if (!isAuthorizedAdmin) {
         await signOut(auth);
         setIsAdmin(false);
-        return { success: false, error: 'Access denied: administrator permissions required.' };
+        return { success: false, error: 'Ye Gmail Admin access ke liye authorize nahi hai.' };
       }
 
       setIsAdmin(true);
       setIsAdminLoginModalOpen(false);
       return { success: true };
     } catch (err: any) {
-      console.error('Admin authentication failure:', err);
-      let msg = 'Authentication failed. Please verify your administrator credentials.';
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-        msg = 'Invalid administrator email or password.';
-      } else if (err.code === 'auth/operation-not-allowed') {
-        msg = 'Firebase Email/Password sign-in disabled hai. Firebase Authentication mein Email/Password enable karein.';
-      } else if (err.code === 'auth/user-disabled') {
-        msg = 'Ye Firebase admin account disabled hai.';
+      console.error('Admin Google authentication failure:', err);
+      if (err?.code === 'auth/popup-closed-by-user') {
+        return { success: false, error: 'Google login cancel ho gaya.' };
       }
-      return { success: false, error: msg };
-    }
-  };
-
-  const resetAdminPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const cleanEmail = email.trim().toLowerCase();
-      if (!cleanEmail || !cleanEmail.includes('@')) {
-        return { success: false, error: 'Valid administrator email enter karein.' };
-      }
-      await sendPasswordResetEmail(auth, cleanEmail);
-      return { success: true };
-    } catch (err: any) {
-      console.error('Admin password reset failure:', err);
-      if (err.code === 'auth/user-not-found') {
-        return { success: false, error: 'Is email ka Firebase account abhi bana hua nahi hai. Pehle Firebase Authentication mein is email ka user create karein.' };
-      }
-      if (err.code === 'auth/operation-not-allowed') {
-        return { success: false, error: 'Firebase Email/Password sign-in disabled hai. Firebase Authentication mein Email/Password enable karein.' };
-      }
-      return { success: false, error: err.message || 'Password reset email send nahi ho saka.' };
+      return { success: false, error: err?.message || 'Admin Google login nahi ho saka.' };
     }
   };
 
@@ -1505,51 +1471,118 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setReviews((prev) => prev.filter((r) => r.id !== reviewId));
   };
 
-  // Customer User Auth
-  const signupUser = (data: { fullName: string; phone: string; address: string; email?: string }) => {
-    const initialAddresses: CustomerAddress[] = [
-      {
-        id: `addr-${Date.now()}`,
-        label: 'Home',
-        address: data.address.trim(),
-        isDefault: true,
-      },
-    ];
-    const newUser: CustomerUser = {
-      id: `usr-${Date.now()}`,
-      ...data,
-      savedAddresses: initialAddresses,
-      loyaltyPoints: 50, // 50 Welcome bonus loyalty points!
-      createdAt: new Date().toISOString(),
+  // Customer User Auth — free Google Sign-In + Email/Password
+  const buildCustomerProfile = async (firebaseUser: any, overrides?: { fullName?: string }): Promise<CustomerUser> => {
+    const userDocRef = doc(db, 'customers', firebaseUser.uid);
+    const userDoc = await getDoc(userDocRef);
+    const data: any = userDoc.exists() ? userDoc.data() : {};
+    const profile: CustomerUser = {
+      id: firebaseUser.uid,
+      fullName: overrides?.fullName || data.fullName || firebaseUser.displayName || 'Customer',
+      phone: data.phone || firebaseUser.phoneNumber || '',
+      email: data.email || firebaseUser.email || '',
+      address: data.defaultAddress || '',
+      defaultAddress: data.defaultAddress || '',
+      savedAddresses: data.savedAddresses || [],
+      loyaltyPoints: Number(data.loyaltyPoints ?? 50),
+      vipTier: data.vipTier,
+      vipStatus: data.vipStatus,
+      totalSpent: Number(data.totalSpent || 0),
+      ordersCount: Number(data.totalOrdersCount || 0),
+      createdAt: data.createdAt || new Date().toISOString(),
     };
-    setCurrentUser(newUser);
-    localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(newUser));
-    setIsCustomerAuthModalOpen(false);
-
-    // Sync to server customers
-    const recordPayload: CustomerLoyaltyRecord = {
-      id: newUser.id,
-      fullName: newUser.fullName,
-      phone: newUser.phone,
-      address: newUser.address,
-      email: newUser.email,
-      loyaltyPoints: 50,
-      totalOrdersCount: 0,
-      totalSpent: 0,
-      createdAt: newUser.createdAt,
-    };
-    fetch('/api/customers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(recordPayload),
-    }).catch(() => {});
+    await setDoc(userDocRef, {
+      ...profile,
+      phone: data.phone || firebaseUser.phoneNumber || '',
+      email: firebaseUser.email || data.email || '',
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    setCurrentUser(profile);
+    localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(profile));
+    return profile;
   };
 
-  const loginUser = (phone: string): boolean => {
-    // Legacy synchronous phone login is intentionally disabled. Customer access must use Firebase Phone OTP.
-    console.warn('Phone/passwordless login requires OTP verification.');
-    setIsCustomerAuthModalOpen(true);
-    return false;
+  const signInWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const cred = await signInWithPopup(auth, provider);
+      await buildCustomerProfile(cred.user);
+      setIsCustomerAuthModalOpen(false);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Customer Google sign-in failure:', err);
+      if (err?.code === 'auth/popup-closed-by-user') {
+        return { success: false, error: 'Google login cancel ho gaya.' };
+      }
+      return { success: false, error: err?.message || 'Google se login nahi ho saka.' };
+    }
+  };
+
+  const signupUser = async (data: { fullName: string; email: string; password: string }): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const cleanEmail = data.email.trim().toLowerCase();
+      if (!cleanEmail || !cleanEmail.includes('@')) return { success: false, error: 'Apni valid Gmail ID / Email enter karein.' };
+      if (data.password.length < 6) return { success: false, error: 'Password kam az kam 6 characters ka hona chahiye.' };
+      const cred = await createUserWithEmailAndPassword(auth, cleanEmail, data.password);
+      if (data.fullName.trim()) {
+        await updateProfile(cred.user, { displayName: data.fullName.trim().slice(0, 100) });
+      }
+      await setDoc(doc(db, 'customers', cred.user.uid), {
+        id: cred.user.uid,
+        fullName: data.fullName.trim().slice(0, 100) || 'Customer',
+        email: cleanEmail,
+        phone: '',
+        defaultAddress: '',
+        savedAddresses: [],
+        loyaltyPoints: 50,
+        totalSpent: 0,
+        totalOrdersCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      await sendEmailVerification(cred.user);
+      await signOut(auth);
+      return {
+        success: true,
+        error: 'ACCOUNT_CREATED_VERIFY',
+      };
+    } catch (err: any) {
+      if (err?.code === 'auth/email-already-in-use') return { success: false, error: 'Ye Gmail pehle se account ke saath registered hai. Sign In karein.' };
+      if (err?.code === 'auth/weak-password') return { success: false, error: 'Password zyada strong rakhein, kam az kam 6 characters.' };
+      if (err?.code === 'auth/operation-not-allowed') return { success: false, error: 'Email/Password login Firebase Authentication mein enable nahi hai.' };
+      return { success: false, error: err?.message || 'Account create nahi ho saka.' };
+    }
+  };
+
+  const loginUser = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      if (!cred.user.emailVerified) {
+        await sendEmailVerification(cred.user);
+        await signOut(auth);
+        return { success: false, error: 'Pehle apni Gmail par bheji gayi verification email se account verify karein. Zaroorat ho to dobara Sign In karein.' };
+      }
+      await buildCustomerProfile(cred.user);
+      setIsCustomerAuthModalOpen(false);
+      return { success: true };
+    } catch (err: any) {
+      if (err?.code === 'auth/invalid-credential' || err?.code === 'auth/user-not-found' || err?.code === 'auth/wrong-password') {
+        return { success: false, error: 'Gmail ID ya password ghalat hai.' };
+      }
+      if (err?.code === 'auth/operation-not-allowed') return { success: false, error: 'Email/Password login Firebase mein enable nahi hai.' };
+      return { success: false, error: err?.message || 'Sign In nahi ho saka.' };
+    }
+  };
+
+  const logoutUser = async () => {
+    try {
+      await signOut(auth);
+    } catch {}
+    setCurrentUser(null);
+    localStorage.removeItem(CUSTOMER_USER_KEY);
+    setIsRedeemingPoints(false);
   };
 
   const addSavedAddress = (label: string, address: string) => {
@@ -2030,31 +2063,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
 
-  // Admin User Authorization Management
-  const addAdminUser = (
-    name: string,
-    email: string,
-    pin: string,
-    role: 'Super Admin' | 'Manager' = 'Manager'
-  ) => {
-    const cur = settings.adminUsers || [];
-    const newAdmin = {
-      id: `admin-${Date.now()}`,
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      role,
-      addedAt: new Date().toISOString(),
-    };
-    updateSettings({ adminUsers: [...cur, newAdmin] });
+  // Admin user authorization is managed server-side in Firestore via the Admin Team Access panel.
+  const addAdminUser = (_name: string, _email: string, _pin: string, _role: 'Super Admin' | 'Manager' = 'Manager') => {
+    console.warn('Admin users are managed through the secure server API.');
   };
 
-  const deleteAdminUser = (adminId: string) => {
-    const cur = settings.adminUsers || [];
-    if (cur.length <= 1) {
-      alert('At least one admin user must be maintained in the system.');
-      return;
-    }
-    updateSettings({ adminUsers: cur.filter((a) => a.id !== adminId) });
+  const deleteAdminUser = (_adminId: string) => {
+    console.warn('Admin users are managed through the secure server API.');
   };
 
   // Push / Web Notification Permission
@@ -2320,8 +2335,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isAdminLoginModalOpen,
         setIsAdminLoginModalOpen,
         loginAdmin,
-        resetAdminPassword,
-        logoutAdmin,
+            logoutAdmin,
         currentView,
         setCurrentView,
         selectedProduct,
