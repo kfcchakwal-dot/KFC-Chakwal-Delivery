@@ -137,8 +137,8 @@ export async function getShopifyProducts(): Promise<ShopifyNormalizedProduct[]> 
   let after: string | null = null;
 
   do {
-    const data = await shopifyAdminGraphQL<any>(PRODUCTS_QUERY, { after });
-    const connection = data?.products;
+    const data: any = await shopifyAdminGraphQL<any>(PRODUCTS_QUERY, { after });
+    const connection: any = data?.products;
     if (!connection) throw new Error('Shopify products response was empty.');
 
     for (const product of connection.nodes || []) {
