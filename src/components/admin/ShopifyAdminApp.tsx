@@ -134,7 +134,6 @@ export const ShopifyAdminApp: React.FC = () => {
     syncStoreToServer,
     isAdmin,
     loginAdmin,
-    resetAdminPassword,
     logoutAdmin,
     playOrderSound,
     goHome,
@@ -151,10 +150,7 @@ export const ShopifyAdminApp: React.FC = () => {
     addCategory,
   } = useStore();
 
-  const [sellerEmail, setSellerEmail] = useState('');
-  const [sellerPassword, setSellerPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [sellerResetBusy, setSellerResetBusy] = useState(false);
   const [adminUsers, setAdminUsers] = useState<Array<{ uid: string; email: string; name?: string; role?: string; active?: boolean }>>([]);
   const [newAdminName, setNewAdminName] = useState('');
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -322,12 +318,10 @@ export const ShopifyAdminApp: React.FC = () => {
   // LOGIN SCREEN (If not authenticated as seller)
   // =========================================================================
   if (!isAdmin) {
-    const handleLoginSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
+    const handleGoogleAdminLogin = async () => {
       setLoginError('');
-      const result = await loginAdmin(sellerEmail.trim(), sellerPassword);
-      if (!result.success) setLoginError(result.error || 'Invalid administrator credentials.');
-      else setSellerPassword('');
+      const result = await loginAdmin();
+      if (!result.success) setLoginError(result.error || 'Admin access nahi mila.');
     };
 
     return (
@@ -337,12 +331,8 @@ export const ShopifyAdminApp: React.FC = () => {
             <div className="w-16 h-16 bg-[#e4002b] text-white rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-red-900/30">
               <span className="font-kfc font-black text-2xl tracking-tighter">KCD</span>
             </div>
-            <h1 className="font-kfc text-3xl font-black uppercase tracking-tight text-zinc-900">
-              KCD Seller Center
-            </h1>
-            <p className="text-xs text-zinc-500">
-              KFC Chakwal Delivery Management Portal
-            </p>
+            <h1 className="font-kfc text-3xl font-black uppercase tracking-tight text-zinc-900">KCD Seller Center</h1>
+            <p className="text-xs text-zinc-500">Sirf authorized Google account se access karein.</p>
           </div>
 
           {loginError && (
@@ -351,44 +341,23 @@ export const ShopifyAdminApp: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">Admin Email</label>
-              <input type="email" value={sellerEmail} onChange={(e) => setSellerEmail(e.target.value)} placeholder="admin email" className="w-full text-sm border border-zinc-300 rounded-xl py-3 px-4 focus:outline-none focus:border-[#e4002b]" required />
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5 mt-3">Admin Password</label>
-              <input type="password" value={sellerPassword} onChange={(e) => setSellerPassword(e.target.value)} placeholder="Secure password" className="w-full text-sm border border-zinc-300 rounded-xl py-3 px-4 focus:outline-none focus:border-[#e4002b]" required />
-            </div>
+          <button
+            type="button"
+            onClick={handleGoogleAdminLogin}
+            className="w-full bg-white hover:bg-zinc-50 border border-zinc-300 text-zinc-900 font-bold text-sm py-3 px-4 rounded-xl shadow-sm transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span className="font-black text-base">G</span>
+            <span>Continue with Google</span>
+          </button>
 
-            <button
-              type="submit"
-              className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white font-bold text-sm py-3 px-4 rounded-xl shadow-lg transition active:scale-95 cursor-pointer"
-            >
-              Sign In to KCD Seller
-            </button>
-            <button
-              type="button"
-              disabled={sellerResetBusy}
-              onClick={async () => {
-                setSellerResetBusy(true);
-                setLoginError('');
-                const result = await resetAdminPassword(sellerEmail.trim());
-                setSellerResetBusy(false);
-                setLoginError(result.success
-                  ? 'Password reset email bhej di gayi hai. Inbox/spam check karein.'
-                  : (result.error || 'Password reset email send nahi ho saka.'));
-              }}
-              className="w-full py-2 text-xs font-bold text-zinc-500 hover:text-[#e4002b] disabled:opacity-50"
-            >
-              {sellerResetBusy ? 'Sending reset email...' : 'Forgot / Reset Admin Password'}
-            </button>
-          </form>
+          <p className="text-[11px] text-zinc-400 text-center">
+            Admin access sirf Firebase ke <strong>adminUsers</strong> mein authorized Gmail ko milega.
+          </p>
 
           <div className="pt-4 border-t border-zinc-100 text-center">
             <button
               type="button"
-              onClick={() => {
-                window.location.href = new URL('/', window.location.origin).toString();
-              }}
+              onClick={() => { window.location.href = new URL('/', window.location.origin).toString(); }}
               className="text-xs font-bold text-zinc-500 hover:text-[#e4002b] transition flex items-center justify-center gap-1 mx-auto"
             >
               <span>View Customer Storefront</span>
@@ -2755,6 +2724,40 @@ export const ShopifyAdminApp: React.FC = () => {
                 </div>
               </div>
 
+              {/* Customer Login Popup Content */}
+              <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <div>
+                  <h3 className="font-bold text-sm text-zinc-900">Customer Login Popup</h3>
+                  <p className="text-[11px] text-zinc-500 mt-1">Customer ko nazar aane wali login/signup wording yahan se edit karein.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  {([
+                    ['title', 'Popup Title'],
+                    ['subtitle', 'Short Message'],
+                    ['googleButtonText', 'Google Button'],
+                    ['emailLabel', 'Gmail / Email Label'],
+                    ['emailPlaceholder', 'Gmail Placeholder'],
+                    ['passwordLabel', 'Password Label'],
+                    ['signInButtonText', 'Sign In Button'],
+                    ['newAccountText', 'New Account Tab'],
+                    ['fullNameLabel', 'Name Label'],
+                    ['createAccountButtonText', 'Create Account Button'],
+                    ['verificationMessage', 'Verification Message'],
+                    ['helperText', 'Bottom Helper Text'],
+                  ] as const).map(([key, label]) => (
+                    <div key={key} className={key === 'subtitle' || key === 'verificationMessage' || key === 'helperText' ? 'sm:col-span-2' : ''}>
+                      <label className="block text-zinc-700 font-bold mb-1">{label}</label>
+                      <input
+                        type="text"
+                        value={(settings.customerAuthCopy as any)?.[key] || ''}
+                        onChange={(e) => updateSettings({ customerAuthCopy: { ...(settings.customerAuthCopy || {} as any), [key]: e.target.value } as any })}
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Admin Team Access */}
               <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
                 <div>
@@ -2763,7 +2766,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     <span>Admin Team Access</span>
                   </h3>
                   <p className="text-[11px] text-zinc-500 mt-1">
-                    Pehle Firebase Authentication mein user ka Email/Password account bana dein. Phir yahan usi email ko Admin access dein.
+                    Pehle Firebase Authentication mein user ka Google account bana ho. Phir yahan usi Gmail ko Admin access dein.
                   </p>
                 </div>
 
@@ -2806,13 +2809,38 @@ export const ShopifyAdminApp: React.FC = () => {
                         <p className="text-xs font-bold text-zinc-900 truncate">{user.name || user.email}</p>
                         <p className="text-[10px] text-zinc-500 truncate">{user.email}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleAdminUser(user.uid, user.active === false)}
-                        className={`text-[10px] font-bold px-3 py-1.5 rounded-lg ${user.active === false ? 'bg-zinc-100 text-zinc-600' : 'bg-emerald-50 text-emerald-700'}`}
-                      >
-                        {user.active === false ? 'Enable' : 'Active'}
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => toggleAdminUser(user.uid, user.active === false)}
+                          className={`text-[10px] font-bold px-3 py-1.5 rounded-lg ${user.active === false ? 'bg-zinc-100 text-zinc-600' : 'bg-emerald-50 text-emerald-700'}`}
+                        >
+                          {user.active === false ? 'Enable' : 'Active'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!window.confirm(`Is admin ka access remove karna hai?\n\n${user.email}`)) return;
+                            try {
+                              const token = await auth.currentUser?.getIdToken();
+                              if (!token) throw new Error('Admin session expired.');
+                              const response = await fetch(`/api/admin/users/${encodeURIComponent(user.uid)}`, {
+                                method: 'DELETE',
+                                headers: { Authorization: `Bearer ${token}` },
+                              });
+                              const data = await response.json().catch(() => ({}));
+                              if (!response.ok) throw new Error(data.error || 'Admin remove nahi ho saka.');
+                              setAdminUserNotice(`${user.email} ka Admin access remove kar diya gaya.`);
+                              await loadAdminUsers();
+                            } catch (error: any) {
+                              setAdminUserNotice(error?.message || 'Admin remove nahi ho saka.');
+                            }
+                          }}
+                          className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-red-50 text-red-700 hover:bg-red-100"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
