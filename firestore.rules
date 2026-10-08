@@ -45,9 +45,11 @@ service cloud.firestore {
 
     match /orders/{id} {
       allow read: if admin() || (signedIn() && resource.data.customer.uid == request.auth.uid);
-      allow create: if signedIn() &&
-        request.resource.data.customer.uid == request.auth.uid &&
-        request.resource.data.status == 'confirmed';
+      allow create: if request.resource.data.status == 'confirmed' &&
+        (
+          (!signedIn() && !('uid' in request.resource.data.customer)) ||
+          (signedIn() && request.resource.data.customer.uid == request.auth.uid)
+        );
       allow update, delete: if admin();
     }
 
