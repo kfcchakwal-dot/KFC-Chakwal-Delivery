@@ -6,6 +6,7 @@ import { createServer as createViteServer } from 'vite';
 import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type Auth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { syncShopifyProductsToFirestore, getShopifyProducts, getShopifyConfigStatus } from './server/shopify';
 
 // Load Firebase configuration
 const firebaseConfigPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
@@ -183,6 +184,45 @@ app.post('/api/store-data', verifyAdminAuth, async (req, res) => {
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update store data' });
+  }
+});
+
+// GET /api/shopify/status — safe connection status (never exposes credentials)
+app.get('/api/shopify/status', (_req, res) => {
+  res.json(getShopifyConfigStatus());
+});
+
+// GET /api/shopify/products — public normalized Shopify catalog
+app.get('/api/shopify/products', async (_req, res) => {
+  try {
+    const products = await getShopifyProducts();
+    return res.json({
+      connected: true,
+      shop: getShopifyConfigStatus().shop,
+      productCount: products.length,
+      products,
+    });
+  } catch (err: any) {
+    console.error('[Shopify] Product fetch failed:', err.message);
+    return res.status(503).json({
+      connected: false,
+      error: err.message || 'Shopify product sync is unavailable',
+    });
+  }
+});
+
+// POST /api/admin/shopify/sync-products — pull Shopify catalog into Firestore
+app.post('/api/admin/shopify/sync-products', verifyAdminAuth, async (_req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const result = await syncShopifyProductsToFirestore(firestoreDb);
+    return res.json(result);
+  } catch (err: any) {
+    console.error('[Shopify] Sync failed:', err.message);
+    return res.status(503).json({
+      connected: false,
+      error: err.message || 'Shopify product sync failed',
+    });
   }
 });
 
