@@ -1661,6 +1661,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       customerRecaptchaVerifier?.clear();
       customerRecaptchaVerifier = null;
       console.error('sendPhoneOtp error:', err);
+      if (err?.code === 'auth/operation-not-allowed') {
+        return {
+          success: false,
+          error: 'Firebase Phone Authentication disabled hai. Firebase Console > Authentication > Sign-in method mein Phone enable karein aur SMS region policy mein Pakistan (+92) allow karein.'
+        };
+      }
+      if (err?.code === 'auth/unauthorized-domain') {
+        return {
+          success: false,
+          error: 'Is app ka domain Firebase Authorized Domains mein add nahi hai. Deployed domain aur custom domain dono Firebase Authentication > Settings > Authorized domains mein add karein.'
+        };
+      }
+      if (err?.code === 'auth/quota-exceeded') {
+        return { success: false, error: 'Firebase SMS limit temporarily exceed ho gayi hai. Kuch der baad dobara try karein.' };
+      }
+      if (err?.code === 'auth/invalid-phone-number') {
+        return { success: false, error: 'Mobile number valid format mein enter karein, example: 03251234567.' };
+      }
       return { success: false, error: err.message || 'Failed to send SMS OTP code. Please check your phone number.' };
     }
   };
