@@ -63,7 +63,6 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
 } from 'firebase/firestore';
 
 interface StoreContextType {
@@ -1291,8 +1290,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     paymentMethod: PaymentMethod,
     specialInstructions?: string
   ): Promise<Order> => {
-    if (!auth.currentUser?.phoneNumber) {
-      throw new Error('Customer authentication required. Please verify your phone again.');
+    if (!auth.currentUser) {
+      throw new Error('Please sign in before placing your order.');
     }
     if (paymentMethod !== 'cod') {
       throw new Error('Online payment gateway is not configured yet. Please use Cash on Delivery.');
