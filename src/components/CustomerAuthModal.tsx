@@ -71,7 +71,7 @@ export const CustomerAuthModal: React.FC = () => {
     setAuthBusy(false);
     if (!result.success) {
       if (result.error === 'ACCOUNT_CREATED_VERIFY') {
-        setAuthNotice('Aapki Gmail par verification email bheji gayi hai. Inbox/Spam check karke email verify karein, phir Sign In karein.');
+        setAuthNotice(settings.customerAuthCopy?.verificationMessage || 'Aapki Gmail par verification email bheji gayi hai. Inbox/Spam check karke email verify karein, phir Sign In karein.');
         setTab('login');
         setLoginEmail(email.trim().toLowerCase());
         setPassword('');
