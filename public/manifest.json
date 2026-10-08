@@ -68,5 +68,11 @@
       ]
     }
   ],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "display_override": [
+    "standalone"
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }
