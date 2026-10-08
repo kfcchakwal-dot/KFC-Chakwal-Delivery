@@ -826,10 +826,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ? await getDocs(query(collection(db, 'orders'), orderBy('date', 'desc')))
         : await getDocs(query(
             collection(db, 'orders'),
-            where('customer.uid', '==', user.uid),
-            orderBy('date', 'desc')
+            where('customer.uid', '==', user.uid)
           ));
-      const data: Order[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }));
+      const data: Order[] = snap.docs
+        .map((d) => ({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       if (data.length > previousOrderCountRef.current && previousOrderCountRef.current > 0) {
         if (settings.orderNotificationSound !== false) {
           playNewOrderChime();
