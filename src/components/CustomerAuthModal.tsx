@@ -27,10 +27,8 @@ export const CustomerAuthModal: React.FC = () => {
     setIsCustomerAuthModalOpen,
     currentUser,
     signupUser,
-    sendPhoneOtp,
-    verifyPhoneOtp,
-    isOtpSent,
-    setIsOtpSent,
+    loginUser,
+    signInWithGoogle,
     logoutUser,
     addSavedAddress,
     deleteSavedAddress,
@@ -38,24 +36,22 @@ export const CustomerAuthModal: React.FC = () => {
     allOrders,
     formatPKR,
     themeMode,
+    settings,
   } = useStore();
 
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [profileSubTab, setProfileSubTab] = useState<'rewards' | 'addresses' | 'orders'>('rewards');
   
-  // Registration form
+  // Customer account form
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
   const [email, setEmail] = useState('');
-  
-  // Login form
-  const [loginPhone, setLoginPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [otpBusy, setOtpBusy] = useState(false);
-  const [otpMode, setOtpMode] = useState<'login' | 'signup'>('login');
+  const [signupError, setSignupError] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authNotice, setAuthNotice] = useState('');
 
   // Add Address form
   const [isAddingAddress, setIsAddingAddress] = useState(false);
@@ -68,63 +64,41 @@ export const CustomerAuthModal: React.FC = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim()) return;
-    if (!phone.trim() || phone.trim().length < 10) {
-      setOtpError('Please enter a valid mobile number.');
-      return;
-    }
-    setOtpError('');
-    setOtpBusy(true);
-    setOtpMode('signup');
-    const result = await sendPhoneOtp(phone.trim(), 'customer-auth-send-otp');
-    setOtpBusy(false);
+    setSignupError('');
+    setAuthNotice('');
+    setAuthBusy(true);
+    const result = await signupUser({ fullName, email, password });
+    setAuthBusy(false);
     if (!result.success) {
-      setOtpError(result.error || 'OTP send nahi ho saka. Dobara try karein.');
+      if (result.error === 'ACCOUNT_CREATED_VERIFY') {
+        setAuthNotice('Aapki Gmail par verification email bheji gayi hai. Inbox/Spam check karke email verify karein, phir Sign In karein.');
+        setTab('login');
+        setLoginEmail(email.trim().toLowerCase());
+        setPassword('');
+      } else {
+        setSignupError(result.error || 'Account create nahi ho saka.');
+      }
     }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginPhone.trim() || loginPhone.trim().length < 10) {
-      setLoginError('Please enter a valid mobile number (e.g. 03001234567)');
-      return;
-    }
     setLoginError('');
-    setOtpError('');
-    setOtpBusy(true);
-    setOtpMode('login');
-    const result = await sendPhoneOtp(loginPhone.trim(), 'customer-auth-send-otp');
-    setOtpBusy(false);
-    if (!result.success) {
-      setLoginError(result.error || 'OTP send nahi ho saka. Dobara try karein.');
-    }
+    setAuthNotice('');
+    setAuthBusy(true);
+    const result = await loginUser(loginEmail, loginPassword);
+    setAuthBusy(false);
+    if (!result.success) setLoginError(result.error || 'Sign In nahi ho saka.');
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpCode.trim() || otpCode.trim().length < 4) {
-      setOtpError('OTP code enter karein.');
-      return;
-    }
-    setOtpBusy(true);
-    setOtpError('');
-    const result = await verifyPhoneOtp(
-      otpCode.trim(),
-      otpMode === 'signup'
-        ? {
-            fullName: fullName.trim(),
-            defaultAddress: address.trim() || 'Within 3 KM (Chakwal City)',
-            email: email.trim() || undefined,
-          }
-        : undefined
-    );
-    setOtpBusy(false);
-    if (!result.success) {
-      setOtpError(result.error || 'OTP verify nahi ho saka.');
-      return;
-    }
-    setOtpCode('');
-    setIsOtpSent(false);
+  const handleGoogleLogin = async () => {
+    setLoginError('');
+    setSignupError('');
+    setAuthNotice('');
+    setAuthBusy(true);
+    const result = await signInWithGoogle();
+    setAuthBusy(false);
+    if (!result.success) setLoginError(result.error || 'Google se login nahi ho saka.');
   };
 
   const handleAddAddressSubmit = (e: React.FormEvent) => {
@@ -486,145 +460,91 @@ export const CustomerAuthModal: React.FC = () => {
           /* ========================================================================= */
           <div className="overflow-y-auto space-y-4 flex-1 pr-1">
             
-            {/* Banner */}
             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs space-y-1">
-              <p className="font-bold text-[#e4002b] flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4" />
-                <span>Apna Phone Number Enter Karein</span>
-              </p>
+              <p className="font-bold text-[#e4002b]">KFC Chakwal Delivery Account</p>
               <p className={`text-[11px] ${isDark ? 'text-zinc-300' : 'text-zinc-600'}`}>
-                Firebase Phone OTP se secure login hoga. Aapke addresses aur loyalty points aapke account ke saath save rahenge.
+                {settings.customerAuthCopy?.subtitle || 'Apna account banayein aur apne orders, addresses aur rewards manage karein.'}
               </p>
             </div>
 
-            {/* Tabs: Sign In vs New Registration */}
-            <div className={`grid grid-cols-2 gap-2 p-1 rounded-xl border text-xs font-bold ${
-              isDark ? 'bg-[#121214] border-zinc-800' : 'bg-zinc-100 border-zinc-200'
-            }`}>
-              <button
-                type="button"
-                onClick={() => { setTab('login'); setIsOtpSent(false); setOtpCode(''); setOtpError(''); setLoginError(''); }}
-                className={`py-2 rounded-lg transition-colors cursor-pointer ${
-                  tab === 'login' 
-                    ? 'bg-[#e4002b] text-white shadow' 
-                    : isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
+            <div className={`grid grid-cols-2 gap-2 p-1 rounded-xl border text-xs font-bold ${isDark ? 'bg-[#121214] border-zinc-800' : 'bg-zinc-100 border-zinc-200'}`}>
+              <button type="button" onClick={() => { setTab('login'); setLoginError(''); setSignupError(''); setAuthNotice(''); }} className={`py-2 rounded-lg transition-colors cursor-pointer ${tab === 'login' ? 'bg-[#e4002b] text-white shadow' : isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-900'}`}>
                 Existing Sign In
               </button>
-              <button
-                type="button"
-                onClick={() => { setTab('signup'); setIsOtpSent(false); setOtpCode(''); setOtpError(''); setLoginError(''); }}
-                className={`py-2 rounded-lg transition-colors cursor-pointer ${
-                  tab === 'signup' 
-                    ? 'bg-[#e4002b] text-white shadow' 
-                    : isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                New Account
+              <button type="button" onClick={() => { setTab('signup'); setLoginError(''); setSignupError(''); setAuthNotice(''); }} className={`py-2 rounded-lg transition-colors cursor-pointer ${tab === 'signup' ? 'bg-[#e4002b] text-white shadow' : isDark ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-900'}`}>
+                {settings.customerAuthCopy?.newAccountText || 'New Account'}
               </button>
             </div>
 
-            {/* Secure Firebase Phone OTP Sign In */}
-            {tab === 'login' && (
-              <form onSubmit={isOtpSent ? handleVerifyOtp : handleLogin} className="space-y-3.5 text-xs">
-                {loginError && (
-                  <div className="p-2.5 bg-red-500/10 border border-red-500/30 text-red-500 text-xs rounded-xl font-bold">
-                    {loginError}
-                  </div>
-                )}
-                {isOtpSent ? (
-                  <>
-                    <div>
-                      <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                        OTP Code
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        required
-                        placeholder="123456"
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        className={`w-full text-center text-lg tracking-[0.35em] rounded-xl px-3.5 py-3 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`}
-                      />
-                    </div>
-                    {otpError && <div className="p-2.5 bg-red-500/10 border border-red-500/30 text-red-500 text-xs rounded-xl font-bold">{otpError}</div>}
-                    <button type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
-                      <span>{otpBusy ? 'Verifying...' : 'Verify OTP & Continue'}</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                    <button type="button" disabled={otpBusy} onClick={() => { setIsOtpSent(false); setOtpCode(''); setOtpError(''); }} className="w-full py-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white font-bold">
-                      Change Number
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Mobile Phone Number *</label>
-                      <input type="tel" required placeholder="03001234567" value={loginPhone} onChange={(e) => setLoginPhone(e.target.value)} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
-                      <p className="text-[10px] text-zinc-400 mt-1">Is number par Firebase verification code SMS hoga.</p>
-                    </div>
-                    <button id="customer-auth-send-otp" type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
-                      <span>{otpBusy ? 'Sending OTP...' : 'Send OTP & Continue'}</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-              </form>
-            )}
+            {authNotice && <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-xs rounded-xl font-bold">{authNotice}</div>}
+            {loginError && tab === 'login' && <div className="p-2.5 bg-red-500/10 border border-red-500/30 text-red-500 text-xs rounded-xl font-bold">{loginError}</div>}
+            {signupError && tab === 'signup' && <div className="p-2.5 bg-red-500/10 border border-red-500/30 text-red-500 text-xs rounded-xl font-bold">{signupError}</div>}
 
-            {/* Form B: Secure Firebase Phone OTP New Account Registration */}
-            {tab === 'signup' && (
-              <form onSubmit={isOtpSent ? handleVerifyOtp : handleSignup} className="space-y-3 text-xs">
-                {otpError && <div className="p-2.5 bg-red-500/10 border border-red-500/30 text-red-500 text-xs rounded-xl font-bold">{otpError}</div>}
-                <div>
-                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Full Name *</label>
-                  <input type="text" required placeholder="e.g. Muhammad Usman" value={fullName} onChange={(e) => setFullName(e.target.value)} disabled={isOtpSent} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
-                </div>
-                <div>
-                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Mobile Phone (WhatsApp) *</label>
-                  <input type="tel" required placeholder="03001234567" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isOtpSent} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
-                </div>
-                <div>
-                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>Delivery Address (Within 3 KM) *</label>
-                  <input type="text" required placeholder="House / Street / Area within 3km Chakwal" value={address} onChange={(e) => setAddress(e.target.value)} disabled={isOtpSent} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
-                </div>
-                {isOtpSent ? (
-                  <>
-                    <div>
-                      <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>OTP Code</label>
-                      <input type="text" inputMode="numeric" autoComplete="one-time-code" required placeholder="123456" value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className={`w-full text-center text-lg tracking-[0.35em] rounded-xl px-3.5 py-3 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
-                    </div>
-                    <button type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
-                      <span>{otpBusy ? 'Verifying...' : 'Verify OTP & Create Account'}</span>
-                      <Sparkles className="w-4 h-4 text-amber-300" />
-                    </button>
-                    <button type="button" disabled={otpBusy} onClick={() => { setIsOtpSent(false); setOtpCode(''); setOtpError(''); }} className="w-full py-2 text-zinc-400 font-bold">Change Number</button>
-                  </>
-                ) : (
-                  <button id="customer-auth-send-otp" type="submit" disabled={otpBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer shadow-lg shadow-red-950/20 active:scale-95 flex items-center justify-center gap-2">
-                    <span>{otpBusy ? 'Sending OTP...' : 'Verify Phone & Create Account'}</span>
-                    <Sparkles className="w-4 h-4 text-amber-300" />
-                  </button>
-                )}
-              </form>
-            )}
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={authBusy}
+              className="w-full bg-white text-zinc-900 border border-zinc-300 hover:border-zinc-400 disabled:opacity-60 font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+            >
+              <span className="font-black text-base">G</span>
+              <span>{settings.customerAuthCopy?.googleButtonText || 'Continue with Google'}</span>
+            </button>
 
-            {/* Persistent Login Guarantee Info */}
-            <div className={`p-3 rounded-xl border text-[11px] space-y-1 ${
-              isDark ? 'bg-[#121214] border-[#22222a] text-zinc-400' : 'bg-zinc-50 border-zinc-200 text-zinc-600'
-            }`}>
-              <div className="flex items-center gap-1.5 font-bold text-emerald-500">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Secure Firebase Phone Session</span>
-              </div>
-              <p>
-                Firebase aapka secure session manage karta hai. Logout karne par account session khatam ho jayega.
-              </p>
+            <div className="flex items-center gap-2 text-[10px] text-zinc-400">
+              <div className="h-px bg-zinc-200 dark:bg-zinc-800 flex-1" />
+              <span>YA</span>
+              <div className="h-px bg-zinc-200 dark:bg-zinc-800 flex-1" />
             </div>
-          </div>
+
+            {tab === 'login' ? (
+              <form onSubmit={handleLogin} className="space-y-3 text-xs">
+                <div>
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                    {settings.customerAuthCopy?.emailLabel || 'Apni Gmail ID / Email'}
+                  </label>
+                  <input type="email" required autoComplete="email" placeholder={settings.customerAuthCopy?.emailPlaceholder || 'example@gmail.com'} value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
+                </div>
+                <div>
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                    {settings.customerAuthCopy?.passwordLabel || 'Password'}
+                  </label>
+                  <input type="password" required autoComplete="current-password" placeholder="••••••••" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
+                </div>
+                <button type="submit" disabled={authBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
+                  <span>{authBusy ? 'Please wait...' : (settings.customerAuthCopy?.signInButtonText || 'Sign In')}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleSignup} className="space-y-3 text-xs">
+                <div>
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                    {settings.customerAuthCopy?.fullNameLabel || 'Aap ka Naam'}
+                  </label>
+                  <input type="text" required placeholder="Muhammad Usman" value={fullName} onChange={(e) => setFullName(e.target.value)} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
+                </div>
+                <div>
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                    {settings.customerAuthCopy?.emailLabel || 'Apni Gmail ID / Email'}
+                  </label>
+                  <input type="email" required autoComplete="email" placeholder={settings.customerAuthCopy?.emailPlaceholder || 'example@gmail.com'} value={email} onChange={(e) => setEmail(e.target.value)} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-zinc-300 text-zinc-900' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
+                </div>
+                <div>
+                  <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                    {settings.customerAuthCopy?.passwordLabel || 'Password'}
+                  </label>
+                  <input type="password" required minLength={6} autoComplete="new-password" placeholder="Kam az kam 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
+                </div>
+                <button type="submit" disabled={authBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
+                  <span>{authBusy ? 'Please wait...' : (settings.customerAuthCopy?.createAccountButtonText || 'Account Banayein')}</span>
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                </button>
+              </form>
+            )}
+
+            <div className={`p-3 rounded-xl border text-[11px] ${isDark ? 'bg-[#121214] border-[#22222a] text-zinc-400' : 'bg-zinc-50 border-zinc-200 text-zinc-600'}`}>
+              {settings.customerAuthCopy?.helperText || 'Google se login sab se asaan hai. Ya apni Gmail ID aur password se account use karein.'}
+            </div>          </div>
         )}
 
       </div>
