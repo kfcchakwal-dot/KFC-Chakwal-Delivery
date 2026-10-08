@@ -49,6 +49,30 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
+// Explicit PWA asset routes: keep these outside the SPA fallback so
+// Chrome/PWABuilder always receive the real manifest and service worker.
+const publicDir = path.resolve(process.cwd(), 'public');
+app.get('/manifest.json', (_req, res) => {
+  res.set({
+    'Content-Type': 'application/manifest+json; charset=utf-8',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+  });
+  res.sendFile(path.join(publicDir, 'manifest.json'));
+});
+
+app.get('/sw.js', (_req, res) => {
+  res.set({
+    'Content-Type': 'application/javascript; charset=utf-8',
+    'Service-Worker-Allowed': '/',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+  });
+  res.sendFile(path.join(publicDir, 'sw.js'));
+});
+
 // Static files from public directory with proper PWA headers
 app.use(express.static(path.resolve(process.cwd(), 'public'), {
   setHeaders: (res, filePath) => {
