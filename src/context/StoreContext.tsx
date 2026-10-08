@@ -51,6 +51,7 @@ import { playNewOrderChime } from '../utils/audioNotification';
 import { auth, db } from '../lib/firebase';
 import {
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
   RecaptchaVerifier,
@@ -228,6 +229,7 @@ interface StoreContextType {
   isAdminLoginModalOpen: boolean;
   setIsAdminLoginModalOpen: (open: boolean) => void;
   loginAdmin: (emailOrPin: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  resetAdminPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   logoutAdmin: () => void;
   isOrdersDashboardOpen: boolean;
   setIsOrdersDashboardOpen: (open: boolean) => void;
@@ -329,15 +331,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Detect Seller mode from URL (e.g. ?app=seller, /seller, /admin, ?admin=portal)
   const [isSellerMode, setIsSellerMode] = useState<boolean>(() => {
     try {
-      const url = new URL(window.location.href);
-      return (
-        url.searchParams.get('app') === 'seller' ||
-        url.searchParams.get('admin') === 'portal' ||
-        url.searchParams.get('admin') === 'true' ||
-        url.searchParams.get('view') === 'admin' ||
-        url.pathname.startsWith('/seller') ||
-        url.pathname.startsWith('/admin')
-      );
+      const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+      return pathname === '/seller' || pathname === '/admin';
     } catch {
       return false;
     }
@@ -937,8 +932,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       let msg = 'Authentication failed. Please verify your administrator credentials.';
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         msg = 'Invalid administrator email or password.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        msg = 'Firebase Email/Password sign-in disabled hai. Firebase Authentication mein Email/Password enable karein.';
+      } else if (err.code === 'auth/user-disabled') {
+        msg = 'Ye Firebase admin account disabled hai.';
       }
       return { success: false, error: msg };
+    }
+  };
+
+  const resetAdminPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      if (!cleanEmail || !cleanEmail.includes('@')) {
+        return { success: false, error: 'Valid administrator email enter karein.' };
+      }
+      await sendPasswordResetEmail(auth, cleanEmail);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Admin password reset failure:', err);
+      if (err.code === 'auth/user-not-found') {
+        return { success: false, error: 'Is email ka Firebase account abhi bana hua nahi hai. Pehle Firebase Authentication mein is email ka user create karein.' };
+      }
+      if (err.code === 'auth/operation-not-allowed') {
+        return { success: false, error: 'Firebase Email/Password sign-in disabled hai. Firebase Authentication mein Email/Password enable karein.' };
+      }
+      return { success: false, error: err.message || 'Password reset email send nahi ho saka.' };
     }
   };
 
