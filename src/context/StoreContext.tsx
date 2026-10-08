@@ -55,6 +55,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
   updateProfile,
@@ -62,7 +63,12 @@ import {
 import {
   doc,
   getDoc,
+  getDocs,
   setDoc,
+  collection,
+  query,
+  where,
+  orderBy,
 } from 'firebase/firestore';
 
 interface StoreContextType {
@@ -201,6 +207,7 @@ interface StoreContextType {
   currentUser: CustomerUser | null;
   signupUser: (data: { fullName: string; email: string; password: string }) => Promise<{ success: boolean; error?: string }>;
   loginUser: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  resetCustomerPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   logoutUser: () => void;
   addSavedAddress: (label: string, address: string) => void;
@@ -810,25 +817,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Orders Fetch & Sound Trigger
   const fetchOrders = async () => {
     try {
-      const res = await fetch('/api/orders', { headers: await getAuthHeaders() });
-      if (res.ok) {
-        const data: Order[] = await res.json();
-        if (data.length > previousOrderCountRef.current && previousOrderCountRef.current > 0) {
-          if (settings.orderNotificationSound !== false) {
-            playNewOrderChime();
+      const user = auth.currentUser;
+      if (!user) {
+        setAllOrders([]);
+        return;
+      }
+      const snap = isAdmin
+        ? await getDocs(query(collection(db, 'orders'), orderBy('date', 'desc')))
+        : await getDocs(query(
+            collection(db, 'orders'),
+            where('customer.uid', '==', user.uid),
+            orderBy('date', 'desc')
+          ));
+      const data: Order[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }));
+      if (data.length > previousOrderCountRef.current && previousOrderCountRef.current > 0) {
+        if (settings.orderNotificationSound !== false) {
+          playNewOrderChime();
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('🍗 New KFC Chakwal Order', {
+              body: 'New order #' + (data[0]?.id || '') + ' received.',
+              icon: '/icon-192.png',
+            });
           }
         }
-        previousOrderCountRef.current = data.length;
-        setAllOrders(data);
-      } else if (res.status === 401 || res.status === 403) {
-        setAllOrders([]);
       }
-    } catch {}
+      previousOrderCountRef.current = data.length;
+      setAllOrders(data);
+    } catch (error) {
+      console.warn('Orders Firestore sync notice:', error);
+    }
   };
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 8000);
+    const interval = setInterval(fetchOrders, 3000);
     return () => clearInterval(interval);
   }, [settings.orderNotificationSound]);
 
@@ -882,18 +904,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
-    const res = await fetch(`/api/orders/${orderId}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-      body: JSON.stringify({ status }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Order status update failed.');
-    setAllOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: data.status } : o))
-    );
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    await setDoc(doc(db, 'orders', orderId), { status, updatedAt: new Date().toISOString() }, { merge: true });
+    setAllOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
     if (activeOrder && activeOrder.id === orderId) {
-      setActiveOrder((prev) => (prev ? { ...prev, status: data.status } : null));
+      setActiveOrder((prev) => (prev ? { ...prev, status } : null));
     }
   };
 
@@ -1333,27 +1348,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       status: 'confirmed',
     };
 
-    const token = await auth.currentUser.getIdToken();
-    const response = await fetch('/api/orders', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        ...draftOrder,
-        deliveryMethodId: selectedDeliveryMethodId,
-        discountCode: appliedDiscountCode || undefined,
-        redeemLoyaltyPoints: requestedLoyaltyDiscount > 0,
-      }),
+    const user = auth.currentUser;
+    if (!user) throw new Error('Please sign in before placing your order.');
+
+    const savedOrder: Order = {
+      ...draftOrder,
+      customer: {
+        ...draftOrder.customer,
+        uid: user.uid,
+      } as CustomerDetails & { uid: string },
+    } as Order;
+
+    await setDoc(doc(db, 'orders', savedOrder.id), {
+      ...savedOrder,
+      createdAt: new Date().toISOString(),
+      deliveryMethodId: selectedDeliveryMethodId,
+      discountCode: appliedDiscountCode || null,
+      redeemLoyaltyPoints: requestedLoyaltyDiscount > 0,
     });
-
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(result.error || 'Order could not be placed. Please try again.');
-    }
-
-    const savedOrder: Order = { ...draftOrder, ...result };
 
     // Only update local customer/order state after the server has accepted the order.
     const earnedPoints = Number(savedOrder.loyaltyPointsEarned || 0);
@@ -1500,6 +1512,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentUser(profile);
     localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(profile));
     return profile;
+  };
+
+  const resetCustomerPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      if (!cleanEmail || !cleanEmail.includes('@')) return { success: false, error: 'Pehle apni valid email/Gmail ID enter karein.' };
+      await sendPasswordResetEmail(auth, cleanEmail);
+      return { success: true };
+    } catch (err: any) {
+      if (err?.code === 'auth/user-not-found') return { success: false, error: 'Is email par koi account nahi mila.' };
+      if (err?.code === 'auth/invalid-email') return { success: false, error: 'Email address valid nahi hai.' };
+      return { success: false, error: err?.message || 'Password reset email send nahi ho saki.' };
+    }
   };
 
   const signInWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
@@ -2226,6 +2251,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentUser,
         signupUser,
         loginUser,
+        resetCustomerPassword,
         signInWithGoogle,
         logoutUser,
         addSavedAddress,
