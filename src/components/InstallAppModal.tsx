@@ -120,6 +120,18 @@ export const InstallAppModal: React.FC = () => {
       return;
     }
 
+    // AI Studio and other embedded previews cannot complete a PWA installation
+    // from inside their iframe. Move the customer to the real top-level app
+    // immediately from the same user gesture, where Chrome can show the native
+    // installation prompt / three-dot Install app option.
+    if (isInIframe) {
+      const opened = window.open(getCustomerUrl(), '_blank', 'noopener,noreferrer');
+      if (!opened) {
+        window.top?.location.assign(getCustomerUrl());
+      }
+      return;
+    }
+
     const prompt = ((window as any).deferredPrompt as BeforeInstallPromptEvent | null) || deferredPrompt;
 
     if (prompt) {
