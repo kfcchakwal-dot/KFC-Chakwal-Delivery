@@ -1896,12 +1896,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       localStorage.setItem(ALL_ORDERS_KEY, JSON.stringify(next));
       const target = next.find((o) => o.id === orderId);
-      if (target) {
-        fetch('/api/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(target),
-        }).catch(() => {});
+      if (target && auth.currentUser) {
+        const safeTarget = JSON.parse(JSON.stringify(target));
+        setDoc(doc(db, 'orders', target.id), {
+          ...safeTarget,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true }).catch(() => {});
       }
       return next;
     });
