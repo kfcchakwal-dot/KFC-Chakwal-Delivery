@@ -387,10 +387,7 @@ export const ShopifyAdminApp: React.FC = () => {
             <button
               type="button"
               onClick={() => {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('app');
-                url.searchParams.delete('admin');
-                window.location.href = url.origin + url.pathname;
+                window.location.href = new URL('/', window.location.origin).toString();
               }}
               className="text-xs font-bold text-zinc-500 hover:text-[#e4002b] transition flex items-center justify-center gap-1 mx-auto"
             >
