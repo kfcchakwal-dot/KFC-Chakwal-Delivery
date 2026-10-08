@@ -75,6 +75,7 @@ import { OrderEditModal } from './OrderEditModal';
 import { BulkProductEditor } from './BulkProductEditor';
 import { CategoryId, MenuItem, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
 import { KFC_CATEGORIES } from '../../data/kfcMenu';
+import { auth } from '../../lib/firebase';
 
 type SellerTab = 
   | 'dashboard'
@@ -152,10 +153,80 @@ export const ShopifyAdminApp: React.FC = () => {
   const [sellerEmail, setSellerEmail] = useState('');
   const [sellerPassword, setSellerPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [adminUsers, setAdminUsers] = useState<Array<{ uid: string; email: string; name?: string; role?: string; active?: boolean }>>([]);
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [adminUserBusy, setAdminUserBusy] = useState(false);
+  const [adminUserNotice, setAdminUserNotice] = useState('');
   const [activeTab, setActiveTab] = useState<SellerTab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState<CategoryId | 'all'>('all');
+
+  const loadAdminUsers = async () => {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) return;
+      const response = await fetch('/api/admin/users', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return;
+      setAdminUsers(await response.json());
+    } catch (error) {
+      console.warn('Admin users load failed:', error);
+    }
+  };
+
+  const addAdminUserFromPanel = async () => {
+    if (!newAdminEmail.trim()) {
+      setAdminUserNotice('Email required hai.');
+      return;
+    }
+    setAdminUserBusy(true);
+    setAdminUserNotice('');
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Admin session expired. Dobara sign in karein.');
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: newAdminEmail.trim(), name: newAdminName.trim(), role: 'admin' }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Admin user add nahi ho saka.');
+      setNewAdminName('');
+      setNewAdminEmail('');
+      setAdminUserNotice(`${data.email} ko Admin access de diya gaya.`);
+      await loadAdminUsers();
+    } catch (error: any) {
+      setAdminUserNotice(error?.message || 'Admin user add nahi ho saka.');
+    } finally {
+      setAdminUserBusy(false);
+    }
+  };
+
+  const toggleAdminUser = async (uid: string, active: boolean) => {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Admin session expired.');
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ active }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Status update failed.');
+      await loadAdminUsers();
+    } catch (error: any) {
+      setAdminUserNotice(error?.message || 'Status update failed.');
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin && activeTab === 'settings') {
+      void loadAdminUsers();
+    }
+  }, [isAdmin, activeTab]);
 
   // Products sub-tabs inside products section
   const [productSubTab, setProductSubTab] = useState<'catalog' | 'bulk-editor' | 'inventory' | 'collections' | 'bulk-csv' | 'media-pdf' | 'meta-ads'>('catalog');
@@ -2666,6 +2737,69 @@ export const ShopifyAdminApp: React.FC = () => {
                     aspectRatio="wide"
                     helperText="Upload custom banner image displayed at the top of the customer store."
                   />
+                </div>
+              </div>
+
+              {/* Admin Team Access */}
+              <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <div>
+                  <h3 className="font-bold text-sm text-zinc-900 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-[#e4002b]" />
+                    <span>Admin Team Access</span>
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 mt-1">
+                    Pehle Firebase Authentication mein user ka Email/Password account bana dein. Phir yahan usi email ko Admin access dein.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <input
+                    value={newAdminName}
+                    onChange={(e) => setNewAdminName(e.target.value)}
+                    placeholder="User name"
+                    className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs"
+                  />
+                  <input
+                    type="email"
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={addAdminUserFromPanel}
+                    disabled={adminUserBusy}
+                    className="bg-[#e4002b] hover:bg-[#c30025] disabled:opacity-50 text-white font-bold rounded-xl px-4 py-2 text-xs"
+                  >
+                    {adminUserBusy ? 'Adding...' : 'Give Admin Access'}
+                  </button>
+                </div>
+
+                {adminUserNotice && (
+                  <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-xs font-semibold text-zinc-700">
+                    {adminUserNotice}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {adminUsers.length === 0 ? (
+                    <p className="text-xs text-zinc-400">No admin users loaded.</p>
+                  ) : adminUsers.map((user) => (
+                    <div key={user.uid} className="flex items-center justify-between gap-3 border border-zinc-100 rounded-xl px-3 py-2.5">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-zinc-900 truncate">{user.name || user.email}</p>
+                        <p className="text-[10px] text-zinc-500 truncate">{user.email}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleAdminUser(user.uid, user.active === false)}
+                        className={`text-[10px] font-bold px-3 py-1.5 rounded-lg ${user.active === false ? 'bg-zinc-100 text-zinc-600' : 'bg-emerald-50 text-emerald-700'}`}
+                      >
+                        {user.active === false ? 'Enable' : 'Active'}
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
 
