@@ -28,6 +28,7 @@ export const CustomerAuthModal: React.FC = () => {
     currentUser,
     signupUser,
     loginUser,
+    resetCustomerPassword,
     signInWithGoogle,
     logoutUser,
     addSavedAddress,
@@ -48,6 +49,8 @@ export const CustomerAuthModal: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [signupError, setSignupError] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
@@ -508,7 +511,33 @@ export const CustomerAuthModal: React.FC = () => {
                   <label className={`block mb-1 font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
                     {settings.customerAuthCopy?.passwordLabel || 'Password'}
                   </label>
-                  <input type="password" required autoComplete="current-password" placeholder="••••••••" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
+                  <div className="relative">
+                    <input type={showLoginPassword ? 'text' : 'password'} required autoComplete="current-password" placeholder="••••••••" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className={`w-full text-xs rounded-xl px-3.5 py-2.5 pr-20 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
+                    <button type="button" onClick={() => setShowLoginPassword((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-[#e4002b] px-2 py-1 cursor-pointer">
+                      {showLoginPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-end -mt-1">
+                    <button
+                      type="button"
+                      disabled={resetBusy || !loginEmail.trim()}
+                      onClick={async () => {
+                        setLoginError('');
+                        setAuthNotice('');
+                        setResetBusy(true);
+                        const result = await resetCustomerPassword(loginEmail);
+                        setResetBusy(false);
+                        if (result.success) {
+                          setAuthNotice('Password reset email bhej di gayi hai. Apni email/Spam folder check karein aur link se naya password set karein.');
+                        } else {
+                          setLoginError(result.error || 'Password reset nahi ho saka.');
+                        }
+                      }}
+                      className="text-[11px] font-bold text-[#e4002b] hover:underline disabled:opacity-40 cursor-pointer"
+                    >
+                      {resetBusy ? 'Sending...' : 'Forgot Password?'}
+                    </button>
+                  </div>
                 </div>
                 <button type="submit" disabled={authBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
                   <span>{authBusy ? 'Please wait...' : (settings.customerAuthCopy?.signInButtonText || 'Sign In')}</span>
