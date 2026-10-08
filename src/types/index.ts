@@ -207,6 +207,20 @@ export interface StoreSettings {
   autoReview?: AutoReviewConfig;
   adminUsers?: { id: string; name: string; email: string; role: 'Super Admin' | 'Manager'; addedAt: string }[];
   homepageVideo?: { enabled: boolean; videoUrl: string; title: string; subtitle: string; position: 'top' | 'middle' | 'bottom' };
+  customerAuthCopy?: {
+    title: string;
+    subtitle: string;
+    googleButtonText: string;
+    emailLabel: string;
+    emailPlaceholder: string;
+    passwordLabel: string;
+    signInButtonText: string;
+    newAccountText: string;
+    fullNameLabel: string;
+    createAccountButtonText: string;
+    verificationMessage: string;
+    helperText: string;
+  };
 }
 
 export interface CustomDomainConfig {
