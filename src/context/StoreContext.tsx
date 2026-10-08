@@ -1360,13 +1360,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } as CustomerDetails & { uid: string },
     } as Order;
 
-    await setDoc(doc(db, 'orders', savedOrder.id), {
+    const firestoreOrder = JSON.parse(JSON.stringify({
       ...savedOrder,
       createdAt: new Date().toISOString(),
       deliveryMethodId: selectedDeliveryMethodId,
       discountCode: appliedDiscountCode || null,
       redeemLoyaltyPoints: requestedLoyaltyDiscount > 0,
-    });
+    }));
+    await setDoc(doc(db, 'orders', savedOrder.id), firestoreOrder);
 
     // Only update local customer/order state after the server has accepted the order.
     const earnedPoints = Number(savedOrder.loyaltyPointsEarned || 0);
