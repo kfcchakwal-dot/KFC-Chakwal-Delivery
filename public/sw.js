@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kfc-chakwal-v4';
+const CACHE_NAME = 'kfc-chakwal-v5';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -38,8 +38,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // API, manifest and service-worker script must always use the network.
-  // This prevents stale application metadata from breaking PWA updates/installability.
+  // Never let the service worker cache API, manifest or itself.
   if (
     url.pathname.startsWith('/api/') ||
     url.pathname === '/manifest.json' ||
@@ -48,33 +47,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // HTML/navigation is network-first so Chrome always sees the latest
+  // manifest/app metadata after a deployment. Fall back to cached shell offline.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached and update in background
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-          }
-        }).catch(() => {});
-        return cachedResponse;
-      }
-
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-          return networkResponse;
+      const networkRequest = fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
         }
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
         return networkResponse;
-      }).catch(() => {
-        // If offline and requesting navigation, return index.html
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
-      });
+      }).catch(() => cachedResponse);
+
+      return cachedResponse || networkRequest;
     })
   );
 });
