@@ -20,7 +20,6 @@ import { InstallAppModal } from './components/InstallAppModal';
 const ShopifyAdminApp = lazy(() => import('./components/admin/ShopifyAdminApp').then((module) => ({ default: module.ShopifyAdminApp })));
 import { Preloader } from './components/Preloader';
 import { DailyDealsSection } from './components/DailyDealsSection';
-import { HomepageVideoSection } from './components/HomepageVideoSection';
 import { LoyaltyPointsBanner } from './components/LoyaltyPointsBanner';
 import { PoliciesModal } from './components/PoliciesModal';
 import { DailyDealsPopupModal } from './components/DailyDealsPopupModal';
@@ -274,9 +273,6 @@ const MainShop: React.FC = () => {
           {/* Daily 5 Random Meal Box Specials with Flat 4% OFF */}
           <DailyDealsSection />
 
-          {/* Featured Homepage Brand Video Section */}
-          <HomepageVideoSection />
-
           {/* Dynamic Page Sections - e.g. Image with Text placeholders placed by Admin */}
           <PageSectionsRenderer page="home" />
 
@@ -444,7 +440,7 @@ const MainShop: React.FC = () => {
             <p className="mt-2 text-sm text-zinc-600">Kya aap app se exit karna chahte hain?</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button type="button" onClick={() => setIsExitConfirmOpen(false)} className="rounded-xl border border-zinc-300 px-4 py-3 text-sm font-bold text-zinc-700">Nahi, yahin rahen</button>
-              <button type="button" onClick={() => { allowExitRef.current = true; setIsExitConfirmOpen(false); window.history.back(); }} className="rounded-xl bg-[#e4002b] px-4 py-3 text-sm font-black text-white">Haan, Exit</button>
+              <button type="button" onClick={() => { allowExitRef.current = true; setIsExitConfirmOpen(false); window.close(); window.location.replace('about:blank'); }} className="rounded-xl bg-[#e4002b] px-4 py-3 text-sm font-black text-white">Haan, Exit</button>
             </div>
           </div>
         </div>
