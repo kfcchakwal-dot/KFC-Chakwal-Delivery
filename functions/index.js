@@ -184,6 +184,8 @@ exports.queueReviewRequests = onSchedule(
 
     for (const orderDoc of ordersSnapshot.docs) {
       const order = orderDoc.data() || {};
+      // Review requests are only for registered customers, as configured in the admin workflow.
+      if (!order.customer?.uid) continue;
       const deliveredAt = Date.parse(order.updatedAt || order.date || '');
       if (!Number.isFinite(deliveredAt) || deliveredAt > cutoff) continue;
       const requestRef = db.collection('reviewRequests').doc(orderDoc.id);
