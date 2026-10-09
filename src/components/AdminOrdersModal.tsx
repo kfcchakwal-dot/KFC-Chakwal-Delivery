@@ -187,7 +187,7 @@ export const AdminOrdersModal: React.FC = () => {
     // and attach the saved file manually in that chat.
     const phone = getWhatsAppPhone(order);
     if (phone) window.open(`https://wa.me/${phone}?text=${encodeURIComponent('Assalam o Alaikum! KFC Chakwal order #' + order.id + ' ki thermal receipt PDF is message ke sath manually attach kar dein.')}`, '_blank', 'noopener,noreferrer');
-    handlePrintReceipt(order);
+    handlePrintReceipt(order, 'thermal');
   };
 
   const applyBulkStatus = async () => {
