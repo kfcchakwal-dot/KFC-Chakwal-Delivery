@@ -41,7 +41,6 @@ const MainShop: React.FC = () => {
     isAdmin,
     isSellerMode,
     currentView,
-    activeCategory,
     setActiveCategory,
     themeMode,
     isCartOpen,
