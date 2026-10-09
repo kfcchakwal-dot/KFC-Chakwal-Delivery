@@ -135,22 +135,22 @@ export const DiscountsManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
             <Tag className="w-5 h-5 text-[#e4002b]" />
-            <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-black text-zinc-900 uppercase tracking-tight">
               Discounts & Promotions
             </h2>
           </div>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-xs text-zinc-600 mt-1">
             Create discount codes (e.g. KFC50) or automatic cart discounts for your Chakwal customers.
           </p>
         </div>
 
         <button
           onClick={openCreateModal}
-          className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-red-950/40 cursor-pointer transition active:scale-95 shrink-0"
+          className="bg-[#e4002b] hover:bg-[#c30025] text-zinc-900 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-red-950/40 cursor-pointer transition active:scale-95 shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Create Discount</span>
@@ -159,39 +159,39 @@ export const DiscountsManager: React.FC = () => {
 
       {/* Metrics Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-[#18181d] border border-[#2b2b35] p-4 rounded-2xl">
-          <span className="text-[11px] text-zinc-400 font-semibold block uppercase">Total Promotions</span>
-          <p className="text-2xl font-black text-white mt-1">{discounts.length}</p>
+        <div className="bg-[#18181d] border border-zinc-200 p-4 rounded-2xl">
+          <span className="text-[11px] text-zinc-600 font-semibold block uppercase">Total Promotions</span>
+          <p className="text-2xl font-black text-zinc-900 mt-1">{discounts.length}</p>
         </div>
 
-        <div className="bg-[#18181d] border border-[#2b2b35] p-4 rounded-2xl">
-          <span className="text-[11px] text-emerald-400 font-semibold block uppercase">Active Offers</span>
-          <p className="text-2xl font-black text-emerald-400 mt-1">{activeCount}</p>
+        <div className="bg-[#18181d] border border-zinc-200 p-4 rounded-2xl">
+          <span className="text-[11px] text-red-700 font-semibold block uppercase">Active Offers</span>
+          <p className="text-2xl font-black text-red-700 mt-1">{activeCount}</p>
         </div>
 
-        <div className="bg-[#18181d] border border-[#2b2b35] p-4 rounded-2xl">
-          <span className="text-[11px] text-indigo-400 font-semibold block uppercase">Automatic Discounts</span>
-          <p className="text-2xl font-black text-indigo-300 mt-1">
+        <div className="bg-[#18181d] border border-zinc-200 p-4 rounded-2xl">
+          <span className="text-[11px] text-red-700 font-semibold block uppercase">Automatic Discounts</span>
+          <p className="text-2xl font-black text-red-700 mt-1">
             {discounts.filter((d) => d.isAutomatic).length}
           </p>
         </div>
 
-        <div className="bg-[#18181d] border border-[#2b2b35] p-4 rounded-2xl">
-          <span className="text-[11px] text-amber-400 font-semibold block uppercase">Total Redemptions</span>
-          <p className="text-2xl font-black text-amber-300 mt-1">{totalUsedCount}</p>
+        <div className="bg-[#18181d] border border-zinc-200 p-4 rounded-2xl">
+          <span className="text-[11px] text-red-700 font-semibold block uppercase">Total Redemptions</span>
+          <p className="text-2xl font-black text-red-700 mt-1">{totalUsedCount}</p>
         </div>
       </div>
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-[#151518] p-3 rounded-2xl border border-[#26262e]">
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-3 pointer-events-none" />
+          <Search className="w-4 h-4 text-zinc-600 absolute left-3 top-3 pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search discounts by code or title..."
-            className="w-full bg-[#1c1c22] border border-[#2e2e38] text-white text-xs rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:border-[#e4002b]"
+            className="w-full bg-white border border-zinc-200 text-zinc-900 text-xs rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:border-[#e4002b]"
           />
         </div>
 
@@ -200,8 +200,8 @@ export const DiscountsManager: React.FC = () => {
             onClick={() => setFilterType('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               filterType === 'all'
-                ? 'bg-[#e4002b] text-white'
-                : 'text-zinc-400 hover:text-white bg-[#1c1c22]'
+                ? 'bg-[#e4002b] text-zinc-900'
+                : 'text-zinc-600 hover:text-zinc-900 bg-white'
             }`}
           >
             All ({discounts.length})
@@ -210,8 +210,8 @@ export const DiscountsManager: React.FC = () => {
             onClick={() => setFilterType('code')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               filterType === 'code'
-                ? 'bg-[#e4002b] text-white'
-                : 'text-zinc-400 hover:text-white bg-[#1c1c22]'
+                ? 'bg-[#e4002b] text-zinc-900'
+                : 'text-zinc-600 hover:text-zinc-900 bg-white'
             }`}
           >
             Coupon Codes ({discounts.filter((d) => !d.isAutomatic).length})
@@ -220,8 +220,8 @@ export const DiscountsManager: React.FC = () => {
             onClick={() => setFilterType('automatic')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               filterType === 'automatic'
-                ? 'bg-[#e4002b] text-white'
-                : 'text-zinc-400 hover:text-white bg-[#1c1c22]'
+                ? 'bg-[#e4002b] text-zinc-900'
+                : 'text-zinc-600 hover:text-zinc-900 bg-white'
             }`}
           >
             Automatic ({discounts.filter((d) => d.isAutomatic).length})
@@ -234,13 +234,13 @@ export const DiscountsManager: React.FC = () => {
         {filteredDiscounts.length === 0 ? (
           <div className="text-center py-12 bg-[#151518] rounded-2xl border border-[#26262e] p-6 space-y-3">
             <Tag className="w-10 h-10 text-zinc-600 mx-auto" />
-            <p className="text-sm font-bold text-white">No discounts found</p>
-            <p className="text-xs text-zinc-400">
+            <p className="text-sm font-bold text-zinc-900">No discounts found</p>
+            <p className="text-xs text-zinc-600">
               Create your first promotional code or automatic deal to increase customer orders.
             </p>
             <button
               onClick={openCreateModal}
-              className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold px-4 py-2 rounded-xl cursor-pointer"
+              className="bg-[#e4002b] hover:bg-[#c30025] text-zinc-900 text-xs font-bold px-4 py-2 rounded-xl cursor-pointer"
             >
               Add Discount Now
             </button>
@@ -253,11 +253,11 @@ export const DiscountsManager: React.FC = () => {
             return (
               <div
                 key={discount.id}
-                className="bg-[#17171c] hover:bg-[#1a1a21] border border-[#2b2b35] p-4 sm:p-5 rounded-2xl transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
+                className="bg-white hover:bg-zinc-50 border border-zinc-200 p-4 sm:p-5 rounded-2xl transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
               >
                 <div className="flex items-start sm:items-center gap-3.5">
                   <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                    isAuto ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-red-500/20 text-[#e4002b] border border-red-500/30'
+                    isAuto ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-red-500/20 text-[#e4002b] border border-red-500/30'
                   }`}>
                     {discount.type === 'percentage' && <Percent className="w-5 h-5" />}
                     {discount.type === 'fixed_amount' && <DollarSign className="w-5 h-5" />}
@@ -267,29 +267,29 @@ export const DiscountsManager: React.FC = () => {
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       {!isAuto && (
-                        <span className="font-mono font-black text-xs text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-lg tracking-wider">
+                        <span className="font-mono font-black text-xs text-red-700 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-lg tracking-wider">
                           {discount.code}
                         </span>
                       )}
 
                       {isAuto && (
-                        <span className="text-[10px] font-black uppercase text-indigo-300 bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] font-black uppercase text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
                           Automatic Discount
                         </span>
                       )}
 
                       <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
                         isActive
-                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-zinc-700/40 text-zinc-400 border border-zinc-700'
+                          ? 'bg-emerald-500/15 text-red-700 border border-emerald-500/30'
+                          : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
                       }`}>
                         {discount.status}
                       </span>
                     </div>
 
-                    <h4 className="font-bold text-white text-sm">{discount.title}</h4>
+                    <h4 className="font-bold text-zinc-900 text-sm">{discount.title}</h4>
 
-                    <p className="text-xs text-zinc-400">
+                    <p className="text-xs text-zinc-600">
                       {discount.type === 'percentage' && `${discount.value}% off cart`}
                       {discount.type === 'fixed_amount' && `Rs. ${discount.value} flat discount`}
                       {discount.type === 'free_shipping' && 'Free Chakwal express delivery'}
@@ -298,16 +298,16 @@ export const DiscountsManager: React.FC = () => {
                     </p>
 
                     {/* Start & End Date & Time Badges */}
-                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-zinc-400 font-medium">
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-zinc-600 font-medium">
                       {discount.startDate && (
-                        <span className="flex items-center gap-1 bg-zinc-800/80 px-2 py-0.5 rounded-md text-emerald-400 border border-zinc-700/50">
-                          <Calendar className="w-3 h-3 text-emerald-400" />
+                        <span className="flex items-center gap-1 bg-zinc-100 px-2 py-0.5 rounded-md text-red-700 border border-zinc-200">
+                          <Calendar className="w-3 h-3 text-red-700" />
                           <span>Start: {new Date(discount.startDate).toLocaleDateString()} {new Date(discount.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </span>
                       )}
                       {discount.endDate ? (
-                        <span className="flex items-center gap-1 bg-zinc-800/80 px-2 py-0.5 rounded-md text-amber-400 border border-zinc-700/50">
-                          <Clock className="w-3 h-3 text-amber-400" />
+                        <span className="flex items-center gap-1 bg-zinc-100 px-2 py-0.5 rounded-md text-red-700 border border-zinc-200">
+                          <Clock className="w-3 h-3 text-red-700" />
                           <span>End: {new Date(discount.endDate).toLocaleDateString()} {new Date(discount.endDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </span>
                       ) : (
@@ -322,11 +322,11 @@ export const DiscountsManager: React.FC = () => {
                   {!isAuto && (
                     <button
                       onClick={() => handleCopy(discount.code)}
-                      className="p-2 rounded-xl border border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-white cursor-pointer transition text-xs flex items-center gap-1.5"
+                      className="p-2 rounded-xl border border-zinc-200 hover:border-zinc-500 text-zinc-600 hover:text-zinc-900 cursor-pointer transition text-xs flex items-center gap-1.5"
                       title="Copy code"
                     >
                       {copiedCode === discount.code ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <Check className="w-3.5 h-3.5 text-red-700" />
                       ) : (
                         <Copy className="w-3.5 h-3.5" />
                       )}
@@ -344,7 +344,7 @@ export const DiscountsManager: React.FC = () => {
                     }
                     className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
                       isActive
-                        ? 'border-amber-500/40 text-amber-300 hover:bg-amber-500/10'
+                        ? 'border-amber-500/40 text-red-700 hover:bg-amber-500/10'
                         : 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10'
                     }`}
                   >
@@ -353,7 +353,7 @@ export const DiscountsManager: React.FC = () => {
 
                   <button
                     onClick={() => openEditModal(discount)}
-                    className="p-2 rounded-xl border border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-white cursor-pointer transition"
+                    className="p-2 rounded-xl border border-zinc-200 hover:border-zinc-500 text-zinc-600 hover:text-zinc-900 cursor-pointer transition"
                     title="Edit discount"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -379,19 +379,19 @@ export const DiscountsManager: React.FC = () => {
 
       {/* CREATE / EDIT MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#16161a] border border-[#2b2b35] rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-white/95 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-zinc-200 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="bg-[#1f1f26] px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+            <div className="bg-[#1f1f26] px-6 py-4 border-b border-zinc-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Tag className="w-4 h-4 text-[#e4002b]" />
-                <h3 className="font-bold text-white text-base">
+                <h3 className="font-bold text-zinc-900 text-base">
                   {editingDiscountId ? 'Edit Discount' : 'Create New Discount'}
                 </h3>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-zinc-400 hover:text-white p-1"
+                className="text-zinc-600 hover:text-zinc-900 p-1"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -401,7 +401,7 @@ export const DiscountsManager: React.FC = () => {
             <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
               {/* Method: Code vs Automatic */}
               <div>
-                <label className="block text-zinc-400 font-semibold mb-1.5">
+                <label className="block text-zinc-600 font-semibold mb-1.5">
                   Discount Application Method
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -410,12 +410,12 @@ export const DiscountsManager: React.FC = () => {
                     onClick={() => setIsAutomatic(false)}
                     className={`p-3 rounded-xl border text-left transition cursor-pointer ${
                       !isAutomatic
-                        ? 'border-[#e4002b] bg-[#e4002b]/10 text-white'
-                        : 'border-zinc-800 bg-[#1a1a20] text-zinc-400 hover:border-zinc-700'
+                        ? 'border-[#e4002b] bg-[#e4002b]/10 text-zinc-900'
+                        : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-200'
                     }`}
                   >
                     <span className="font-bold block text-sm">Discount Code</span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block">
+                    <span className="text-[11px] text-zinc-600 mt-0.5 block">
                       Customer enters code at checkout (e.g. KFC50)
                     </span>
                   </button>
@@ -425,12 +425,12 @@ export const DiscountsManager: React.FC = () => {
                     onClick={() => setIsAutomatic(true)}
                     className={`p-3 rounded-xl border text-left transition cursor-pointer ${
                       isAutomatic
-                        ? 'border-indigo-500 bg-indigo-500/10 text-white'
-                        : 'border-zinc-800 bg-[#1a1a20] text-zinc-400 hover:border-zinc-700'
+                        ? 'border-red-500 bg-indigo-500/10 text-zinc-900'
+                        : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-200'
                     }`}
                   >
                     <span className="font-bold block text-sm">Automatic Deal</span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block">
+                    <span className="text-[11px] text-zinc-600 mt-0.5 block">
                       Applies automatically if cart meets min order
                     </span>
                   </button>
@@ -440,7 +440,7 @@ export const DiscountsManager: React.FC = () => {
               {/* Code (if not automatic) */}
               {!isAutomatic && (
                 <div>
-                  <label className="block text-zinc-400 font-semibold mb-1">
+                  <label className="block text-zinc-600 font-semibold mb-1">
                     Discount Code *
                   </label>
                   <input
@@ -448,7 +448,7 @@ export const DiscountsManager: React.FC = () => {
                     value={code}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
                     placeholder="e.g. KFC50, CHAKWAL10"
-                    className="w-full bg-[#121215] border border-[#2b2b35] text-amber-300 font-mono font-bold text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
+                    className="w-full bg-white border border-zinc-200 text-red-700 font-mono font-bold text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
                     required={!isAutomatic}
                   />
                 </div>
@@ -456,7 +456,7 @@ export const DiscountsManager: React.FC = () => {
 
               {/* Title / Description */}
               <div>
-                <label className="block text-zinc-400 font-semibold mb-1">
+                <label className="block text-zinc-600 font-semibold mb-1">
                   Title / Description *
                 </label>
                 <input
@@ -464,7 +464,7 @@ export const DiscountsManager: React.FC = () => {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Rs. 50 Off First Order or 10% Off Family Buckets"
-                  className="w-full bg-[#121215] border border-[#2b2b35] text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
+                  className="w-full bg-white border border-zinc-200 text-zinc-900 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
                   required
                 />
               </div>
@@ -472,13 +472,13 @@ export const DiscountsManager: React.FC = () => {
               {/* Type & Value */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-zinc-400 font-semibold mb-1">
+                  <label className="block text-zinc-600 font-semibold mb-1">
                     Discount Type
                   </label>
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value as DiscountType)}
-                    className="w-full bg-[#121215] border border-[#2b2b35] text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
+                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
                   >
                     <option value="percentage">Percentage (%)</option>
                     <option value="fixed_amount">Fixed Amount (PKR)</option>
@@ -488,7 +488,7 @@ export const DiscountsManager: React.FC = () => {
 
                 {type !== 'free_shipping' && (
                   <div>
-                    <label className="block text-zinc-400 font-semibold mb-1">
+                    <label className="block text-zinc-600 font-semibold mb-1">
                       {type === 'percentage' ? 'Percentage (%)' : 'Amount in PKR'} *
                     </label>
                     <input
@@ -497,7 +497,7 @@ export const DiscountsManager: React.FC = () => {
                       onChange={(e) => setValue(Number(e.target.value))}
                       min={1}
                       max={type === 'percentage' ? 100 : 10000}
-                      className="w-full bg-[#121215] border border-[#2b2b35] text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
+                      className="w-full bg-white border border-zinc-200 text-zinc-900 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
                       required
                     />
                   </div>
@@ -506,7 +506,7 @@ export const DiscountsManager: React.FC = () => {
 
               {/* Minimum Order Amount */}
               <div>
-                <label className="block text-zinc-400 font-semibold mb-1">
+                <label className="block text-zinc-600 font-semibold mb-1">
                   Minimum Purchase Amount (PKR)
                 </label>
                 <input
@@ -514,7 +514,7 @@ export const DiscountsManager: React.FC = () => {
                   value={minOrderAmount}
                   onChange={(e) => setMinOrderAmount(Number(e.target.value))}
                   placeholder="e.g. 1000 (0 for no minimum)"
-                  className="w-full bg-[#121215] border border-[#2b2b35] text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
+                  className="w-full bg-white border border-zinc-200 text-zinc-900 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
                 />
                 <span className="text-[10px] text-zinc-500 mt-1 block">
                   Only carts with a subtotal equal to or above this amount will get the discount.
@@ -522,26 +522,26 @@ export const DiscountsManager: React.FC = () => {
               </div>
 
               {/* Start & End Date and Time */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-[#101014] rounded-xl border border-zinc-800">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-[#101014] rounded-xl border border-zinc-200">
                 <div>
-                  <label className="block text-zinc-400 font-semibold mb-1 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                  <label className="block text-zinc-600 font-semibold mb-1 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-red-700" />
                     <span>Start Date & Time *</span>
                   </label>
                   <input
                     type="datetime-local"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full bg-[#16161c] border border-zinc-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#e4002b]"
+                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#e4002b]"
                     required
                   />
                   <span className="text-[10px] text-zinc-500 mt-1 block">Offer kab shuru hogi</span>
                 </div>
 
                 <div>
-                  <label className="block text-zinc-400 font-semibold mb-1 flex items-center justify-between">
+                  <label className="block text-zinc-600 font-semibold mb-1 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      <Clock className="w-3.5 h-3.5 text-red-700" />
                       <span>End Date & Time</span>
                     </span>
                     {endDate && (
@@ -558,7 +558,7 @@ export const DiscountsManager: React.FC = () => {
                     type="datetime-local"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full bg-[#16161c] border border-zinc-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#e4002b]"
+                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#e4002b]"
                   />
                   <span className="text-[10px] text-zinc-500 mt-1 block">Khali rakhein agar expire na karni ho</span>
                 </div>
@@ -566,13 +566,13 @@ export const DiscountsManager: React.FC = () => {
 
               {/* Status */}
               <div>
-                <label className="block text-zinc-400 font-semibold mb-1">
+                <label className="block text-zinc-600 font-semibold mb-1">
                   Status
                 </label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as 'active' | 'expired')}
-                  className="w-full bg-[#121215] border border-[#2b2b35] text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
+                  className="w-full bg-white border border-zinc-200 text-zinc-900 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b]"
                 >
                   <option value="active">Active (Available for customers)</option>
                   <option value="expired">Expired / Inactive</option>
@@ -580,17 +580,17 @@ export const DiscountsManager: React.FC = () => {
               </div>
 
               {/* Submit Buttons */}
-              <div className="pt-4 border-t border-zinc-800 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-zinc-200 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-zinc-400 hover:text-white bg-[#1a1a20] cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-zinc-600 hover:text-zinc-900 bg-white cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#e4002b] hover:bg-[#c30025] text-white font-bold px-5 py-2 rounded-xl cursor-pointer transition active:scale-95"
+                  className="bg-[#e4002b] hover:bg-[#c30025] text-zinc-900 font-bold px-5 py-2 rounded-xl cursor-pointer transition active:scale-95"
                 >
                   {editingDiscountId ? 'Save Changes' : 'Create Discount'}
                 </button>
