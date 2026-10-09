@@ -33,6 +33,7 @@ export const AdminOrdersModal: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<Order['status']>('kitchen');
+  const [bulkActionMessage, setBulkActionMessage] = useState('');
 
   if (!isOrdersDashboardOpen) return null;
 
@@ -93,7 +94,9 @@ export const AdminOrdersModal: React.FC = () => {
           <p><strong>Customer:</strong> ${order.customer.fullName}</p>
           <p><strong>Phone:</strong> ${order.customer.phone}</p>
           <p><strong>Area:</strong> ${order.customer.area || 'Chakwal'}</p>
-          <p><strong>Address:</strong> ${order.customer.address}</p>
+          <p><strong>Address:</strong> ${order.customer.address || 'Pickup / not provided'}</p>
+          <p><strong>Order Type:</strong> ${order.orderType === 'self_pickup' ? 'Takeaway / Pickup' : 'Delivery'}</p>
+          ${order.customer.email ? `<p><strong>Email:</strong> ${order.customer.email}</p>` : ''}
           ${order.customer.landmark ? `<p><strong>Landmark:</strong> ${order.customer.landmark}</p>` : ''}
           ${order.customer.notes ? `<p><strong>Notes:</strong> ${order.customer.notes}</p>` : ''}
           <hr/>
@@ -108,7 +111,12 @@ export const AdminOrdersModal: React.FC = () => {
           <hr/>
           <table>
             <tr><td>Subtotal:</td><td style="text-align: right;">${formatPKR(order.subtotal)}</td></tr>
-            <tr><td>Delivery Fee:</td><td style="text-align: right;">${formatPKR(order.deliveryFee)}</td></tr>
+            <tr><td>Discount:</td><td style="text-align: right;">-${formatPKR(order.discount || 0)}</td></tr>
+            <tr><td>VIP Discount:</td><td style="text-align: right;">-${formatPKR(order.vipDiscount || 0)}</td></tr>
+            <tr><td>Loyalty Discount:</td><td style="text-align: right;">-${formatPKR(order.loyaltyDiscount || 0)}</td></tr>
+            <tr><td>Tax (${order.taxPercentage || 0}%):</td><td style="text-align: right;">${formatPKR(order.taxAmount || 0)}</td></tr>
+            <tr><td>Service Charge (${order.serviceChargePercentage || 0}%):</td><td style="text-align: right;">${formatPKR(order.serviceChargeAmount || 0)}</td></tr>
+            <tr><td>Delivery Fee:</td><td style="text-align: right;">${formatPKR(order.deliveryFee || 0)}</td></tr>
             <tr><td><strong>Total Amount:</strong></td><td style="text-align: right; font-size: 14px;"><strong>${formatPKR(order.total)}</strong></td></tr>
             <tr><td>Payment:</td><td style="text-align: right;">${order.paymentMethod.toUpperCase()}</td></tr>
           </table>
@@ -189,8 +197,14 @@ export const AdminOrdersModal: React.FC = () => {
 
   const applyBulkStatus = async () => {
     if (!selectedOrderIds.length) return;
-    for (const id of [...selectedOrderIds]) await updateOrderStatus(id, bulkStatus);
-    setSelectedOrderIds([]);
+    try {
+      const ids = [...selectedOrderIds];
+      for (const id of ids) await updateOrderStatus(id, bulkStatus);
+      setSelectedOrderIds([]);
+      setBulkActionMessage(`Updated ${ids.length} orders to ${bulkStatus}.`);
+    } catch (error: any) {
+      setBulkActionMessage('Some orders could not be updated: ' + (error?.message || 'Please refresh and retry.'));
+    }
   };
 
   return (
@@ -275,6 +289,7 @@ export const AdminOrdersModal: React.FC = () => {
           <button type="button" disabled={!selectedOrderIds.length} onClick={applyBulkStatus} className="rounded-lg bg-[#e4002b] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Apply status to selected</button>
         </div>
 
+        {bulkActionMessage && <div role="status" className="mx-4 mt-3 rounded-lg border border-emerald-700/40 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-300">{bulkActionMessage}</div>}
         {/* Orders List */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
           {filteredOrders.length === 0 ? (
