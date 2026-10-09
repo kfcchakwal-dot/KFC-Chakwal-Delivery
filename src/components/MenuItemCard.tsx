@@ -122,7 +122,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
       }`}
     >
       {/* Card Top: Image & Badges */}
-      <div className="relative aspect-[4/3] w-full bg-[#111113] overflow-hidden flex items-center justify-center">
+      <div className="relative aspect-[4/3] w-full bg-zinc-100 overflow-hidden flex items-center justify-center">
         {item.image ? (
           <img
             src={item.image}
@@ -182,45 +182,19 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
           )}
         </div>
 
-        {/* Card Top Right Actions: Share & Wishlist */}
-        <div className="absolute top-2 right-2 flex items-center gap-1 z-20">
-          {/* Share Button */}
-          <button
-            type="button"
-            onClick={handleShare}
-            className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-all cursor-pointer shadow-md ${
-              copiedShare
-                ? 'bg-emerald-600 text-white'
-                : 'bg-black/60 text-white hover:bg-black/80 hover:text-white'
-            }`}
-            title={copiedShare ? 'Link copied!' : `Share ${item.name}`}
-            aria-label={`Share ${item.name}`}
-          >
-            {copiedShare ? (
-              <Check className="w-3.5 h-3.5 text-white" />
-            ) : (
-              <Share2 className="w-3.5 h-3.5" />
-            )}
-          </button>
-
-          {/* Wishlist toggle */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleWishlist(item.id);
-            }}
-            className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-all cursor-pointer ${
-              isFavorite
-                ? 'bg-[#e4002b] text-white shadow-md'
-                : 'bg-black/60 text-white hover:text-white hover:bg-black/80'
-            }`}
-            title={isFavorite ? 'Remove from wishlist' : 'Save to wishlist'}
-            aria-label="Save to wishlist"
-          >
-            <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
-          </button>
-        </div>
+        {/* Wishlist stays on the image; sharing is placed at the card footer. */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleWishlist(item.id);
+          }}
+          className={`absolute top-2 right-2 z-20 p-2 rounded-full shadow-md ${isFavorite ? 'bg-[#e4002b] text-white' : 'bg-white/95 text-zinc-700'}`}
+          title={isFavorite ? 'Remove from wishlist' : 'Save to wishlist'}
+          aria-label="Save to wishlist"
+        >
+          <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
+        </button>
 
         {/* Image bottom badge */}
         <div className="absolute bottom-1.5 right-2 text-[9px] sm:text-[10px] text-zinc-300 bg-black/75 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 rounded border border-white/10 font-mono tabular-nums">
@@ -284,31 +258,36 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
             )}
           </div>
 
-          {/* Action Buttons: Customize & Add to Bucket (Comfortable 44px Mobile Touch Targets) */}
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 pt-1">
+          {/* Simple customize, purchase, and share actions */}
+          <div className="flex flex-col gap-2 pt-1">
             <button
               type="button"
               onClick={handleCustomizeUpgrade}
-              className={`min-h-[44px] text-[11px] sm:text-xs font-bold uppercase py-2 px-1.5 rounded-xl flex items-center justify-center gap-1 border transition-all cursor-pointer active:scale-95 ${
-                isDark
-                  ? 'border-[#3a3a46] bg-[#22222a] hover:bg-[#2b2b35] text-zinc-200 hover:text-white'
-                  : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-800'
-              }`}
+              className="min-h-[40px] text-[11px] sm:text-xs font-bold uppercase py-2 px-3 rounded-xl flex items-center justify-center gap-2 border border-zinc-200 bg-zinc-100 text-zinc-800 cursor-pointer active:scale-95"
               title={`Customize ${item.name}`}
               aria-label={`Customize ${item.name}`}
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />
-              <span className="truncate">Customize</span>
+              <span>Customize</span>
             </button>
-
             <button
               type="button"
               onClick={handleQuickAdd}
-              className="min-h-[44px] bg-[#e4002b] hover:bg-[#c30025] text-white text-[11px] sm:text-xs font-black uppercase py-2 px-1.5 rounded-xl flex items-center justify-center gap-1 transition-all shadow-md shadow-red-950/40 hover:shadow-red-900/60 cursor-pointer active:scale-95 shrink-0"
+              className="buy-button min-h-[44px] text-[11px] sm:text-xs font-black uppercase py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-sm"
               aria-label={`Add ${item.name} to bucket`}
             >
-              <Plus className="w-3.5 h-3.5 stroke-[3] shrink-0" />
-              <span className="truncate">Add</span>
+              <Plus className="w-4 h-4 stroke-[3] shrink-0" />
+              <span>Add to Bucket</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="min-h-[32px] w-full rounded-lg px-2 py-1.5 flex items-center justify-center gap-1.5 text-[10px] font-semibold text-zinc-600 bg-transparent border-0"
+              title={copiedShare ? 'Link copied!' : `Share ${item.name}`}
+              aria-label={`Share ${item.name}`}
+            >
+              {copiedShare ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
+              <span>{copiedShare ? 'Link copied' : 'Share product'}</span>
             </button>
           </div>
         </div>
