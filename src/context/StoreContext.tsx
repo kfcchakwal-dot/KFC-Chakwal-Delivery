@@ -49,7 +49,7 @@ import {
 } from '../data/kfcMenu';
 import { playNewOrderChime } from '../utils/audioNotification';
 import { auth, app, db, firebaseConfig } from '../lib/firebase';
-import { getMessaging, getToken, isSupported } from 'firebase/messaging';
+import { getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -74,6 +74,8 @@ import {
   where,
   orderBy,
 } from 'firebase/firestore';
+
+let adminForegroundMessageUnsubscribe: (() => void) | null = null;
 
 const getFriendlyAuthError = (error: any): string => {
   const code = String(error?.code || '');
@@ -2120,8 +2122,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!supported) throw new Error('Firebase Cloud Messaging is browser/device par supported nahi hai.');
     const vapidKey = String(settings.messagingVapidKey || (firebaseConfig as any).messagingVapidKey || '').trim();
     if (!vapidKey) throw new Error('Push setup ka ek step baqi hai: Firebase Console > Project Settings > Cloud Messaging > Web Push certificates se public key copy karke Admin panel ke VAPID field mein paste karein.');
-    const registration = await navigator.serviceWorker.ready;
+    // Register the app's root-scoped service worker explicitly. Waiting only for
+    // navigator.serviceWorker.ready can hang forever on devices where it was never registered.
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    await navigator.serviceWorker.ready;
     const messaging = getMessaging(app);
+
+    // FCM does not automatically show a system notification while the page is in
+    // the foreground, so surface it through the active service worker as well.
+    if (adminForegroundMessageUnsubscribe) adminForegroundMessageUnsubscribe();
+    adminForegroundMessageUnsubscribe = onMessage(messaging, (payload) => {
+      const title = payload.notification?.title || '🍗 New KFC Chakwal Order';
+      const body = payload.notification?.body || 'A new order has arrived.';
+      const orderId = String(payload.data?.orderId || '');
+      const targetUrl = String(payload.data?.url || '/seller');
+      void registration.showNotification(title, {
+        body,
+        icon: '/pwa-192.png',
+        badge: '/pwa-192.png',
+        tag: orderId ? 'kfc-order-' + orderId : 'kfc-new-order',
+        requireInteraction: true,
+        data: { url: targetUrl },
+      });
+    });
+
     const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
     if (!token) throw new Error('Is device ka push token nahi bana. Browser notifications allow karke dobara try karein.');
     await setDoc(doc(db, 'adminPushTokens', token), {
