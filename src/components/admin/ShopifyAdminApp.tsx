@@ -2727,8 +2727,14 @@ export const ShopifyAdminApp: React.FC = () => {
                           Edit
                         </button>
                         <button
-                          onClick={() => deletePolicy(pol.id)}
+                          onClick={async () => {
+                            if (!window.confirm(`Delete policy "${pol.title}"?`)) return;
+                            const saved = await deletePolicy(pol.id);
+                            alert(saved ? 'Policy delete ho gayi.' : 'Policy delete nahi hui. Admin login aur Firestore Rules check karein.');
+                          }}
                           className="text-red-500 hover:text-red-700 p-1"
+                          title="Delete policy"
+                          aria-label={`Delete policy ${pol.title}`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
