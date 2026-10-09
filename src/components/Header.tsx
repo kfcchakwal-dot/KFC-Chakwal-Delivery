@@ -56,6 +56,8 @@ export const Header: React.FC = () => {
   } = useStore();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isDesktopSearchFocused, setIsDesktopSearchFocused] = useState(false);
+  const [desktopSuggestionIndex, setDesktopSuggestionIndex] = useState(0);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [showTopBanner, setShowTopBanner] = useState(true);
 
@@ -69,14 +71,17 @@ export const Header: React.FC = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Live instant search matches
-  const matchingItems = searchQuery.trim().length > 0
+  // Live instant search matches. Keep this safe for imported catalogue rows with missing fields.
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+  const matchingItems = normalizedSearch
     ? menuItems.filter((item) =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        String(item.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.categoryId.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, 5)
+        String(item.name || '').toLocaleLowerCase().includes(normalizedSearch) ||
+        String(item.description || '').toLocaleLowerCase().includes(normalizedSearch) ||
+        String(item.categoryId || '').toLocaleLowerCase().includes(normalizedSearch) ||
+        String(item.brand || '').toLocaleLowerCase().includes(normalizedSearch)
+      ).slice(0, 8)
     : [];
+  const desktopSuggestions = normalizedSearch ? matchingItems : menuItems.slice(0, 5);
 
   return (
     <>
@@ -468,13 +473,25 @@ export const Header: React.FC = () => {
                 aria-expanded={searchQuery.trim().length > 0}
                 aria-controls="desktop-product-search-results"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => { setIsDesktopSearchFocused(true); setDesktopSuggestionIndex(0); }}
+                onBlur={() => { window.setTimeout(() => setIsDesktopSearchFocused(false), 160); }}
+                onChange={(e) => { setSearchQuery(e.target.value); setDesktopSuggestionIndex(0); }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Escape') setSearchQuery('');
-                  if (e.key === 'Enter' && matchingItems[0]) {
+                  if (e.key === 'Escape') { setSearchQuery(''); setIsDesktopSearchFocused(false); }
+                  if (e.key === 'ArrowDown' && desktopSuggestions.length > 0) {
                     e.preventDefault();
-                    viewProduct(matchingItems[0]);
+                    setIsDesktopSearchFocused(true);
+                    setDesktopSuggestionIndex((current) => Math.min(current + 1, desktopSuggestions.length - 1));
+                  }
+                  if (e.key === 'ArrowUp' && desktopSuggestions.length > 0) {
+                    e.preventDefault();
+                    setDesktopSuggestionIndex((current) => Math.max(current - 1, 0));
+                  }
+                  if (e.key === 'Enter' && desktopSuggestions[desktopSuggestionIndex]) {
+                    e.preventDefault();
+                    viewProduct(desktopSuggestions[desktopSuggestionIndex]);
                     setSearchQuery('');
+                    setIsDesktopSearchFocused(false);
                   }
                 }}
                 placeholder="Search products by name, description, or category..."
@@ -485,18 +502,23 @@ export const Header: React.FC = () => {
                   <X className="w-4 h-4" />
                 </button>
               )}
-              {searchQuery.trim().length > 0 && (
+              {(isDesktopSearchFocused || normalizedSearch.length > 0) && (
                 <div id="desktop-product-search-results" className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-zinc-200 shadow-2xl z-[1000] overflow-hidden bg-white max-h-[min(65vh,480px)] overflow-y-auto" role="listbox" aria-label="Product search suggestions">
-                  {matchingItems.length === 0 ? (
+                  <div className="px-4 py-2 bg-zinc-50 border-b border-zinc-100 text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                    {normalizedSearch ? `Search results (${matchingItems.length})` : 'Popular menu items'}
+                  </div>
+                  {normalizedSearch && matchingItems.length === 0 ? (
                     <div className="p-4 text-sm text-zinc-500">No products found for “{searchQuery.trim()}”. Try another name or category.</div>
-                  ) : matchingItems.map((item) => (
+                  ) : desktopSuggestions.map((item, index) => (
                     <button
                       type="button"
                       role="option"
-                      aria-selected="false"
+                      aria-selected={index === desktopSuggestionIndex}
                       key={item.id}
-                      onClick={() => { viewProduct(item); setSearchQuery(''); }}
-                      className="w-full p-3.5 flex items-center justify-between gap-4 text-left hover:bg-red-50 focus:bg-red-50 focus:outline-none border-b border-zinc-100 last:border-b-0 transition"
+                      onMouseEnter={() => setDesktopSuggestionIndex(index)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => { viewProduct(item); setSearchQuery(''); setIsDesktopSearchFocused(false); }}
+                      className={`w-full p-3.5 flex items-center justify-between gap-4 text-left border-b border-zinc-100 last:border-b-0 transition ${index === desktopSuggestionIndex ? 'bg-red-50' : 'hover:bg-red-50'}`}
                     >
                       <span className="flex items-center gap-3 min-w-0">
                         <img src={item.image || '/pwa-192.png'} alt="" className="w-12 h-12 rounded-xl object-cover bg-zinc-100 shrink-0" onError={(e) => { e.currentTarget.src = '/pwa-192.png'; }} />
@@ -508,6 +530,7 @@ export const Header: React.FC = () => {
                       <span className="text-sm font-mono font-bold text-emerald-700 shrink-0">{formatPKR(getItemEffectivePrice(item))}</span>
                     </button>
                   ))}
+                  {!normalizedSearch && <div className="px-4 py-2 text-[10px] text-zinc-400 border-t border-zinc-100">Type to filter instantly · Use ↑ ↓ and Enter to select</div>}
                 </div>
               )}
             </div>
