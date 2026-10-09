@@ -514,7 +514,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     document.documentElement.style.setProperty('--brand-primary', settings.primaryColor || '#e4002b');
     document.documentElement.style.setProperty('--brand-secondary', settings.secondaryColor || '#c30025');
-  }, [settings.primaryColor, settings.secondaryColor]);
+    document.documentElement.style.setProperty('--store-background', settings.storeBackgroundColor || '#f8f9fa');
+    document.documentElement.style.setProperty('--store-surface', settings.storeSurfaceColor || '#ffffff');
+    document.documentElement.style.setProperty('--store-text', settings.storeTextColor || '#1a1a1f');
+  }, [
+    settings.primaryColor,
+    settings.secondaryColor,
+    settings.storeBackgroundColor,
+    settings.storeSurfaceColor,
+    settings.storeTextColor,
+  ]);
 
   // Monitor Firebase Auth state for Admin and free Google/email Customer login
   useEffect(() => {
