@@ -82,3 +82,107 @@
 [data-store-theme="light"] .text-zinc-900 {
   color: var(--store-text, #1a1a1f) !important;
 }
+
+
+/* Global KFC red-and-white theme: keep every surface light and every button red. */
+:root {
+  color-scheme: light;
+  --brand-primary: #e4002b;
+  --brand-secondary: #c30025;
+}
+html, body, #root {
+  background: #ffffff !important;
+  color: #18181b;
+}
+body {
+  color-scheme: light !important;
+}
+/* Legacy dark-mode and dark utility surfaces across storefront and Seller Center. */
+[class*="bg-black"],
+[class*="bg-zinc-9"],
+[class*="bg-zinc-8"],
+[class*="bg-gray-9"],
+[class*="bg-gray-8"],
+[class*="bg-slate-9"],
+[class*="bg-slate-8"],
+[class*="bg-neutral-9"],
+[class*="bg-neutral-8"],
+[class*="bg-[#"]:not([class*="bg-[#e4002b]"]):not([class*="bg-[#c30025]"]) {
+  background-color: #ffffff !important;
+  color: #18181b !important;
+  border-color: #e4e4e7 !important;
+}
+/* Remove the remaining dark inline utility palettes and keep inputs readable. */
+[class*="bg-[#121"], [class*="bg-[#151"], [class*="bg-[#161"], [class*="bg-[#171"],
+[class*="bg-[#181"], [class*="bg-[#1a"], [class*="bg-[#1b"], [class*="bg-[#1c"],
+[class*="bg-[#202"], [class*="bg-[#252"], [class*="bg-[#272"], [class*="bg-[#2b"],
+[class*="bg-[#2c"], [class*="bg-[#2e"] {
+  background-color: #ffffff !important;
+  color: #18181b !important;
+  border-color: #e4e4e7 !important;
+}
+[class~="text-white"] {
+  color: #18181b !important;
+}
+[class*="bg-[#e4002b]"][class~="text-white"],
+[class*="bg-[#c30025]"][class~="text-white"],
+[class*="bg-[#e4002b]"] [class~="text-white"],
+[class*="bg-[#c30025]"] [class~="text-white"] {
+  color: #ffffff !important;
+}
+/* Buttons are consistently KFC red with white labels, including hover and focus states. */
+button,
+button:visited {
+  background-color: #e4002b !important;
+  color: #ffffff !important;
+  border-color: #e4002b !important;
+}
+button:hover,
+button:focus-visible {
+  background-color: #c30025 !important;
+  color: #ffffff !important;
+  border-color: #c30025 !important;
+}
+button *,
+button [class~="text-white"],
+button svg {
+  color: #ffffff !important;
+}
+input, textarea, select {
+  background-color: #ffffff !important;
+  color: #18181b !important;
+  border-color: #d4d4d8;
+}
+
+/* Neutralize legacy gray and colorful utility surfaces; cards/panels stay white. */
+[class*="bg-zinc-"], [class*="bg-gray-"], [class*="bg-slate-"], [class*="bg-neutral-"],
+[class*="bg-indigo-"], [class*="bg-emerald-"], [class*="bg-amber-"], [class*="bg-blue-"],
+[class*="bg-green-"], [class*="bg-purple-"], [class*="bg-violet-"], [class*="bg-orange-"],
+[class*="bg-teal-"], [class*="bg-cyan-"], [class*="bg-sky-"] {
+  background-color: #ffffff !important;
+}
+[class*="text-emerald-"], [class*="text-amber-"], [class*="text-indigo-"],
+[class*="text-blue-"], [class*="text-green-"], [class*="text-purple-"],
+[class*="text-violet-"], [class*="text-orange-"], [class*="text-teal-"],
+[class*="text-cyan-"], [class*="text-sky-"] {
+  color: #e4002b !important;
+}
+
+/* Keep button styling stronger than utility overrides on button class names. */
+button[class], button[class]:hover, button[class]:focus-visible {
+  background-color: #e4002b !important;
+  color: #ffffff !important;
+  border-color: #e4002b !important;
+}
+button[class] *, button[class] svg {
+  color: #ffffff !important;
+}
+button[class]:hover, button[class]:focus-visible {
+  background-color: #c30025 !important;
+  border-color: #c30025 !important;
+}
+
+/* Dialog backdrops use a soft white veil instead of a black screen. */
+.fixed[class*="bg-black"] {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+}
