@@ -25,11 +25,13 @@ export const DailyDealsPopupModal: React.FC = () => {
   };
 
   // Find daily items
-  const dailyItems = menuItems.filter((i) =>
+  const preferredDeals = menuItems.filter((i) =>
     (dailyDealConfig.selectedProductIds && dailyDealConfig.selectedProductIds.length > 0)
       ? dailyDealConfig.selectedProductIds.includes(i.id)
       : (i.isPopular || i.categoryId === 'ala-carte-combos' || i.categoryId === 'everyday-value')
-  ).slice(0, dailyDealConfig.itemCount || 5);
+  );
+  const preferredIds = new Set(preferredDeals.map((item) => item.id));
+  const dailyItems = [...preferredDeals, ...menuItems.filter((item) => !preferredIds.has(item.id))].slice(0, 6);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
@@ -53,7 +55,7 @@ export const DailyDealsPopupModal: React.FC = () => {
                 </span>
               </div>
               <h3 className="font-kfc text-2xl sm:text-3xl font-black uppercase tracking-tight leading-none mt-1">
-                {dailyDealConfig.title || "Today's Daily 5 Meal Box Specials"}
+                {dailyDealConfig.title || "Today's Daily 6 Meal Box Specials"}
               </h3>
             </div>
           </div>
@@ -75,7 +77,7 @@ export const DailyDealsPopupModal: React.FC = () => {
             <Sparkles className="w-3.5 h-3.5 text-[#e4002b]" />
             <span>Kallar Kahar Motorway Se Freshly Picked Deals</span>
           </span>
-          <span className="font-mono text-[11px] text-[#e4002b] font-bold">5 Deals Only</span>
+          <span className="font-mono text-[11px] text-[#e4002b] font-bold">6 Deals</span>
         </div>
 
         {/* Deals Items List */}

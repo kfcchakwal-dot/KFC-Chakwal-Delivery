@@ -57,95 +57,88 @@ export const AdminOrdersModal: React.FC = () => {
     return true;
   });
 
-  const handlePrintReceipt = (order: Order) => {
-    const itemsRows = order.items
-      .map(
-        (i) =>
-          `<tr>
-            <td style="padding: 6px 0; border-bottom: 1px dashed #ccc;">
-              <strong>${i.quantity}x ${i.menuItem.name}</strong>
-              ${i.options.spiceLevel ? `<div style="font-size: 11px; color: #555;">${i.options.spiceLevel}</div>` : ''}
-              ${i.options.drink ? `<div style="font-size: 11px; color: #555;">${i.options.drink}</div>` : ''}
-              ${i.options.addons.length ? `<div style="font-size: 11px; color: #555;">${i.options.addons.map((a) => a.name).join(', ')}</div>` : ''}
-            </td>
-            <td style="padding: 6px 0; border-bottom: 1px dashed #ccc; text-align: right; vertical-align: top;">
-              ${formatPKR(i.unitPrice * i.quantity)}
-            </td>
-          </tr>`
-      )
-      .join('');
+  const [defaultPrintFormat, setDefaultPrintFormat] = useState<'thermal' | 'a4'>(() => {
+    try { return localStorage.getItem('kfc-admin-default-print-format') === 'a4' ? 'a4' : 'thermal'; } catch { return 'thermal'; }
+  });
+  const [selectedPrintFormat, setSelectedPrintFormat] = useState<'thermal' | 'a4'>(() => {
+    try { return localStorage.getItem('kfc-admin-default-print-format') === 'a4' ? 'a4' : 'thermal'; } catch { return 'thermal'; }
+  });
 
-    const receiptHtml = `
-      <html>
-        <head>
-          <title>Order Receipt - ${order.id}</title>
-          <style>
-            body { font-family: monospace; padding: 20px; max-width: 320px; margin: 0 auto; }
-            h2, h3 { text-align: center; margin: 4px 0; }
-            hr { border: none; border-top: 1px dashed #000; margin: 10px 0; }
-            table { width: 100%; border-collapse: collapse; }
-          </style>
-        </head>
-        <body>
-          <h2>${settings.storeName}</h2>
-          <h3>Chakwal Delivery Slip</h3>
-          <p style="text-align: center; font-size: 11px;">Ph: ${settings.phone} | Order: ${order.id}</p>
-          <hr/>
-          <p><strong>Customer:</strong> ${order.customer.fullName}</p>
-          <p><strong>Phone:</strong> ${order.customer.phone}</p>
-          <p><strong>Area:</strong> ${order.customer.area || 'Chakwal'}</p>
-          <p><strong>Address:</strong> ${order.customer.address || 'Pickup / not provided'}</p>
-          <p><strong>Order Type:</strong> ${order.orderType === 'self_pickup' ? 'Takeaway / Pickup' : 'Delivery'}</p>
-          ${order.customer.email ? `<p><strong>Email:</strong> ${order.customer.email}</p>` : ''}
-          ${order.customer.landmark ? `<p><strong>Landmark:</strong> ${order.customer.landmark}</p>` : ''}
-          ${order.customer.notes ? `<p><strong>Notes:</strong> ${order.customer.notes}</p>` : ''}
-          <hr/>
-          <table>
-            <thead>
-              <tr><th style="text-align: left;">Item</th><th style="text-align: right;">Price</th></tr>
-            </thead>
-            <tbody>
-              ${itemsRows}
-            </tbody>
-          </table>
-          <hr/>
-          <table>
-            <tr><td>Subtotal:</td><td style="text-align: right;">${formatPKR(order.subtotal)}</td></tr>
-            <tr><td>Discount:</td><td style="text-align: right;">-${formatPKR(order.discount || 0)}</td></tr>
-            <tr><td>VIP Discount:</td><td style="text-align: right;">-${formatPKR(order.vipDiscount || 0)}</td></tr>
-            <tr><td>Loyalty Discount:</td><td style="text-align: right;">-${formatPKR(order.loyaltyDiscount || 0)}</td></tr>
-            <tr><td>Tax (${order.taxPercentage || 0}%):</td><td style="text-align: right;">${formatPKR(order.taxAmount || 0)}</td></tr>
-            <tr><td>Service Charge (${order.serviceChargePercentage || 0}%):</td><td style="text-align: right;">${formatPKR(order.serviceChargeAmount || 0)}</td></tr>
-            <tr><td>Delivery Fee:</td><td style="text-align: right;">${formatPKR(order.deliveryFee || 0)}</td></tr>
-            <tr><td><strong>Total Amount:</strong></td><td style="text-align: right; font-size: 14px;"><strong>${formatPKR(order.total)}</strong></td></tr>
-            <tr><td>Payment:</td><td style="text-align: right;">${order.paymentMethod.toUpperCase()}</td></tr>
-          </table>
-          <hr/>
-          <p style="text-align: center; font-size: 10px;">Thank you for ordering with KFC Chakwal Delivery!</p>
-        </body>
-      </html>
-    `;
+  const setPrintDefault = (format: 'thermal' | 'a4') => {
+    setDefaultPrintFormat(format);
+    setSelectedPrintFormat(format);
+    try { localStorage.setItem('kfc-admin-default-print-format', format); } catch { /* browser storage may be disabled */ }
+  };
 
+  const handlePrintReceipts = (ordersToPrint: Order[], format: 'thermal' | 'a4' = defaultPrintFormat) => {
+    if (!ordersToPrint.length) return;
+    const receiptPages = ordersToPrint.map((order) => {
+      const itemsRows = order.items.map((i) => `
+        <tr>
+          <td class="item">
+            <strong>${i.quantity}x ${i.menuItem.name}</strong>
+            ${i.options?.spiceLevel ? `<div class="muted">${i.options.spiceLevel}</div>` : ''}
+            ${i.options?.drink ? `<div class="muted">${i.options.drink}</div>` : ''}
+            ${i.options?.addons?.length ? `<div class="muted">${i.options.addons.map((a) => a.name).join(', ')}</div>` : ''}
+          </td>
+          <td class="price">${formatPKR(i.unitPrice * i.quantity)}</td>
+        </tr>`).join('');
+      return `
+        <article class="receipt">
+          <h2>${settings.storeName}</h2><h3>Chakwal Delivery Receipt</h3>
+          <p class="center small">Ph: ${settings.phone} | Order: ${order.id}</p><hr/>
+          <p><b>Customer:</b> ${order.customer.fullName || 'Walk-in Customer'}</p>
+          <p><b>Phone:</b> ${order.customer.phone || 'Not provided'}</p>
+          <p><b>Area:</b> ${order.customer.area || 'Chakwal'}</p>
+          <p><b>Address:</b> ${order.customer.address || 'Pickup / not provided'}</p>
+          <p><b>Order Type:</b> ${order.orderType === 'self_pickup' ? 'Takeaway / Pickup' : 'Delivery'}</p>
+          ${order.customer.email ? `<p><b>Email:</b> ${order.customer.email}</p>` : ''}
+          ${order.customer.landmark ? `<p><b>Landmark:</b> ${order.customer.landmark}</p>` : ''}
+          ${order.customer.notes ? `<p><b>Customer notes:</b> ${order.customer.notes}</p>` : ''}
+          ${order.specialInstructions ? `<p><b>Order notes:</b> ${order.specialInstructions}</p>` : ''}
+          <hr/><table><thead><tr><th>Item</th><th class="price">Price</th></tr></thead><tbody>${itemsRows}</tbody></table>
+          <hr/><table class="totals">
+            <tr><td>Subtotal</td><td class="price">${formatPKR(order.subtotal)}</td></tr>
+            <tr><td>Discount</td><td class="price">-${formatPKR(order.discount || 0)}</td></tr>
+            <tr><td>VIP Discount</td><td class="price">-${formatPKR(order.vipDiscount || 0)}</td></tr>
+            <tr><td>Loyalty Discount</td><td class="price">-${formatPKR(order.loyaltyDiscount || 0)}</td></tr>
+            <tr><td>Tax (${order.taxPercentage || 0}%)</td><td class="price">${formatPKR(order.taxAmount || 0)}</td></tr>
+            <tr><td>Service Charge (${order.serviceChargePercentage || 0}%)</td><td class="price">${formatPKR(order.serviceChargeAmount || 0)}</td></tr>
+            <tr><td>Delivery Charges</td><td class="price">${formatPKR(order.deliveryFee || 0)}</td></tr>
+            <tr><td><b>TOTAL</b></td><td class="price"><b>${formatPKR(order.total)}</b></td></tr>
+            <tr><td>Payment</td><td class="price">${String(order.paymentMethod).toUpperCase()}</td></tr>
+          </table><hr/><p class="center small">Thank you for ordering with KFC Chakwal Delivery!</p>
+        </article>`;
+    }).join('<div class="page-break"></div>');
+    const receiptHtml = `<!doctype html><html><head><title>KFC Receipt</title><style>
+      @page { size: ${format === 'a4' ? 'A4' : '80mm auto'}; margin: ${format === 'a4' ? '12mm' : '4mm'}; }
+      * { box-sizing: border-box; } body { font-family: ${format === 'a4' ? 'Arial, sans-serif' : 'monospace'}; margin: 0 auto; width: ${format === 'a4' ? '100%' : '72mm'}; font-size: ${format === 'a4' ? '12px' : '10px'}; }
+      .receipt { width: 100%; page-break-after: always; break-after: page; } .receipt:last-child { page-break-after: auto; break-after: auto; }
+      h2,h3 { text-align:center; margin:4px 0; } h2 { font-size: 1.4em; } h3 { font-size:1.1em; } p { margin:4px 0; overflow-wrap:anywhere; }
+      hr { border:0; border-top:1px dashed #000; margin:8px 0; } table { width:100%; border-collapse:collapse; } th { text-align:left; } td { padding:5px 0; border-bottom:1px dashed #ccc; vertical-align:top; }
+      .price { text-align:right; white-space:nowrap; } .center { text-align:center; } .small,.muted { font-size: .9em; } .totals td { border:0; padding:3px 0; }
+      .page-break { page-break-after:always; break-after:page; } @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+    </style></head><body>${receiptPages}</body></html>`;
     const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
+    iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0';
+    iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
     document.body.appendChild(iframe);
-
     const doc = iframe.contentWindow?.document;
     if (doc) {
-      doc.open();
-      doc.write(receiptHtml);
-      doc.close();
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
+      doc.open(); doc.write(receiptHtml); doc.close();
+      // Wait briefly for the generated receipt document to lay out before opening print.
+      setTimeout(() => { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); }, 250);
     }
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 1000);
+    setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 30000);
+  };
+
+  const handlePrintReceipt = (order: Order, format: 'thermal' | 'a4' = defaultPrintFormat) => {
+    handlePrintReceipts([order], format);
+  };
+
+  const handlePrintSelectedReceipts = () => {
+    const selected = allOrders.filter((order) => selectedOrderIds.includes(order.id));
+    if (selected.length) handlePrintReceipts(selected, selectedPrintFormat);
   };
 
   const getWhatsAppPhone = (order: Order) => {
@@ -194,7 +187,7 @@ export const AdminOrdersModal: React.FC = () => {
     // and attach the saved file manually in that chat.
     const phone = getWhatsAppPhone(order);
     if (phone) window.open(`https://wa.me/${phone}?text=${encodeURIComponent('Assalam o Alaikum! KFC Chakwal order #' + order.id + ' ki thermal receipt PDF is message ke sath manually attach kar dein.')}`, '_blank', 'noopener,noreferrer');
-    handlePrintReceipt(order);
+    handlePrintReceipt(order, 'thermal');
   };
 
   const applyBulkStatus = async () => {
@@ -285,6 +278,10 @@ export const AdminOrdersModal: React.FC = () => {
         </div>
 
         <div className="px-4 py-3 bg-[#17171b] border-b border-[#26262d] flex flex-wrap items-center gap-2">
+          <span className="text-xs text-zinc-400">Print format:</span>
+          <select value={selectedPrintFormat} onChange={(e) => setSelectedPrintFormat(e.target.value as 'thermal' | 'a4')} className="rounded-lg border border-[#373744] bg-[#121214] px-2.5 py-2 text-xs text-white"><option value="thermal">Thermal receipt</option><option value="a4">A4 bill</option></select>
+          <button type="button" onClick={() => setPrintDefault(selectedPrintFormat)} className="rounded-lg border border-emerald-700/60 bg-emerald-900/20 px-3 py-2 text-xs font-bold text-emerald-300">Make Default ({defaultPrintFormat.toUpperCase()})</button>
+          <button type="button" disabled={!selectedOrderIds.length} onClick={handlePrintSelectedReceipts} className="rounded-lg border border-amber-600/50 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200 disabled:opacity-40"><Printer className="mr-1 inline h-3.5 w-3.5"/>Print selected bills ({selectedOrderIds.length})</button>
           <label className="flex items-center gap-2 text-xs text-zinc-300"><input type="checkbox" checked={filteredOrders.length > 0 && filteredOrders.every((o) => selectedOrderIds.includes(o.id))} onChange={(e) => setSelectedOrderIds(e.target.checked ? Array.from(new Set([...selectedOrderIds, ...filteredOrders.map((o) => o.id)])) : selectedOrderIds.filter((id) => !filteredOrders.some((o) => o.id === id)))} className="accent-red-600" />Select filtered ({filteredOrders.length})</label>
           <span className="text-xs text-zinc-500">{selectedOrderIds.length} selected</span>
           <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as Order['status'])} className="rounded-lg border border-[#373744] bg-[#121214] px-2.5 py-2 text-xs text-white"><option value="confirmed">Confirmed / Received</option><option value="kitchen">In Kitchen / Processing</option><option value="dispatched">Dispatched</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select>
@@ -419,8 +416,10 @@ export const AdminOrdersModal: React.FC = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    <button onClick={() => handlePrintReceipt(order, defaultPrintFormat)} className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 border border-amber-600/40 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"><Printer className="w-3.5 h-3.5" /><span>Print Default ({defaultPrintFormat.toUpperCase()})</span></button>
                     <button onClick={() => handleWhatsAppPdf(order)} className="bg-[#121214] hover:bg-[#202026] text-zinc-300 hover:text-white border border-[#33333d] text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"><Printer className="w-3.5 h-3.5 text-amber-400" /><span>Send PDF (Thermal)</span></button>
-                    <button onClick={() => handlePrintReceipt(order)} className="bg-[#121214] hover:bg-[#202026] text-zinc-300 hover:text-white border border-[#33333d] text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"><Printer className="w-3.5 h-3.5 text-amber-400" /><span>Print Delivery KOT Slip</span></button>
+                    <button onClick={() => handlePrintReceipt(order, 'thermal')} className="bg-[#121214] hover:bg-[#202026] text-zinc-300 hover:text-white border border-[#33333d] text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"><Printer className="w-3.5 h-3.5 text-amber-400" /><span>Print Thermal</span></button>
+                    <button onClick={() => handlePrintReceipt(order, 'a4')} className="bg-[#121214] hover:bg-[#202026] text-zinc-300 hover:text-white border border-[#33333d] text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"><Printer className="w-3.5 h-3.5 text-amber-400" /><span>Print A4</span></button>
                   </div>
                 </div>
 

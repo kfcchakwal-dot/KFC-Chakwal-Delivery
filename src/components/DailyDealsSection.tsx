@@ -5,12 +5,16 @@ import { Sparkles, Flame, Clock, Percent } from 'lucide-react';
 
 // Deterministic daily picker: picks collection, random, or manual products that auto-rotates at 12:00 AM midnight
 function getDailyDealItems(items: MenuItem[], config: DailyDealConfig): MenuItem[] {
-  const count = config.itemCount || 5;
+  const count = 6;
 
   // 1. Manual Selection Mode
   if (config.selectionMode === 'manual' && config.selectedProductIds && config.selectedProductIds.length > 0) {
     const selected = items.filter((it) => config.selectedProductIds!.includes(it.id));
-    if (selected.length > 0) return selected.slice(0, count);
+    if (selected.length > 0) {
+      const selectedIds = new Set(selected.map((item) => item.id));
+      const fillRemaining = items.filter((item) => !selectedIds.has(item.id));
+      return [...selected, ...fillRemaining].slice(0, count);
+    }
   }
 
   // 2. Collection Selection Mode
@@ -73,10 +77,10 @@ export const DailyDealsSection: React.FC = () => {
   const isDark = themeMode === 'dark';
   const dealConfig = settings.dailyDeal || {
     enabled: false,
-    title: 'Daily 5 Deals',
+    title: 'Daily 6 Deals',
     subtitle: 'Manual daily offers — automatic midnight rotation requires a server scheduler.',
     discountPercentage: 4,
-    itemCount: 5,
+    itemCount: 6,
     selectionMode: 'manual',
     selectedProductIds: [],
     autoMidnightRotate: false,
@@ -119,7 +123,7 @@ export const DailyDealsSection: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="bg-[#e4002b] text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow">
                 <Flame className="w-3.5 h-3.5 fill-white" />
-                <span>Daily Featured 5</span>
+                <span>Daily Featured 6</span>
               </span>
               <span className="text-[11px] font-bold text-amber-500 flex items-center gap-1">
                 <Percent className="w-3 h-3" />
@@ -143,8 +147,8 @@ export const DailyDealsSection: React.FC = () => {
           </div>
         </div>
 
-        {/* 5 Deals Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 mt-6">
+        {/* 6 Deals Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4 mt-6">
           {dailyItems.map((item) => {
             const regularPrice = getItemEffectivePrice(item);
             const discountedPrice = Math.round(regularPrice * (1 - discountPercent / 100));

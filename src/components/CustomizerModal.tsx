@@ -1167,7 +1167,47 @@ export const CustomizerModal: React.FC = () => {
 
           {/* TAB: PAGE SECTIONS BUILDER (Requested: Har page par add new section ka option, image with text, delivery time customizable) */}
           {activeTab === 'sections' && (
-            <PageSectionsBuilder />
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-zinc-700 bg-[#17171b] p-4 space-y-4">
+                <div>
+                  <h3 className="text-sm font-black uppercase text-white">Homepage Collection Bar</h3>
+                  <p className="mt-1 text-xs text-zinc-400">Choose which collections appear, set their order, and control sticky-on-scroll-up behavior. The highlighted collection follows the products as customers scroll.</p>
+                </div>
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-700 bg-[#121214] p-3">
+                  <span><span className="block text-xs font-bold text-white">Sticky when scrolling up</span><span className="text-[11px] text-zinc-400">Hide while scrolling down; show again when scrolling up.</span></span>
+                  <input type="checkbox" checked={settings.collectionNavStickyOnScrollUp !== false} onChange={(e) => updateSettings({ collectionNavStickyOnScrollUp: e.target.checked })} className="h-4 w-4 accent-[#e4002b]"/>
+                </label>
+                <div className="space-y-2">
+                  {([...KFC_CATEGORIES, ...Array.from(new Set(menuItems.map((item) => String(item.categoryId)).filter((id) => id && !KFC_CATEGORIES.some((cat) => cat.id === id)))).map((id) => ({ id: id as CategoryId, name: id.replace(/-/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()), subtitle: '' }))] as {id: CategoryId; name: string; subtitle: string}[])
+                    .sort((a,b) => {
+                      const order = settings.collectionNavOrder || [];
+                      const ai = order.indexOf(a.id); const bi = order.indexOf(b.id);
+                      if (ai < 0 && bi < 0) return 0;
+                      if (ai < 0) return 1;
+                      if (bi < 0) return -1;
+                      return ai - bi;
+                    }).map((category, index, allCategories) => {
+                      const order = settings.collectionNavOrder || [];
+                      const hidden = settings.collectionNavHidden || [];
+                      const orderedIds = [...allCategories.map((item) => item.id)];
+                      const moveCategory = (direction: -1 | 1) => {
+                        const next = [...orderedIds];
+                        const target = index + direction;
+                        if (target < 0 || target >= next.length) return;
+                        [next[index], next[target]] = [next[target], next[index]];
+                        updateSettings({ collectionNavOrder: next });
+                      };
+                      return <div key={category.id} className="flex items-center gap-2 rounded-xl border border-zinc-700 bg-[#121214] px-3 py-2">
+                        <input aria-label={`Show ${category.name} collection`} type="checkbox" checked={!hidden.includes(category.id)} onChange={(e) => updateSettings({ collectionNavHidden: e.target.checked ? hidden.filter((id) => id !== category.id) : [...hidden, category.id] })} className="h-4 w-4 accent-[#e4002b]"/>
+                        <span className="min-w-0 flex-1 text-xs font-semibold text-zinc-200">{category.name}</span>
+                        <button type="button" disabled={index === 0} onClick={() => moveCategory(-1)} className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-200 disabled:opacity-30" aria-label={`Move ${category.name} up`}>↑</button>
+                        <button type="button" disabled={index === allCategories.length - 1} onClick={() => moveCategory(1)} className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-200 disabled:opacity-30" aria-label={`Move ${category.name} down`}>↓</button>
+                      </div>;
+                    })}
+                </div>
+              </div>
+              <PageSectionsBuilder />
+            </div>
           )}
 
           {/* TAB: SHOPIFY CSV BULK IMPORT / EXPORT (Requested: Shopify pattern par csv file se bulk products upload) */}
