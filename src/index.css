@@ -167,3 +167,17 @@ input, textarea, select {
 [class*="text-cyan-"], [class*="text-sky-"] {
   color: #e4002b !important;
 }
+
+/* Keep button styling stronger than utility overrides on button class names. */
+button[class], button[class]:hover, button[class]:focus-visible {
+  background-color: #e4002b !important;
+  color: #ffffff !important;
+  border-color: #e4002b !important;
+}
+button[class] *, button[class] svg {
+  color: #ffffff !important;
+}
+button[class]:hover, button[class]:focus-visible {
+  background-color: #c30025 !important;
+  border-color: #c30025 !important;
+}
