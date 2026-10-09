@@ -73,7 +73,7 @@ import { MetaAdsManager } from './MetaAdsManager';
 import { VipClubManager } from './VipClubManager';
 import { OrderEditModal } from './OrderEditModal';
 import { BulkProductEditor } from './BulkProductEditor';
-import { CategoryId, MenuItem, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
+import { CategoryId, MenuItem, MenuItemAddon, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
 import { KFC_CATEGORIES } from '../../data/kfcMenu';
 import { auth, db } from '../../lib/firebase';
 import { collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc } from 'firebase/firestore';
@@ -274,6 +274,9 @@ export const ShopifyAdminApp: React.FC = () => {
 
   // New product multiple images, inventory, variants
   const [newProdGallery, setNewProdGallery] = useState<string[]>([]);
+  const [newProdAllowSpice, setNewProdAllowSpice] = useState(false);
+  const [newProdAllowDrink, setNewProdAllowDrink] = useState(false);
+  const [newProdAddons, setNewProdAddons] = useState<MenuItemAddon[]>([]);
   const [newProdTrackInventory, setNewProdTrackInventory] = useState(false);
   const [newProdStockQty, setNewProdStockQty] = useState(50);
   const [newProdHasVariants, setNewProdHasVariants] = useState(false);
@@ -618,6 +621,8 @@ export const ShopifyAdminApp: React.FC = () => {
       sellingPrice: newProdSellingPrice ? Number(newProdSellingPrice) : undefined,
       compareAtPrice: newProdComparePrice ? Number(newProdComparePrice) : undefined,
       image: newProdImage.trim(), // Can be empty or URL
+      galleryImages: newProdGallery.filter(Boolean),
+      customizableOptions: { allowSpiceLevel: newProdAllowSpice, allowDrinkChoice: newProdAllowDrink, availableAddons: newProdAddons.filter((addon) => addon.name.trim()) },
       isAvailable: true,
       customBadgeText: newProdBadge.trim() || undefined,
     };
@@ -630,6 +635,9 @@ export const ShopifyAdminApp: React.FC = () => {
     setNewProdComparePrice('');
     setNewProdBadge('');
     setNewProdGallery([]);
+    setNewProdAllowSpice(false);
+    setNewProdAllowDrink(false);
+    setNewProdAddons([]);
     setNewProdTrackInventory(false);
     setNewProdStockQty(50);
     setNewProdHasVariants(false);
