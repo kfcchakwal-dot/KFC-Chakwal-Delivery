@@ -104,8 +104,17 @@ exports.productShare = onRequest({ region: 'us-central1', cors: true }, async (r
     const products = Array.isArray(publicData.menuItems) ? publicData.menuItems : [];
     const item = products.find((product) => String(product.id) === productId);
     if (!item) {
-      res.status(404).set('Cache-Control', 'no-store').send(
-        '<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=' + escapeHtml(destination) + '"><title>KFC Chakwal Delivery</title></head><body><a href="' + escapeHtml(destination) + '">Open KFC Chakwal Delivery</a></body></html>'
+      const fallbackTitle = 'KFC Chakwal Delivery';
+      const fallbackDescription = 'View menu items and order from KFC Chakwal Delivery.';
+      const fallbackImage = APP_ORIGIN + '/pwa-512.png';
+      res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }).status(200).send(
+        '<!doctype html><html><head><meta charset="utf-8">' +
+        '<meta property="og:type" content="website">' +
+        '<meta property="og:title" content="' + escapeHtml(fallbackTitle) + '">' +
+        '<meta property="og:description" content="' + escapeHtml(fallbackDescription) + '">' +
+        '<meta property="og:image" content="' + escapeHtml(fallbackImage) + '">' +
+        '<meta http-equiv="refresh" content="1;url=' + escapeHtml(destination) + '">' +
+        '<title>' + escapeHtml(fallbackTitle) + '</title></head><body><a href="' + escapeHtml(destination) + '">Open KFC Chakwal Delivery</a></body></html>'
       );
       return;
     }
@@ -178,7 +187,10 @@ exports.queueReviewRequests = onSchedule(
       if (!Number.isFinite(deliveredAt) || deliveredAt > cutoff) continue;
       const requestRef = db.collection('reviewRequests').doc(orderDoc.id);
       const existing = await requestRef.get();
-      if (existing.exists && ['sent', 'queued'].includes(String(existing.data()?.status))) continue;
+      const existingStatus = String(existing.data()?.status || '');
+      if (existing.exists && ['sent', 'queued'].includes(existingStatus)) continue;
+      const hasWhatsAppConfig = Boolean(accessToken && phoneNumberId && templateName);
+      if (existingStatus === 'pending_config' && !hasWhatsAppConfig && order.customer?.phone) continue;
 
       const customerName = String(order.customer?.fullName || 'Customer').slice(0, 80);
       const rawPhone = String(order.customer?.phone || '').replace(/[^0-9]/g, '');
