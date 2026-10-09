@@ -2083,7 +2083,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       phone: order.customer.phone || '',
       reviewUrl,
       channel: 'whatsapp',
-      status: 'sent',
+      status: 'opened_whatsapp',
       requestedAt: new Date().toISOString(),
       requestedBy: auth.currentUser.uid,
     }, { merge: true });
