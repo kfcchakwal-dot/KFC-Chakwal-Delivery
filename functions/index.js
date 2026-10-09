@@ -94,6 +94,7 @@ function absoluteImageUrl(value) {
 exports.productShare = onRequest({ region: 'us-central1', cors: true }, async (req, res) => {
   const productId = String(req.query.product || '').slice(0, 160);
   const destination = APP_ORIGIN + (productId ? '/?product=' + encodeURIComponent(productId) : '/');
+  const previewUrl = 'https://' + String(req.get('host') || '').replace(/[^a-zA-Z0-9.:-]/g, '') + req.originalUrl;
   try {
     const publicSnapshot = await db.collection('storePublic').doc('global').get();
     let publicData = publicSnapshot.exists ? publicSnapshot.data() || {} : {};
@@ -138,7 +139,7 @@ exports.productShare = onRequest({ region: 'us-central1', cors: true }, async (r
       '<meta property="og:image" content="' + escapeHtml(image) + '">' +
       '<meta property="og:image:secure_url" content="' + escapeHtml(image) + '">' +
       '<meta property="og:image:alt" content="' + escapeHtml(name) + '">' +
-      '<meta property="og:url" content="' + escapeHtml(destination) + '">' +
+      '<meta property="og:url" content="' + escapeHtml(previewUrl) + '">' +
       '<meta name="twitter:card" content="summary_large_image">' +
       '<meta name="twitter:title" content="' + escapeHtml(title) + '">' +
       '<meta name="twitter:description" content="' + escapeHtml(socialDescription) + '">' +
