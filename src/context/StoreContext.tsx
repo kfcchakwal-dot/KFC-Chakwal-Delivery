@@ -1856,7 +1856,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return { success: true };
     } catch (err: any) {
       console.error('Customer Google sign-in failure:', err);
-      if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported'].includes(err?.code)) {
+      if ((['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported'].includes(err?.code) || (err?.code === 'auth/network-request-failed' && typeof window !== 'undefined' && window.navigator.onLine))) {
         try {
           await signInWithRedirect(auth, provider);
           return { success: true };
