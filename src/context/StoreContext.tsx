@@ -635,7 +635,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const loadStoreData = async () => {
       try {
-        const snapshot = await getDoc(doc(db, 'storePublic', 'global'));
+        let snapshot = await getDoc(doc(db, 'storePublic', 'global'));
+        if (!snapshot.exists() && isAdmin) {
+          // Migrate older server-backed settings into the sanitized public document once.
+          const legacy = await getDoc(doc(db, 'storeSettings', 'global'));
+          if (legacy.exists()) {
+            const legacyData: any = legacy.data() || {};
+            const publicData: Record<string, any> = { ...legacyData };
+            if (publicData.settings) {
+              publicData.settings = { ...publicData.settings };
+              delete publicData.settings.adminUsers;
+              delete publicData.settings.adminPin;
+              if (publicData.settings.shopify) {
+                publicData.settings.shopify = { ...publicData.settings.shopify };
+                delete publicData.settings.shopify.storefrontAccessToken;
+                delete publicData.settings.shopify.adminWebhookUrl;
+              }
+              if (publicData.settings.metaCommerce) {
+                publicData.settings.metaCommerce = { ...publicData.settings.metaCommerce };
+                delete publicData.settings.metaCommerce.conversionsApiToken;
+              }
+            }
+            if (publicData.metaCommerce) {
+              publicData.metaCommerce = { ...publicData.metaCommerce };
+              delete publicData.metaCommerce.conversionsApiToken;
+            }
+            await setDoc(doc(db, 'storePublic', 'global'), publicData, { merge: true });
+            snapshot = await getDoc(doc(db, 'storePublic', 'global'));
+          }
+        }
         if (!snapshot.exists()) return;
         const data: any = snapshot.data() || {};
         if (data.settings) {
@@ -660,7 +688,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     void loadStoreData();
     const interval = setInterval(() => { void loadStoreData(); }, 12000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isAdmin]);
 
   // =========================================================================
   // ANDROID & MOBILE HARDWARE / GESTURE BACK BUTTON HANDLING
@@ -1700,10 +1728,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     paymentMethod: 'jazzcash' | 'easypaisa' | 'bank_transfer',
     transactionId: string
   ) => {
-    if (!currentUser || !auth.currentUser) throw new Error('Please sign in before requesting VIP membership.');
+    const firebaseUser = auth.currentUser;
+    if (!currentUser || !firebaseUser) throw new Error('Please sign in before requesting VIP membership.');
     const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
     const newReq: VipMembershipRequest & { uid: string } = {
-      id: `vip-req-${Date.now()}`, customerId: currentUser.id, uid: auth.currentUser.uid,
+      id: `vip-req-${Date.now()}`, customerId: currentUser.id, uid: firebaseUser.uid,
       customerName: currentUser.fullName || 'VIP Customer', phone: currentUser.phone || '',
       tierId, amount: tier.price, paymentMethod, transactionId,
       requestedAt: new Date().toISOString(), status: 'pending',
