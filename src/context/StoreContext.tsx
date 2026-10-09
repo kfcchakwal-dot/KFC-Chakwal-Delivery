@@ -1521,17 +1521,34 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ordersCount: Number(data.totalOrdersCount || 0),
       createdAt: data.createdAt || new Date().toISOString(),
     };
-    // Only sync customer-editable profile fields. Loyalty totals and order counts
-    // are server/admin-owned and must never be overwritten by a client login.
-    await setDoc(userDocRef, {
-      fullName: profile.fullName,
-      phone: data.phone || firebaseUser.phoneNumber || '',
-      email: firebaseUser.email || data.email || '',
-      address: profile.address,
-      defaultAddress: profile.defaultAddress,
-      savedAddresses: profile.savedAddresses,
-      updatedAt: new Date().toISOString(),
-    }, { merge: true });
+    // New Google users need a valid initial customer record; existing users
+    // may only sync editable profile fields, never loyalty totals or order counts.
+    if (!userDoc.exists()) {
+      await setDoc(userDocRef, {
+        id: firebaseUser.uid,
+        fullName: profile.fullName,
+        phone: profile.phone,
+        email: profile.email,
+        address: profile.address,
+        defaultAddress: profile.defaultAddress,
+        savedAddresses: profile.savedAddresses,
+        loyaltyPoints: 50,
+        totalSpent: 0,
+        totalOrdersCount: 0,
+        createdAt: profile.createdAt,
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      await setDoc(userDocRef, {
+        fullName: profile.fullName,
+        phone: data.phone || firebaseUser.phoneNumber || '',
+        email: firebaseUser.email || data.email || '',
+        address: profile.address,
+        defaultAddress: profile.defaultAddress,
+        savedAddresses: profile.savedAddresses,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+    }
     setCurrentUser(profile);
     localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(profile));
     return profile;
