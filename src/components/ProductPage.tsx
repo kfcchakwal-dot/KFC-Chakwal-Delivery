@@ -119,35 +119,53 @@ export const ProductPage: React.FC = () => {
 
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}/?product=${encodeURIComponent(item.id)}`;
+    const shortDescription = (item.description || 'Fresh KFC meal from KFC Chakwal Delivery.').trim().split(/\\s+/).slice(0, 28).join(' ');
+    const imageUrl = item.image || '';
+    const shareText = `${item.name}\\n${shortDescription}${shortDescription.endsWith('...') ? '' : '...'}\\nSelling Price: ${formatPKR(basePrice)}\\nOrder: ${shareUrl}${imageUrl ? `\\nProduct image: ${imageUrl}` : ''}`;
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: item.name,
-          text: `Check out ${item.name} on KFC Chakwal Delivery!`,
-          url: shareUrl,
-        });
+        if (imageUrl && navigator.canShare && navigator.canShare({ files: [new File([], 'product.jpg', { type: 'image/jpeg' })] })) {
+          try {
+            const response = await fetch(imageUrl, { mode: 'cors' });
+            if (response.ok) {
+              const blob = await response.blob();
+              const file = new File([blob], `${item.name.replace(/[^a-z0-9-_]/gi, '-').slice(0, 50) || 'product'}.jpg`, { type: blob.type || 'image/jpeg' });
+              if (navigator.canShare({ files: [file] })) {
+                await navigator.share({ title: item.name, text: shareText, files: [file] });
+                return;
+              }
+            }
+          } catch (imageError) {
+            console.warn('Product image attachment unavailable; sharing product details instead.', imageError);
+          }
+        }
+        await navigator.share({ title: item.name, text: shareText, url: shareUrl });
         return;
-      } catch {}
+      } catch (error: any) {
+        if (error?.name === 'AbortError') return;
+      }
     }
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(shareText);
       setCopiedShare(true);
       setTimeout(() => setCopiedShare(false), 2500);
-    } catch {}
+    } catch {
+      window.prompt('Copy product details and link:', shareText);
+    }
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) {
-      setReviewSubmitted(false);
+    const customerName = (currentUser?.fullName || reviewName).trim();
+    if (!customerName || !reviewComment.trim()) {
+      alert('Please enter your name and review comment.');
       return;
     }
-    if (!reviewComment.trim()) return;
 
     try {
       await addReview({
         productId: item.id,
-        customerName: currentUser.fullName,
+        customerName,
         rating: reviewRating,
         comment: reviewComment.trim(),
       });
@@ -161,7 +179,7 @@ export const ProductPage: React.FC = () => {
     }
   };
 
-  const productReviews = reviews.filter((r) => r.productId === item.id);
+  const productReviews = reviews.filter((r) => r.productId === item.id && r.isVisible !== false);
   const avgRating =
     productReviews.length > 0
       ? (productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length).toFixed(1)
@@ -607,13 +625,20 @@ export const ProductPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 mb-1">
-                  Verified Customer
+                  Your Name *
                 </label>
-                <div className={`w-full text-xs rounded-xl px-3.5 py-2.5 border ${
-                  isDark ? 'bg-[#121214] border-[#2e2e38] text-white' : 'bg-white border-zinc-300 text-zinc-900'
-                }`}>
-                  {currentUser ? currentUser.fullName : 'Phone verification required'}
-                </div>
+                <input
+                  type="text"
+                  value={currentUser?.fullName || reviewName}
+                  onChange={(e) => setReviewName(e.target.value)}
+                  placeholder="Enter your name"
+                  disabled={Boolean(currentUser)}
+                  required
+                  maxLength={80}
+                  className={`w-full text-xs rounded-xl px-3.5 py-2.5 border focus:outline-none focus:border-[#e4002b] ${
+                    isDark ? 'bg-[#121214] border-[#2e2e38] text-white' : 'bg-white border-zinc-300 text-zinc-900'
+                  }`}
+                />
               </div>
 
               <div>
@@ -661,15 +686,13 @@ export const ProductPage: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={!currentUser}
+                disabled={!((currentUser?.fullName || reviewName).trim()) || !reviewComment.trim()}
                 className="bg-[#e4002b] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#c30025] text-white text-xs font-bold uppercase px-5 py-2.5 rounded-xl cursor-pointer shadow"
               >
                 Submit Review
               </button>
             </div>
-            {!currentUser && (
-              <p className="text-[11px] text-amber-600 font-semibold">Review dene ke liye pehle phone OTP se login karein. Review sirf delivered order ke purchased product par accept hoga.</p>
-            )}
+            <p className="text-[11px] text-zinc-500">Phone OTP ya sign-in ki zaroorat nahi. Please apna genuine review share karein.</p>
           </form>
 
         </div>
