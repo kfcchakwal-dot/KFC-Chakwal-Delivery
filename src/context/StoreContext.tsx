@@ -1506,6 +1506,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     paymentMethod: PaymentMethod,
     specialInstructions?: string
   ): Promise<Order> => {
+    // Wait for Firebase to restore any saved Google/email session before choosing guest vs signed-in order rules.
+    await auth.authStateReady();
+    const user = auth.currentUser;
+
     if (paymentMethod !== 'cod') {
       throw new Error('Online payment gateway is not configured yet. Please use Cash on Delivery.');
     }
@@ -1545,8 +1549,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       paymentMethod: 'cod',
       status: 'confirmed',
     };
-
-    const user = auth.currentUser;
 
     const savedOrder: Order = {
       ...draftOrder,
