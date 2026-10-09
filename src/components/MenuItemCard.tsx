@@ -75,7 +75,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const shareUrl = `${window.location.origin}/?product=${encodeURIComponent(item.id)}`;
+    const shareUrl = `https://us-central1-gen-lang-client-0313861453.cloudfunctions.net/productShare?product=${encodeURIComponent(item.id)}`;
     const descriptionWords = (item.description || 'Fresh KFC meal from KFC Chakwal Delivery.').trim().split(/\s+/);
     const shortDescription = descriptionWords.slice(0, 28).join(' ') + (descriptionWords.length > 28 ? '...' : '');
     const imageUrl = item.image || '';
