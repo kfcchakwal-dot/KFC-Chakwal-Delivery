@@ -350,15 +350,16 @@ export const Header: React.FC = () => {
             </button>
 
             {/* Desktop Center: Delivery Coverage & Search with Live Dropdown & Meal Box Suggestions */}
-            <div className="flex items-center gap-3 flex-1 max-w-xl mx-4">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold shrink-0 bg-zinc-50 border-zinc-200 text-zinc-800">
+            <div className="flex items-center gap-3 flex-1 min-w-0 max-w-2xl mx-2">
+              <div className="hidden xl:flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold shrink-0 bg-zinc-50 border-zinc-200 text-zinc-800">
                 <MapPin className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />
                 <span>Coverage: Within 3 KM (Chakwal)</span>
               </div>
 
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-[180px]">
                 <input
-                  type="text"
+                  type="search"
+                  aria-label="Search products"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search Zingers, Krunch, Family Deals..."
