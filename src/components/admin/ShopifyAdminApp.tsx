@@ -384,7 +384,7 @@ export const ShopifyAdminApp: React.FC = () => {
       }
       try {
         await registerAdminPushNotifications();
-        setAdminNotificationStatus('Background push is device par register ho gayi. Ab Cloud Function deploy honi chahiye taake app band hone par bhi new-order alert aaye.');
+        setAdminNotificationStatus('Is device ka push token register ho gaya. Background order alerts ke liye Firebase Functions deploy honi chahiye aur isi Firebase project ki VAPID key use karein.');
       } catch (pushError: any) {
         setAdminNotificationStatus(pushError?.message || 'Background push setup incomplete hai. Local notification permission enabled hai.');
       }
