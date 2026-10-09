@@ -42,7 +42,7 @@ service cloud.firestore {
       allow update: if admin() || (
         owner(uid) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'fullName', 'email', 'defaultAddress', 'savedAddresses', 'updatedAt'
+          'fullName', 'email', 'address', 'defaultAddress', 'savedAddresses', 'updatedAt'
         ])
       );
       allow delete: if admin();
