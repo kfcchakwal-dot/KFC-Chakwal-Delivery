@@ -1538,7 +1538,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const email = String(user.email || currentUser?.email || '').trim();
       const customerProfileRef = doc(db, 'customers', user.uid);
       const existingCustomerProfile = await getDoc(customerProfileRef);
-      const savedProfile = existingCustomerProfile.exists() ? existingCustomerProfile.data() : {};
+      const savedProfile: Record<string, any> = existingCustomerProfile.exists() ? existingCustomerProfile.data() : {};
       const existingAddresses = Array.isArray(savedProfile.savedAddresses)
         ? savedProfile.savedAddresses as CustomerAddress[]
         : (currentUser?.savedAddresses || []);
