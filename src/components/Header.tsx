@@ -87,25 +87,6 @@ export const Header: React.FC = () => {
       <header className={`sticky top-0 z-40 border-b transition-colors shadow-md w-full overflow-visible ${
         isDark ? 'bg-[#121214] border-[#27272a] text-white' : 'bg-white border-zinc-200 text-zinc-900 shadow-sm'
       }`}>
-        {/* Announcement Strip */}
-        {settings.showAnnouncement && showTopBanner && (
-          <div className="bg-[#e4002b] text-white text-[10px] sm:text-xs font-semibold py-1.5 px-3 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 mx-auto tracking-wide font-medium truncate">
-              <span className="animate-pulse shrink-0">🍗</span>
-              <span className="truncate">
-                {settings.announcementText || 'KFC Picked from Kallar Kahar Motorway! Order before 4 PM for Delivery by 8 PM.'}
-              </span>
-            </div>
-            <button
-              onClick={() => setShowTopBanner(false)}
-              className="text-white/80 hover:text-white p-0.5 rounded cursor-pointer shrink-0 ml-1.5"
-              aria-label="Dismiss banner"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
         {/* ========================================================================= */}
         {/* MOBILE HEADER: Logo Middle, Menu & Signup Left, Wishlist, Search, Day/Night, Cart Right */}
         {/* Guaranteed ZERO overflow outside mobile screen! */}
@@ -157,7 +138,7 @@ export const Header: React.FC = () => {
               <img
                 src={settings.customPreloaderLogoUrl || '/logo.svg'}
                 alt="KFC Chakwal Delivery"
-                className="w-11 h-11 object-contain"
+                className="w-11 h-11 object-contain bg-transparent mix-blend-multiply"
                 onError={(e) => { e.currentTarget.src = '/pwa-192.png'; }}
               />
             </button>
@@ -172,6 +153,7 @@ export const Header: React.FC = () => {
                 className="min-w-[38px] min-h-[38px] flex items-center justify-center relative p-2 rounded-xl border transition-colors cursor-pointer active:scale-95 bg-zinc-100 border-zinc-300 text-zinc-700 hover:bg-zinc-200"
                 title="Wishlist"
                 aria-label="Wishlist"
+                data-wishlist-target="true"
               >
                 <Heart className={`w-4 h-4 ${wishlist.length > 0 ? 'text-[#e4002b] fill-[#e4002b]' : ''}`} />
                 {wishlist.length > 0 && (
@@ -320,7 +302,7 @@ export const Header: React.FC = () => {
               <img
                 src={settings.customPreloaderLogoUrl || '/logo.svg'}
                 alt="KFC Chakwal Delivery"
-                className="w-14 h-14 object-contain"
+                className="w-14 h-14 object-contain bg-transparent mix-blend-multiply"
                 onError={(e) => { e.currentTarget.src = '/pwa-192.png'; }}
               />
             </button>
@@ -542,22 +524,6 @@ export const Header: React.FC = () => {
                 >
                   <X className="w-5 h-5" />
                 </button>
-              </div>
-
-              {/* Kallar Kahar Notice & Delivery Coverage */}
-              <div className={`p-3 rounded-xl border text-xs space-y-1.5 ${
-                isDark ? 'bg-[#1b1b22] border-[#292934]' : 'bg-red-50/60 border-red-200'
-              }`}>
-                <div className="flex items-center gap-1.5 text-[#e4002b] font-bold text-[11px] uppercase">
-                  <Bike className="w-3.5 h-3.5 shrink-0" />
-                  <span>Kallar Kahar ➔ Chakwal (Within 3 KM)</span>
-                </div>
-                <p className={`text-[11px] leading-relaxed ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
-                  {settings.kallarKaharNotice || 'Hum Kallar Kahar Motorway wali KFC branch se KFC pick kar ky Chakwal mein daily deliver karty hein.'}
-                </p>
-                <p className={`text-[10px] font-bold pt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                  ⏰ Order before 4:00 PM for Same-Day Delivery by 8:00 PM!
-                </p>
               </div>
 
               {/* Loyalty Points Status (if signed in) */}
