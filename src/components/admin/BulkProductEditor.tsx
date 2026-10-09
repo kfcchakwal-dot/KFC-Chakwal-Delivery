@@ -26,6 +26,8 @@ export const BulkProductEditor: React.FC = () => {
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [savedBatchNotice, setSavedBatchNotice] = useState<string | null>(null);
 
+  const savedLabels = Array.from(new Set(menuItems.flatMap((item) => [...(item.badges || []), ...(item.customBadgeText ? [item.customBadgeText] : [])]).map((label) => String(label).trim()).filter(Boolean))).sort((a,b) => a.localeCompare(b));
+
   const filteredItems = menuItems.filter((item) => {
     const matchesCat = selectedCatFilter === 'all' || item.categoryId === selectedCatFilter;
     const matchesSearch = !searchFilter.trim() || item.name.toLowerCase().includes(searchFilter.toLowerCase());
@@ -223,13 +225,16 @@ export const BulkProductEditor: React.FC = () => {
                     </td>
 
                     <td className="p-2.5">
-                      <input
-                        type="text"
-                        placeholder="e.g. HOT SELLER"
-                        value={currentBadge || ''}
-                        onChange={(e) => handleFieldChange(item.id, 'customBadgeText', e.target.value)}
-                        className="w-full bg-white border border-zinc-200 rounded-lg px-2 py-1.5 text-[11px]"
-                      />
+                      <details className="relative min-w-[145px]">
+                        <summary className="cursor-pointer list-none rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-zinc-700">{(getFieldValue(item, 'badges') as string[] | undefined)?.length ? (getFieldValue(item, 'badges') as string[]).join(', ') : currentBadge || 'None'} ▾</summary>
+                        <div className="absolute right-0 top-full z-20 mt-1 max-h-52 w-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-2 shadow-xl">
+                          <button type="button" onClick={() => { handleFieldChange(item.id, 'badges', []); handleFieldChange(item.id, 'customBadgeText', ''); }} className="mb-2 w-full rounded-md border border-zinc-200 px-2 py-1.5 text-left text-xs font-bold text-zinc-700 hover:bg-zinc-100">None — clear all labels</button>
+                          {savedLabels.length ? savedLabels.map((label) => {
+                            const current = (getFieldValue(item, 'badges') as string[] | undefined) || (currentBadge ? [currentBadge] : []);
+                            return <label key={label} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-zinc-50"><input type="checkbox" checked={current.includes(label)} onChange={(e) => { const next = e.target.checked ? [...current.filter((v) => v !== label), label] : current.filter((v) => v !== label); handleFieldChange(item.id, 'badges', next); handleFieldChange(item.id, 'customBadgeText', next[0] || ''); }} className="accent-red-600"/>{label}</label>;
+                          }) : <p className="p-2 text-[11px] text-zinc-500">No saved labels yet. Add labels on products first.</p>}
+                        </div>
+                      </details>
                     </td>
 
                     <td className="p-2.5">
