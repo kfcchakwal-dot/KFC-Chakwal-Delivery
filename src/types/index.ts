@@ -374,6 +374,10 @@ export interface CustomerLoyaltyRecord {
   defaultAddress?: string;
   savedAddresses?: CustomerAddress[];
   email?: string;
+  /** Explicit opt-in for promotional emails; only true means subscribed. */
+  emailMarketingConsent?: boolean;
+  emailMarketingConsentAt?: string;
+  emailMarketingConsentSource?: 'signup' | 'signin' | 'google';
   loyaltyPoints: number;
   vipTier?: VipTierId;
   totalOrdersCount: number;
@@ -441,6 +445,9 @@ export interface ProductReview {
 
 export interface CustomerUser {
   id: string;
+  emailMarketingConsent?: boolean;
+  emailMarketingConsentAt?: string;
+  emailMarketingConsentSource?: 'signup' | 'signin' | 'google';
   fullName: string;
   phone: string;
   address: string;
