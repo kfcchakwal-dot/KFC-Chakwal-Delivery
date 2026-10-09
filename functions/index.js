@@ -4,13 +4,8 @@ const { getMessaging } = require('firebase-admin/messaging');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onRequest } = require('firebase-functions/v2/https');
-const { defineSecret } = require('firebase-functions/params');
 const logger = require('firebase-functions/logger');
 
-const WHATSAPP_ACCESS_TOKEN = defineSecret('WHATSAPP_ACCESS_TOKEN');
-const WHATSAPP_PHONE_NUMBER_ID = defineSecret('WHATSAPP_PHONE_NUMBER_ID');
-const WHATSAPP_REVIEW_TEMPLATE = defineSecret('WHATSAPP_REVIEW_TEMPLATE');
-const WHATSAPP_REVIEW_TEMPLATE_LANGUAGE = defineSecret('WHATSAPP_REVIEW_TEMPLATE_LANGUAGE');
 
 initializeApp();
 
@@ -155,7 +150,7 @@ exports.productShare = onRequest({ region: 'us-central1', cors: true }, async (r
 // Server-side review workflow. It records eligible delivered orders once, and sends
 // WhatsApp only when an approved template and Cloud API credentials are configured.
 exports.queueReviewRequests = onSchedule(
-  { schedule: 'every 15 minutes', timeZone: 'Asia/Karachi', region: 'us-central1', retryCount: 2, secrets: [WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_REVIEW_TEMPLATE, WHATSAPP_REVIEW_TEMPLATE_LANGUAGE] },
+  { schedule: 'every 15 minutes', timeZone: 'Asia/Karachi', region: 'us-central1', retryCount: 2 },
   async () => {
     const publicSnapshot = await db.collection('storePublic').doc('global').get();
     const publicData = publicSnapshot.exists ? publicSnapshot.data() || {} : {};
@@ -168,10 +163,10 @@ exports.queueReviewRequests = onSchedule(
     const delayHours = Math.max(1, Math.min(168, Number(autoReview.delayHours || 12)));
     const cutoff = Date.now() - delayHours * 60 * 60 * 1000;
     const ordersSnapshot = await db.collection('orders').where('status', '==', 'delivered').get();
-    const accessToken = WHATSAPP_ACCESS_TOKEN.value() || '';
-    const phoneNumberId = WHATSAPP_PHONE_NUMBER_ID.value() || '';
-    const templateName = WHATSAPP_REVIEW_TEMPLATE.value() || '';
-    const templateLanguage = WHATSAPP_REVIEW_TEMPLATE_LANGUAGE.value() || 'en';
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN || '';
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
+    const templateName = process.env.WHATSAPP_REVIEW_TEMPLATE || '';
+    const templateLanguage = process.env.WHATSAPP_REVIEW_TEMPLATE_LANGUAGE || 'en';
 
     for (const orderDoc of ordersSnapshot.docs) {
       const order = orderDoc.data() || {};
