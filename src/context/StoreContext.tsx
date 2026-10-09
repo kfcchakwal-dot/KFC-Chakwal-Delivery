@@ -1531,8 +1531,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const savedAddresses = address && !addressExists
         ? [...existingAddresses, { id: `addr-${Date.now()}`, label: 'Recent Order', address }]
         : existingAddresses;
+      const customerProfileRef = doc(db, 'customers', user.uid);
+      const existingCustomerProfile = await getDoc(customerProfileRef);
       const profileUpdate = {
-        id: user.uid,
         fullName,
         email,
         phone,
@@ -1541,7 +1542,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         savedAddresses,
         updatedAt: new Date().toISOString(),
       };
-      await setDoc(doc(db, 'customers', user.uid), profileUpdate, { merge: true });
+      if (existingCustomerProfile.exists()) {
+        await setDoc(customerProfileRef, profileUpdate, { merge: true });
+      } else {
+        await setDoc(customerProfileRef, {
+          id: user.uid,
+          ...profileUpdate,
+          loyaltyPoints: 50,
+          totalSpent: 0,
+          ordersCount: 0,
+          createdAt: new Date().toISOString(),
+        }, { merge: true });
+      }
       const updatedProfile: CustomerUser = {
         id: user.uid,
         fullName,
