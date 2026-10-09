@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kfc-chakwal-v6';
+const CACHE_NAME = 'kfc-chakwal-v7';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -30,6 +30,20 @@ self.addEventListener('activate', (event) => {
           .map((name) => caches.delete(name))
       );
     }).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || '/seller', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((client) => new URL(client.url).origin === self.location.origin);
+      if (existing) {
+        return existing.navigate(targetUrl).then(() => existing.focus());
+      }
+      return self.clients.openWindow(targetUrl);
+    })
   );
 });
 
