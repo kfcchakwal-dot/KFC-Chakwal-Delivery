@@ -30,7 +30,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
   const visibleItems = useMemo(() => menuItems.filter((item) =>
     (category === 'all' || item.categoryId === category) &&
     (!search.trim() || item.name.toLowerCase().includes(search.trim().toLowerCase())) &&
-    item.available !== false
+    item.isAvailable !== false
   ), [menuItems, category, search]);
 
   const add = (item: MenuItem) => setCart((prev) => {
@@ -38,7 +38,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
     return found ? prev.map((x) => x.item.id === item.id ? { ...x, quantity: x.quantity + 1 } : x) : [...prev, { item, quantity: 1 }];
   });
   const changeQty = (id: string, delta: number) => setCart((prev) => prev.map((x) => x.item.id === id ? { ...x, quantity: x.quantity + delta } : x).filter((x) => x.quantity > 0));
-  const subtotal = cart.reduce((sum, x) => sum + Number(calculatePrice(x.item.baseKfcPrice, x.item.customSellingPrice) || x.item.baseKfcPrice || 0) * x.quantity, 0);
+  const subtotal = cart.reduce((sum, x) => sum + Number(calculatePrice(x.item.baseKfcPrice, x.item.sellingPrice) || x.item.baseKfcPrice || 0) * x.quantity, 0);
   const discountAmount = Math.min(subtotal, Math.max(0, discountType === 'percent' ? subtotal * Math.min(100, discount) / 100 : discount));
   const total = Math.max(0, subtotal + (orderType === 'delivery' ? Math.max(0, deliveryFee) : 0) - discountAmount);
 
@@ -54,7 +54,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
         cartItemId: 'pos-' + item.id + '-' + Date.now(),
         menuItem: item,
         quantity,
-        unitPrice: Number(calculatePrice(item.baseKfcPrice, item.customSellingPrice) || item.baseKfcPrice || 0),
+        unitPrice: Number(calculatePrice(item.baseKfcPrice, item.sellingPrice) || item.baseKfcPrice || 0),
         options: { addons: [], specialInstructions: '' },
       }));
       const order: Order & Record<string, any> = {
@@ -100,15 +100,15 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {visibleItems.map(item=><button key={item.id} onClick={()=>add(item)} className="flex min-h-32 flex-col rounded-xl border p-3 text-left transition hover:border-red-400 hover:shadow-sm active:scale-[.99]">
-            {item.imageUrl && <img loading="lazy" src={item.imageUrl} alt="" className="mb-2 h-20 w-full rounded-lg object-contain"/>}
-            <span className="line-clamp-2 text-sm font-bold">{item.name}</span><span className="mt-auto pt-2 text-sm font-black text-red-600">{formatPKR(Number(calculatePrice(item.baseKfcPrice, item.customSellingPrice) || item.baseKfcPrice || 0))}</span><span className="mt-1 text-xs text-zinc-500">+ Add</span>
+            {item.image && <img loading="lazy" src={item.image} alt="" className="mb-2 h-20 w-full rounded-lg object-contain"/>}
+            <span className="line-clamp-2 text-sm font-bold">{item.name}</span><span className="mt-auto pt-2 text-sm font-black text-red-600">{formatPKR(Number(calculatePrice(item.baseKfcPrice, item.sellingPrice) || item.baseKfcPrice || 0))}</span><span className="mt-1 text-xs text-zinc-500">+ Add</span>
           </button>)}
         </div>
         {!visibleItems.length && <p className="py-10 text-center text-sm text-zinc-500">Koi product nahi mila.</p>}
       </section>
       <section className="space-y-4 rounded-2xl border bg-white p-4">
         <h3 className="flex items-center gap-2 text-lg font-black"><ShoppingCart size={19}/> Current Bill <span className="ml-auto text-sm text-zinc-500">{cart.reduce((s,x)=>s+x.quantity,0)} items</span></h3>
-        <div className="max-h-64 space-y-2 overflow-auto">{cart.map(line=><div key={line.item.id} className="flex items-center gap-2 rounded-xl bg-zinc-50 p-2"><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{line.item.name}</p><p className="text-xs text-zinc-500">{formatPKR(Number(calculatePrice(line.item.baseKfcPrice, line.item.customSellingPrice) || line.item.baseKfcPrice || 0))} each</p></div><button aria-label="Decrease quantity" onClick={()=>changeQty(line.item.id,-1)} className="rounded-lg border bg-white p-1.5"><Minus size={14}/></button><span className="w-5 text-center text-sm font-bold">{line.quantity}</span><button aria-label="Increase quantity" onClick={()=>changeQty(line.item.id,1)} className="rounded-lg border bg-white p-1.5"><Plus size={14}/></button><button aria-label="Remove item" onClick={()=>setCart(p=>p.filter(x=>x.item.id!==line.item.id))} className="p-1.5 text-red-600"><Trash2 size={15}/></button></div>)}</div>
+        <div className="max-h-64 space-y-2 overflow-auto">{cart.map(line=><div key={line.item.id} className="flex items-center gap-2 rounded-xl bg-zinc-50 p-2"><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{line.item.name}</p><p className="text-xs text-zinc-500">{formatPKR(Number(calculatePrice(line.item.baseKfcPrice, line.item.sellingPrice) || line.item.baseKfcPrice || 0))} each</p></div><button aria-label="Decrease quantity" onClick={()=>changeQty(line.item.id,-1)} className="rounded-lg border bg-white p-1.5"><Minus size={14}/></button><span className="w-5 text-center text-sm font-bold">{line.quantity}</span><button aria-label="Increase quantity" onClick={()=>changeQty(line.item.id,1)} className="rounded-lg border bg-white p-1.5"><Plus size={14}/></button><button aria-label="Remove item" onClick={()=>setCart(p=>p.filter(x=>x.item.id!==line.item.id))} className="p-1.5 text-red-600"><Trash2 size={15}/></button></div>)}</div>
         <div className="grid grid-cols-2 gap-2"><label className="text-xs font-bold">Order type<select value={orderType} onChange={e=>setOrderType(e.target.value as OrderType)} className="mt-1 w-full rounded-lg border p-2 text-sm"><option value="delivery">Delivery</option><option value="self_pickup">Takeaway / Pickup</option></select></label><label className="text-xs font-bold">Payment<select value={payment} onChange={e=>setPayment(e.target.value as any)} className="mt-1 w-full rounded-lg border p-2 text-sm"><option value="cod">Cash</option><option value="jazzcash">JazzCash</option><option value="easypaisa">Easypaisa</option><option value="bank_transfer">Bank transfer</option></select></label></div>
         <div className="grid grid-cols-2 gap-2"><label className="text-xs font-bold">Customer name<input value={customerName} onChange={e=>setCustomerName(e.target.value)} placeholder="Customer name" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label><label className="text-xs font-bold">Phone<input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="03xx xxxxxxx" inputMode="tel" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label></div>
         <label className="block text-xs font-bold">Delivery address / table note<input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Address or pickup details" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label>
