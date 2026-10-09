@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, initializeAuth, browserLocalPersistence } from 'firebase/auth';
+import { getAuth, initializeAuth, browserLocalPersistence, browserPopupRedirectResolver } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 export { firebaseConfig };
@@ -11,7 +11,11 @@ export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 // If hot reload has already initialized Auth, reuse that instance.
 export const auth = (() => {
   try {
-    return initializeAuth(app, { persistence: browserLocalPersistence });
+    return initializeAuth(app, {
+      persistence: browserLocalPersistence,
+      // Required for signInWithPopup/signInWithRedirect in browser-based Google login.
+      popupRedirectResolver: browserPopupRedirectResolver,
+    });
   } catch {
     return getAuth(app);
   }
