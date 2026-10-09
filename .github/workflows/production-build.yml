@@ -21,5 +21,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: TypeScript check
         run: npm run lint
+      - name: Firebase Functions syntax check
+        run: node --check functions/index.js
       - name: Production build
         run: npm run build
