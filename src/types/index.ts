@@ -224,6 +224,7 @@ export interface StoreSettings {
   autoReview?: AutoReviewConfig;
   adminUsers?: { id: string; name: string; email: string; role: 'Super Admin' | 'Manager'; addedAt: string }[];
   homepageVideo?: { enabled: boolean; videoUrl: string; title: string; subtitle: string; position: 'top' | 'middle' | 'bottom' };
+  sectionColorSchemes?: Record<string, { background: string; text: string; button: string; buttonText: string; border: string }>;
   customerAuthCopy?: {
     title: string;
     subtitle: string;
@@ -272,6 +273,7 @@ export interface VipTier {
   description: string;
   badgeColor: string;
   perks: string[];
+  imageUrl?: string;
 }
 
 export interface VipMembershipRequest {
