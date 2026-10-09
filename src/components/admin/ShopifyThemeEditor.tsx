@@ -334,6 +334,11 @@ export const ShopifyThemeEditor: React.FC<{ onClose: () => void }> = ({ onClose 
                     />
                   </div>
 
+                  <label className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-3">
+                    <span><span className="block font-bold text-zinc-800">Show Hero Rich Text</span><span className="block text-[10px] text-zinc-500">Uncheck karne par hero description homepage se hide ho jayegi.</span></span>
+                    <input type="checkbox" checked={(draftSettings.hero as any)?.showSubtext !== false} onChange={(e) => handleUpdate({ hero: { ...(draftSettings.hero as any), showSubtext: e.target.checked } })} className="h-4 w-4 accent-[#e4002b]" />
+                  </label>
+
                   <div>
                     <label className="block text-zinc-600 font-semibold mb-1">Subtext / Description</label>
                     <textarea
