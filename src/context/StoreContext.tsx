@@ -79,7 +79,7 @@ const getFriendlyAuthError = (error: any): string => {
   const code = String(error?.code || '');
   if (code === 'auth/popup-closed-by-user') return 'Google login window band ho gayi. Dobara try karein.';
   if (code === 'auth/popup-blocked') return 'Browser ne popup block kiya. Redirect login dobara try karein.';
-  if (code === 'auth/unauthorized-domain') return 'Firebase Console > Authentication > Settings > Authorized domains mein current app ka exact domain add karein.';
+  if (code === 'auth/unauthorized-domain') return 'Firebase Console > Authentication > Settings > Authorized domains mein kfc-chakwal-delivery.kfcchakwal.workers.dev add karein (aur agar custom app domain use ho to woh bhi).';
   if (code === 'auth/invalid-credential') return 'Google sign-in credential reject hui. Firebase mein Google provider aur Authorized domains check karein.';
   if (code === 'auth/operation-not-supported-in-this-environment') return 'Is browser environment mein popup login supported nahi. Redirect login use karein.';
   if (code === 'auth/web-storage-unsupported') return 'Browser storage/cookies block hain. Is site ke liye cookies aur site data allow karke dobara try karein.';
