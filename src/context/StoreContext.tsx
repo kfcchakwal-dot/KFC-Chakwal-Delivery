@@ -1054,10 +1054,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return { success: true };
     } catch (err: any) {
       console.error('Admin Google authentication failure:', err);
-      if (err?.code === 'auth/popup-closed-by-user') {
-        return { success: false, error: 'Google login cancel ho gaya.' };
-      }
-      return { success: false, error: err?.message || 'Admin Google login nahi ho saka.' };
+      return { success: false, error: getFriendlyAuthError(err) };
     }
   };
 
