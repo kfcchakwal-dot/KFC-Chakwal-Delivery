@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { Header } from './components/Header';
 import { HeroBanner } from './components/HeroBanner';
@@ -16,7 +16,7 @@ import { FloatingCartBar } from './components/FloatingCartBar';
 import { Footer } from './components/Footer';
 import { PageSectionsRenderer } from './components/PageSectionsRenderer';
 import { InstallAppModal } from './components/InstallAppModal';
-import { ShopifyAdminApp } from './components/admin/ShopifyAdminApp';
+const ShopifyAdminApp = lazy(() => import('./components/admin/ShopifyAdminApp').then((module) => ({ default: module.ShopifyAdminApp })));
 import { Preloader } from './components/Preloader';
 import { DailyDealsSection } from './components/DailyDealsSection';
 import { HomepageVideoSection } from './components/HomepageVideoSection';
@@ -145,7 +145,11 @@ const MainShop: React.FC = () => {
 
   // If in Admin Mode or Seller Mode (?app=seller), render KCD Seller Portal
   if (isAdmin || isSellerMode) {
-    return <ShopifyAdminApp />;
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-zinc-500">Loading admin panel…</div>}>
+        <ShopifyAdminApp />
+      </Suspense>
+    );
   }
 
   // Filter items based on search query
