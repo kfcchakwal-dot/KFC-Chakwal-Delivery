@@ -311,6 +311,8 @@ export const ShopifyAdminApp: React.FC = () => {
   const [pointsAdjustmentVal, setPointsAdjustmentVal] = useState<number>(0);
   const [editingCustomerRecord, setEditingCustomerRecord] = useState<any | null>(null);
   const [adminNotificationStatus, setAdminNotificationStatus] = useState<string>('');
+  const [adminVapidKey, setAdminVapidKey] = useState<string>(settings.messagingVapidKey || '');
+  useEffect(() => { setAdminVapidKey(settings.messagingVapidKey || ''); }, [settings.messagingVapidKey]);
   const [reviewActionNotice, setReviewActionNotice] = useState<string>('');
 
   // Policy Form state
@@ -1273,6 +1275,16 @@ export const ShopifyAdminApp: React.FC = () => {
                   </p>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 mb-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-600 mb-1">Firebase Web Push public key (VAPID)</label>
+                    <input type="text" value={adminVapidKey} onChange={(e) => setAdminVapidKey(e.target.value)} placeholder="Firebase Console se public key paste karein" className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-xs" autoComplete="off" />
+                    <p className="text-[10px] text-zinc-500 mt-1">Firebase Console → Project settings → Cloud Messaging → Web Push certificates. Ye public key hai, private key nahi.</p>
+                  </div>
+                  <div className="flex items-end">
+                    <button type="button" onClick={() => { if (!adminVapidKey.trim()) { setAdminNotificationStatus('Pehle Firebase Console se VAPID public key paste karein.'); return; } updateSettings({ messagingVapidKey: adminVapidKey.trim() }); setAdminNotificationStatus('VAPID public key save kar di. Ab Enable This Device Notifications dabayein.'); }} className="w-full bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-800 text-xs font-bold px-3 py-2 rounded-xl">Save Push Key</button>
+                  </div>
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={enableAdminNotifications}
