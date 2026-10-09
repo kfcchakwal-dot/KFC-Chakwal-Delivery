@@ -957,7 +957,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!auth.currentUser || !isAdmin) return;
     try {
       const snapshot = await getDocs(collection(db, 'customers'));
-      const data = snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<CustomerLoyaltyRecord, 'id'>) }));
+      const data = snapshot.docs.map((item) => { const record = item.data() as Omit<CustomerLoyaltyRecord, 'id'>; return { id: item.id, ...record, address: record.address || record.defaultAddress || '', defaultAddress: record.defaultAddress || record.address || '', savedAddresses: record.savedAddresses || [] }; });
       setCustomerRecords(data);
       localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(data));
     } catch (error) {
@@ -1004,6 +1004,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...(updates.phone !== undefined ? { phone: updates.phone.trim().slice(0, 40) } : {}),
       ...(updates.email !== undefined ? { email: updates.email.trim().slice(0, 160) } : {}),
       ...(updates.address !== undefined ? { address: updates.address.trim().slice(0, 500), defaultAddress: updates.address.trim().slice(0, 500) } : {}),
+      ...(updates.savedAddresses !== undefined ? { savedAddresses: updates.savedAddresses.filter((address) => address && address.address.trim()).slice(0, 20).map((address) => ({ id: String(address.id || `addr-${Date.now()}`), label: String(address.label || 'Address').slice(0, 40), address: String(address.address).trim().slice(0, 500), isDefault: Boolean(address.isDefault) })) } : {}),
       updatedAt: new Date().toISOString(),
     };
     await setDoc(doc(db, 'customers', customerId), cleanUpdates, { merge: true });
