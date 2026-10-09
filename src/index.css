@@ -143,3 +143,9 @@ button[class*="bg-[#c30025]"]:not(.buy-button) {
 button[class*="bg-[#e4002b]"]:not(.buy-button) *,
 button[class*="bg-[#c30025]"]:not(.buy-button) * { color: #27272a !important; }
 .buy-button [class~="text-white"], button.buy-button [class~="text-white"] { color: #fff !important; }
+
+button.buy-button[class~="text-white"],
+button.buy-button[class~="text-white"]:hover,
+button.buy-button[class~="text-white"]:focus-visible {
+  color: #ffffff !important;
+}
