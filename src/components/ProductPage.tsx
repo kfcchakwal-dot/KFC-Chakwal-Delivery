@@ -248,7 +248,7 @@ export const ProductPage: React.FC = () => {
                 <img
                   src={activeImage || item.image}
                   alt={item.name}
-                  className="w-full h-full object-cover object-center"
+                  className="w-full h-full object-contain object-center bg-white p-2 sm:p-4"
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     const target = e.currentTarget;
@@ -543,7 +543,6 @@ export const ProductPage: React.FC = () => {
                 aria-label="Add to bucket"
               >
                 <span className="flex items-center gap-2">
-                  <ShoppingBag className="w-5 h-5" />
                   {addedAnimation ? 'ADDED TO BUCKET!' : 'ADD TO BUCKET'}
                 </span>
                 <span className="font-sans text-base font-extrabold bg-black/25 px-3 py-1 rounded-xl tabular-nums">
