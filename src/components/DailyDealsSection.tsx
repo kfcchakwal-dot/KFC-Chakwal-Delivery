@@ -160,18 +160,18 @@ export const DailyDealsSection: React.FC = () => {
                 }`}
               >
                 {/* Image & Discount Badge */}
-                <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-black/40 mb-2.5">
+                <div className="relative aspect-square rounded-xl overflow-hidden bg-white border border-zinc-100 mb-2.5">
                   {item.image ? (
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-contain p-1.5 group-hover:scale-[1.02] transition-transform duration-300"
                       onError={(e) => {
                         e.currentTarget.src = '/src/assets/images/kfc_krunch_burger_1791015834419.jpg';
                       }}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-[10px] text-zinc-400 text-center p-2">
+                    <div className="w-full h-full flex items-center justify-center bg-zinc-50 text-[10px] text-zinc-500 text-center p-2">
                       {item.name}
                     </div>
                   )}
