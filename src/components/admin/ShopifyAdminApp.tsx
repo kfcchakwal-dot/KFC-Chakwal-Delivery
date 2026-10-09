@@ -2451,7 +2451,7 @@ export const ShopifyAdminApp: React.FC = () => {
                             <td className="p-3.5 text-right">
                               <div className="flex flex-col sm:flex-row justify-end gap-2">
                                 <button
-                                  onClick={() => setEditingCustomerRecord({ ...cust, address: cust.address || cust.defaultAddress || '' })}
+                                  onClick={() => setEditingCustomerRecord({ ...cust, address: cust.address || '' })}
                                   className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg transition"
                                 >
                                   View / Edit Details
