@@ -102,7 +102,7 @@ service cloud.firestore {
     // Admin-owned FCM tokens let the trusted server send new-order push alerts.
     match /adminPushTokens/{tokenId} {
       allow read: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
-      allow create, update: if signedIn() &&
+      allow create, update: if admin() &&
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.token is string &&
         request.resource.data.token.size() > 0;
