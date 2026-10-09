@@ -65,6 +65,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -630,45 +631,34 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return [];
   });
 
-  // SERVER SYNC
+  // Store settings/catalogue sync directly with Firestore for static hosting.
   useEffect(() => {
-    const loadServerData = async () => {
+    const loadStoreData = async () => {
       try {
-        const res = await fetch('/api/store-data', { headers: await getAuthHeaders() });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Object.keys(data).length > 0) {
-            if (data.settings) {
-              setSettings((prev) => ({
-                ...prev,
-                ...data.settings,
-                phone: '+92 325 2777574',
-                whatsappNumber: '+92 325 2777574',
-                deliveryRadiusText: 'Within 3 KM of Chakwal City',
-              }));
-              if (data.settings.deliveryMethods) {
-                setDeliveryMethods(data.settings.deliveryMethods);
-              }
-            }
-            if (data.menuItems && Array.isArray(data.menuItems) && data.menuItems.length > 0) {
-              setMenuItems(data.menuItems);
-            }
-            if (data.discounts && Array.isArray(data.discounts) && data.discounts.length > 0) {
-              setDiscounts(data.discounts);
-            }
-            if (data.policies && Array.isArray(data.policies)) {
-              setPolicies(data.policies);
-            }
-            if (data.chakwalAreas && Array.isArray(data.chakwalAreas) && data.chakwalAreas.length > 0) {
-              setChakwalAreas(data.chakwalAreas);
-            }
-          }
+        const snapshot = await getDoc(doc(db, 'storePublic', 'global'));
+        if (!snapshot.exists()) return;
+        const data: any = snapshot.data() || {};
+        if (data.settings) {
+          setSettings((prev) => ({
+            ...prev, ...data.settings,
+            phone: '+92 325 2777574',
+            whatsappNumber: '+92 325 2777574',
+            deliveryRadiusText: 'Within 3 KM of Chakwal City',
+          }));
+          if (Array.isArray(data.settings.deliveryMethods)) setDeliveryMethods(data.settings.deliveryMethods);
         }
-      } catch {}
+        if (Array.isArray(data.menuItems) && data.menuItems.length) setMenuItems(data.menuItems);
+        if (Array.isArray(data.discounts) && data.discounts.length) setDiscounts(data.discounts);
+        if (Array.isArray(data.policies)) setPolicies(data.policies);
+        if (Array.isArray(data.chakwalAreas) && data.chakwalAreas.length) setChakwalAreas(data.chakwalAreas);
+        setServerSyncStatus('synced');
+      } catch (error) {
+        console.warn('Store data Firestore read notice:', error);
+        setServerSyncStatus('offline');
+      }
     };
-
-    loadServerData();
-    const interval = setInterval(loadServerData, 12000);
+    void loadStoreData();
+    const interval = setInterval(() => { void loadStoreData(); }, 12000);
     return () => clearInterval(interval);
   }, []);
 
@@ -774,30 +764,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const syncStoreToServer = async (customPayload?: Record<string, any>) => {
     try {
       setServerSyncStatus('syncing');
+      const user = auth.currentUser;
+      if (!user || !isAdmin) throw new Error('Admin authentication required');
       const safeSettings = {
-        ...settings,
-        deliveryMethods,
+        ...settings, deliveryMethods,
         metaCommerce: settings.metaCommerce
           ? { ...settings.metaCommerce, conversionsApiToken: undefined }
           : settings.metaCommerce,
       };
-      const payload = customPayload || {
-        settings: safeSettings,
-        menuItems,
-        discounts,
-        policies,
-        chakwalAreas,
-      };
-      const authHeaders = await getAuthHeaders();
-      if (!authHeaders.Authorization) throw new Error('Admin authentication required');
-      const response = await fetch('/api/store-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error('Server sync failed');
+      const payload = customPayload || { settings: safeSettings, menuItems, discounts, policies, chakwalAreas };
+      const publicPayload: Record<string, any> = { ...payload };
+      if (publicPayload.settings) {
+        publicPayload.settings = { ...publicPayload.settings };
+        delete publicPayload.settings.adminUsers;
+        if (publicPayload.settings.metaCommerce) {
+          publicPayload.settings.metaCommerce = { ...publicPayload.settings.metaCommerce };
+          delete publicPayload.settings.metaCommerce.conversionsApiToken;
+        }
+      }
+      if (publicPayload.metaCommerce) {
+        publicPayload.metaCommerce = { ...publicPayload.metaCommerce };
+        delete publicPayload.metaCommerce.conversionsApiToken;
+      }
+      await setDoc(doc(db, 'storePublic', 'global'), { ...publicPayload, updatedAt: new Date().toISOString() }, { merge: true });
       setServerSyncStatus('synced');
-    } catch {
+    } catch (error) {
+      console.warn('Store data Firestore sync notice:', error);
       setServerSyncStatus('offline');
     }
   };
@@ -805,14 +797,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const loadReviews = async () => {
       try {
-        const res = await fetch('/api/reviews');
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) setReviews(data);
-        }
-      } catch {}
+        const snapshot = await getDocs(collection(db, 'reviews'));
+        const data = snapshot.docs
+          .map((item) => ({ id: item.id, ...(item.data() as Omit<ProductReview, 'id'>) }))
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setReviews(data);
+      } catch (error) {
+        console.warn('Reviews Firestore read notice:', error);
+      }
     };
-    loadReviews();
+    void loadReviews();
   }, []);
 
   // Orders Fetch & Sound Trigger
@@ -857,52 +851,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => clearInterval(interval);
   }, [settings.orderNotificationSound]);
 
-  // Customers Fetch
+  // Admin-only customer and VIP request loading.
   const fetchCustomers = async () => {
+    if (!auth.currentUser || !isAdmin) return;
     try {
-      const res = await fetch('/api/customers', { headers: await getAuthHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        setCustomerRecords(data);
-        localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(data));
-      }
-    } catch {}
+      const snapshot = await getDocs(collection(db, 'customers'));
+      const data = snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<CustomerLoyaltyRecord, 'id'>) }));
+      setCustomerRecords(data);
+      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(data));
+    } catch (error) {
+      console.warn('Customers Firestore read notice:', error);
+    }
   };
+  useEffect(() => { void fetchCustomers(); }, [isAdmin]);
 
   useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || !auth.currentUser) return;
     const loadVipRequests = async () => {
       try {
-        const res = await fetch('/api/vip', { headers: await getAuthHeaders() });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) setVipRequests(data);
-        }
-      } catch {}
+        const snapshot = await getDocs(collection(db, 'vipRequests'));
+        const data = snapshot.docs
+          .map((item) => ({ id: item.id, ...(item.data() as Omit<VipMembershipRequest, 'id'>) }))
+          .sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+        setVipRequests(data);
+        localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(data));
+      } catch (error) {
+        console.warn('VIP requests Firestore read notice:', error);
+      }
     };
-    loadVipRequests();
+    void loadVipRequests();
   }, [isAdmin]);
 
   const updateCustomerPoints = async (phoneOrId: string, newPoints: number) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
     const target = customerRecords.find((c) => c.phone === phoneOrId || c.id === phoneOrId);
     if (!target) throw new Error('Customer not found.');
-    const res = await fetch('/api/customers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-      body: JSON.stringify({ id: target.id, phone: target.phone, fullName: target.fullName, loyaltyPoints: Math.max(0, Math.floor(newPoints)) }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Customer points update failed.');
-    }
-    const saved = await res.json();
-    setCustomerRecords((prev) => prev.map((c) => (c.id === target.id ? { ...c, ...saved } : c)));
+    const loyaltyPoints = Math.max(0, Math.floor(newPoints));
+    await setDoc(doc(db, 'customers', target.id), { loyaltyPoints, updatedAt: new Date().toISOString() }, { merge: true });
+    setCustomerRecords((prev) => prev.map((c) => c.id === target.id ? { ...c, loyaltyPoints } : c));
     if (currentUser && (currentUser.phone === target.phone || currentUser.id === target.id)) {
-      setCurrentUser((prev) => (prev ? { ...prev, loyaltyPoints: Number(saved.loyaltyPoints || 0) } : prev));
+      setCurrentUser((prev) => prev ? { ...prev, loyaltyPoints } : prev);
     }
   };
 
@@ -1465,22 +1453,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Reviews
   const addReview = async (reviewData: Omit<ProductReview, 'id' | 'date'>): Promise<ProductReview> => {
-    const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
-    if (!token) throw new Error('Customer authentication required to submit a review.');
-    const response = await fetch('/api/reviews', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(reviewData),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'Review submit nahi ho saka.');
-    const savedReview = data as ProductReview;
-    setReviews((prev) => [savedReview, ...prev]);
+    const user = auth.currentUser;
+    if (!user) throw new Error('Customer authentication required to submit a review.');
+    const id = `review-${Date.now()}-${user.uid}`;
+    const savedReview = { ...reviewData, id, date: new Date().toISOString(), customerUid: user.uid } as ProductReview;
+    await setDoc(doc(db, 'reviews', id), savedReview);
+    setReviews((prev) => [savedReview, ...prev.filter((review) => review.id !== id)]);
     return savedReview;
   };
-
-  const deleteReview = (reviewId: string) => {
-    setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+  const deleteReview = async (reviewId: string) => {
+    if (!auth.currentUser) throw new Error('Please sign in to delete a review.');
+    await deleteDoc(doc(db, 'reviews', reviewId));
+    setReviews((prev) => prev.filter((review) => review.id !== reviewId));
   };
 
   // Customer User Auth — free Google Sign-In + Email/Password
@@ -1626,32 +1610,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentUser(updatedUser);
     localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
 
-    void (async () => {
-      try {
-        const response = await fetch('/api/customer/profile', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-          body: JSON.stringify({
-            fullName: updatedUser.fullName,
-            email: updatedUser.email || '',
-            defaultAddress: updatedUser.address,
-            savedAddresses: updatedUser.savedAddresses,
-          }),
-        });
-        if (!response.ok) throw new Error('Profile update failed');
-        const saved = await response.json();
-        setCurrentUser((prev) => prev ? {
-          ...prev,
-          fullName: saved.fullName || prev.fullName,
-          email: saved.email || prev.email,
-          address: saved.defaultAddress || prev.address,
-          defaultAddress: saved.defaultAddress || prev.defaultAddress,
-          savedAddresses: saved.savedAddresses || prev.savedAddresses,
-        } : prev);
-      } catch (error) {
-        console.warn('Saved address sync failed:', error);
-      }
-    })();
+    void setDoc(doc(db, 'customers', currentUser.id), {
+      fullName: updatedUser.fullName, email: updatedUser.email || '',
+      defaultAddress: updatedUser.address, savedAddresses: updatedUser.savedAddresses,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true }).catch((error) => console.warn('Saved address sync failed:', error));    })();
   };
 
   const deleteSavedAddress = (addressId: string) => {
@@ -1665,21 +1628,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     setCurrentUser(updatedUser);
     localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
-    void (async () => {
-      try {
-        const response = await fetch('/api/customer/profile', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-          body: JSON.stringify({
-            defaultAddress: updatedUser.address,
-            savedAddresses: updatedUser.savedAddresses,
-          }),
-        });
-        if (!response.ok) throw new Error('Profile update failed');
-      } catch (error) {
-        console.warn('Address deletion sync failed:', error);
-      }
-    })();
+    void setDoc(doc(db, 'customers', currentUser.id), {
+      defaultAddress: updatedUser.address, savedAddresses: updatedUser.savedAddresses,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true }).catch((error) => console.warn('Address deletion sync failed:', error));    })();
   };
 
   const repeatOrder = (order: Order) => {
@@ -1742,134 +1694,84 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     paymentMethod: 'jazzcash' | 'easypaisa' | 'bank_transfer',
     transactionId: string
   ) => {
+    if (!currentUser || !auth.currentUser) throw new Error('Please sign in before requesting VIP membership.');
     const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
     const newReq: VipMembershipRequest = {
-      id: `vip-req-${Date.now()}`,
-      customerId: currentUser?.id || `cust-${Date.now()}`,
-      customerName: currentUser?.fullName || 'VIP Customer',
-      phone: currentUser?.phone || '03252777574',
-      tierId,
-      amount: tier.price,
-      paymentMethod,
-      transactionId,
-      requestedAt: new Date().toISOString(),
-      status: 'pending',
+      id: `vip-req-${Date.now()}`, customerId: currentUser.id, uid: auth.currentUser.uid,
+      customerName: currentUser.fullName || 'VIP Customer', phone: currentUser.phone || '',
+      tierId, amount: tier.price, paymentMethod, transactionId,
+      requestedAt: new Date().toISOString(), status: 'pending',
     };
-    const nextReqs = [newReq, ...vipRequests];
-    setVipRequests(nextReqs);
-    localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify(nextReqs));
-
-    if (currentUser) {
-      const updatedUser: CustomerUser = {
-        ...currentUser,
-        vipTier: tierId,
-        vipStatus: 'pending',
-      };
-      setCurrentUser(updatedUser);
-      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
-    }
+    void setDoc(doc(db, 'vipRequests', newReq.id), newReq).then(() => {
+      setVipRequests((prev) => [newReq, ...prev.filter((r) => r.id !== newReq.id)]);
+      localStorage.setItem(VIP_REQUESTS_KEY, JSON.stringify([newReq, ...vipRequests]));
+    }).catch((error) => console.warn('VIP request save failed:', error));
+    const updatedUser = { ...currentUser, vipTier: tierId, vipStatus: 'pending' as const };
+    setCurrentUser(updatedUser);
+    localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
   };
 
-  const approveVipRequest = async (requestId: string) => {
-    if (!requestId) throw new Error('VIP request ID is missing.');
-
-    const response = await fetch(`/api/vip/${encodeURIComponent(requestId)}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-      body: JSON.stringify({ status: 'approved' }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'VIP approval failed.');
-    setVipRequests((prev) => prev.map((request) => request.id === requestId ? { ...request, ...data } : request));
-    if (currentUser && data.customerId === currentUser.id) {
-      setCurrentUser((prev) => prev ? { ...prev, vipTier: data.tierId, vipStatus: 'active' } : prev);
+  const setVipRequestStatus = async (requestId: string, status: 'approved' | 'rejected') => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    const request = vipRequests.find((item) => item.id === requestId);
+    if (!request) throw new Error('VIP request not found.');
+    const updated = { ...request, status };
+    await setDoc(doc(db, 'vipRequests', requestId), { status, reviewedAt: new Date().toISOString() }, { merge: true });
+    await setDoc(doc(db, 'customers', request.customerId), {
+      vipTier: status === 'approved' ? request.tierId : null,
+      vipStatus: status === 'approved' ? 'active' : 'rejected',
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    setVipRequests((prev) => prev.map((item) => item.id === requestId ? updated : item));
+    if (currentUser?.id === request.customerId) {
+      setCurrentUser((prev) => prev ? {
+        ...prev, vipStatus: status === 'approved' ? 'active' : 'rejected',
+        ...(status === 'approved' ? { vipTier: request.tierId } : { vipTier: undefined }),
+      } : prev);
     }
   };
+  const approveVipRequest = async (requestId: string) => setVipRequestStatus(requestId, 'approved');
+  const rejectVipRequest = async (requestId: string) => setVipRequestStatus(requestId, 'rejected');
 
-  const rejectVipRequest = async (requestId: string) => {
-    if (!requestId) throw new Error('VIP request ID is missing.');
-    const response = await fetch(`/api/vip/${encodeURIComponent(requestId)}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-      body: JSON.stringify({ status: 'rejected' }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'VIP rejection failed.');
-    setVipRequests((prev) => prev.map((request) => request.id === requestId ? { ...request, ...data } : request));
-    if (currentUser && data.customerId === currentUser.id) {
-      setCurrentUser((prev) => prev ? { ...prev, vipStatus: 'rejected', vipTier: undefined } : prev);
-    }
-  };
-
-  // WhatsApp-First Lifetime VIP Pass Order (No TID required)
   const requestVipMembershipWhatsApp = async (
-    tierId: VipTierId,
-    customerName: string,
-    phone: string,
-    email?: string
+    tierId: VipTierId, customerName: string, phone: string, email?: string
   ): Promise<VipMembershipRequest> => {
-    const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
-    if (!token) throw new Error('Customer authentication required for VIP request.');
-    const response = await fetch('/api/vip/request', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        tierId,
-        customerName: customerName.trim(),
-        phone: phone.trim(),
-        email: email?.trim(),
-        paymentMethod: 'whatsapp',
-      }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'VIP request could not be created.');
-    const saved = data as VipMembershipRequest;
-    setVipRequests((prev) => [saved, ...prev.filter((request) => request.id !== saved.id)]);
+    const user = auth.currentUser;
+    if (!user) throw new Error('Customer authentication required for VIP request.');
+    const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
+    const saved: VipMembershipRequest = {
+      id: `vip-req-${Date.now()}`, customerId: user.uid, uid: user.uid,
+      customerName: customerName.trim(), phone: phone.trim(), email: email?.trim() || '',
+      tierId, amount: tier.price, paymentMethod: 'whatsapp', transactionId: '',
+      requestedAt: new Date().toISOString(), status: 'pending',
+    };
+    await setDoc(doc(db, 'vipRequests', saved.id), saved);
+    setVipRequests((prev) => [saved, ...prev.filter((r) => r.id !== saved.id)]);
     if (currentUser) {
-      setCurrentUser((prev) => prev ? { ...prev, vipTier: tierId, vipStatus: 'pending' } : prev);
+      const updatedUser = { ...currentUser, vipTier: tierId, vipStatus: 'pending' as const };
+      setCurrentUser(updatedUser); localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
     }
     return saved;
   };
 
-  // Manually grant Lifetime VIP Pass by admin
   const grantVipMembershipManual = async (customerPhoneOrId: string, tierId: VipTierId) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
     const target = customerRecords.find((customer) => customer.id === customerPhoneOrId || customer.phone === customerPhoneOrId);
     if (!target) throw new Error('Customer not found.');
-
-    let requestId: string | undefined = vipRequests.find((request) => request.customerId === target.id)?.id;
-    if (!requestId) {
-      const createResponse = await fetch('/api/vip/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-        body: JSON.stringify({
-          tierId,
-          customerName: target.fullName,
-          phone: target.phone,
-          email: target.email,
-          paymentMethod: 'bank_transfer',
-        }),
-      });
-      const created = await createResponse.json().catch(() => ({}));
-      if (!createResponse.ok) throw new Error(created.error || 'VIP record could not be created.');
-      if (typeof created.id !== 'string' || !created.id) throw new Error('VIP record returned without an ID.');
-      requestId = created.id;
-      setVipRequests((prev) => [created, ...prev]);
+    let request = vipRequests.find((item) => item.customerId === target.id);
+    if (!request) {
+      const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
+      request = {
+        id: `vip-req-${Date.now()}`, customerId: target.id, customerName: target.fullName,
+        phone: target.phone, tierId, amount: tier.price, paymentMethod: 'bank_transfer',
+        transactionId: '', requestedAt: new Date().toISOString(), status: 'pending',
+      };
+      await setDoc(doc(db, 'vipRequests', request.id), request);
     }
-
-    const safeRequestId = requestId;
-    if (!safeRequestId) throw new Error('VIP request ID could not be determined.');
-
-    const response = await fetch(`/api/vip/${encodeURIComponent(safeRequestId)}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-      body: JSON.stringify({ status: 'approved' }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'VIP grant failed.');
-    setVipRequests((prev) => prev.map((request) => request.id === safeRequestId ? { ...request, ...data } : request));
-    setCustomerRecords((prev) => prev.map((customer) =>
-      customer.id === target.id ? { ...customer, vipTier: tierId } : customer
-    ));
+    await setDoc(doc(db, 'vipRequests', request.id), { status: 'approved', reviewedAt: new Date().toISOString(), tierId }, { merge: true });
+    await setDoc(doc(db, 'customers', target.id), { vipTier: tierId, vipStatus: 'active', updatedAt: new Date().toISOString() }, { merge: true });
+    setVipRequests((prev) => [{ ...request!, status: 'approved', tierId }, ...prev.filter((item) => item.id !== request!.id)]);
+    setCustomerRecords((prev) => prev.map((customer) => customer.id === target.id ? { ...customer, vipTier: tierId } : customer));
   };
 
   // Order Editing (Shopify-style: add/remove items, adjust quantities, discount, shipping, customer details)
@@ -1907,62 +1809,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Single Customer Manual Add, Edit, Delete
   const addCustomer = async (customerData: Partial<CustomerLoyaltyRecord>) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
     const payload: CustomerLoyaltyRecord = {
-      id: `cust-${Date.now()}`,
-      fullName: customerData.fullName || 'Customer',
-      phone: customerData.phone || '',
-      email: customerData.email || '',
-      address: customerData.address || 'Chakwal City',
-      loyaltyPoints: customerData.loyaltyPoints ?? 50,
-      vipTier: customerData.vipTier,
-      totalOrdersCount: customerData.totalOrdersCount ?? 0,
-      totalSpent: customerData.totalSpent ?? 0,
-      createdAt: new Date().toISOString(),
+      id: `cust-${Date.now()}`, fullName: customerData.fullName || 'Customer',
+      phone: customerData.phone || '', email: customerData.email || '',
+      address: customerData.address || 'Chakwal City', loyaltyPoints: customerData.loyaltyPoints ?? 50,
+      vipTier: customerData.vipTier, totalOrdersCount: customerData.totalOrdersCount ?? 0,
+      totalSpent: customerData.totalSpent ?? 0, createdAt: new Date().toISOString(),
     };
     if (!payload.phone.trim()) throw new Error('Customer phone is required.');
-    const res = await fetch('/api/customers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Customer could not be created.');
-    }
-    const saved = await res.json();
-    setCustomerRecords((prev) => [saved, ...prev.filter((c) => c.id !== saved.id && c.phone !== saved.phone)]);
+    await setDoc(doc(db, 'customers', payload.id), payload);
+    setCustomerRecords((prev) => [payload, ...prev.filter((c) => c.id !== payload.id && c.phone !== payload.phone)]);
   };
-
   const updateCustomer = async (customerId: string, updatedData: Partial<CustomerLoyaltyRecord>) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
     const target = customerRecords.find((c) => c.id === customerId || c.phone === customerId);
     if (!target) throw new Error('Customer not found.');
-    const res = await fetch('/api/customers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
-      body: JSON.stringify({ ...target, ...updatedData, id: target.id, phone: target.phone }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Customer could not be updated.');
-    }
-    const saved = await res.json();
-    setCustomerRecords((prev) => prev.map((c) => (c.id === target.id ? saved : c)));
+    const saved = { ...target, ...updatedData, id: target.id, phone: target.phone };
+    await setDoc(doc(db, 'customers', target.id), saved, { merge: true });
+    setCustomerRecords((prev) => prev.map((c) => c.id === target.id ? saved : c));
   };
-
   const deleteCustomer = async (customerId: string) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
     const target = customerRecords.find((c) => c.id === customerId || c.phone === customerId);
     if (!target) throw new Error('Customer not found.');
-    const res = await fetch(`/api/customers/${encodeURIComponent(target.id)}`, {
-      method: 'DELETE',
-      headers: await getAuthHeaders(),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Customer could not be deleted.');
-    }
+    await deleteDoc(doc(db, 'customers', target.id));
     setCustomerRecords((prev) => prev.filter((c) => c.id !== target.id));
   };
-
 
   // Admin user authorization is managed server-side in Firestore via the Admin Team Access panel.
   const addAdminUser = (_name: string, _email: string, _pin: string, _role: 'Super Admin' | 'Manager' = 'Manager') => {
