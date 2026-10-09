@@ -884,6 +884,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   useEffect(() => {
+    // Treat the first fetch after login/role changes as the baseline, not a new order.
+    ordersInitializedRef.current = false;
+    previousOrderCountRef.current = 0;
     void fetchOrders();
     const interval = setInterval(() => { void fetchOrders(); }, 3000);
     return () => clearInterval(interval);
