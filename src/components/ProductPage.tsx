@@ -552,7 +552,7 @@ export const ProductPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className="w-full flex-1 min-h-[52px] bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-xl py-3.5 px-6 rounded-2xl font-black flex items-center justify-between shadow-2xl shadow-red-950/50 cursor-pointer transition-all active:scale-[0.98]"
+                className="buy-button w-full flex-1 min-h-[52px] bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-xl py-3.5 px-6 rounded-2xl font-black flex items-center justify-between shadow-2xl shadow-red-950/50 cursor-pointer transition-all active:scale-[0.98]"
                 aria-label="Add to bucket"
               >
                 <span className="flex items-center gap-2">
