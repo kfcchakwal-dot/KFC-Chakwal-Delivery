@@ -74,6 +74,20 @@ import {
   orderBy,
 } from 'firebase/firestore';
 
+const getFriendlyAuthError = (error: any): string => {
+  const code = String(error?.code || '');
+  if (code === 'auth/popup-closed-by-user') return 'Google login window band ho gayi. Dobara try karein.';
+  if (code === 'auth/popup-blocked') return 'Browser ne popup block kiya. Redirect login dobara try karein.';
+  if (code === 'auth/unauthorized-domain') return 'Firebase Console > Authentication > Settings mein is website ka domain Authorized Domains mein add karein.';
+  if (code === 'auth/operation-not-allowed') return 'Firebase Console > Authentication > Sign-in method mein Google provider enable karein.';
+  if (code === 'auth/network-request-failed') return 'Internet connection check karke dobara try karein.';
+  if (code === 'auth/cancelled-popup-request') return 'Google login pehle se open hai. Us window ko complete karein.';
+  if (code === 'auth/invalid-api-key') return 'Firebase API key invalid hai. Firebase app configuration check karein.';
+  if (code === 'auth/too-many-requests') return 'Bohat zyada attempts hue. Kuch der baad dobara try karein.';
+  if (code === 'auth/account-exists-with-different-credential') return 'Is email ka account kisi doosre sign-in method se hai. Pehle usi method se login karein.';
+  return error?.message || 'Sign in nahi ho saka. Firebase Authentication settings check karein.';
+};
+
 interface StoreContextType {
   // Store Settings
   settings: StoreSettings;
