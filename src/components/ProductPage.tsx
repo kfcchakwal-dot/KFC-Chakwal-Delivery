@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { MenuItem, MenuItemAddon } from '../types';
+import { MenuItemCard } from './MenuItemCard';
 import {
   ArrowLeft,
   Heart,
@@ -53,6 +54,8 @@ const BEVERAGE_INFO: Record<string, { image: string; tag: string; bg: string }> 
 export const ProductPage: React.FC = () => {
   const {
     selectedProduct,
+    menuItems,
+    viewProduct,
     goHome,
     addToCart,
     getItemEffectivePrice,
@@ -84,6 +87,9 @@ export const ProductPage: React.FC = () => {
   const [instructions, setInstructions] = useState('');
   const [addedAnimation, setAddedAnimation] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
+  const [activeImage, setActiveImage] = useState(item.image || '');
+  const [spiceLevel, setSpiceLevel] = useState<'Hot & Crispy' | 'Original Recipe'>('Original Recipe');
+  useEffect(() => { setActiveImage(item.image || ''); setSelectedAddons([]); }, [item.id, item.image]);
 
   // Review Form state
   const [reviewName, setReviewName] = useState('');
@@ -107,6 +113,7 @@ export const ProductPage: React.FC = () => {
     addToCart(
       item,
       {
+        spiceLevel: item.customizableOptions?.allowSpiceLevel ? spiceLevel : undefined,
         drink: item.customizableOptions?.allowDrinkChoice ? drink : undefined,
         addons: selectedAddons,
         specialInstructions: instructions.trim() || undefined,
@@ -241,7 +248,7 @@ export const ProductPage: React.FC = () => {
             }`}>
               {item.image ? (
                 <img
-                  src={item.image}
+                  src={activeImage || item.image}
                   alt={item.name}
                   className="w-full h-full object-cover object-center"
                   referrerPolicy="no-referrer"
@@ -289,30 +296,12 @@ export const ProductPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Share & Wishlist actions */}
-              <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-                <button
-                  type="button"
-                  onClick={handleShare}
-                  className={`p-3 rounded-full backdrop-blur-md transition-all cursor-pointer shadow-lg ${
-                    copiedShare
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-white/90 text-zinc-800 hover:bg-white hover:text-[#e4002b]'
-                  }`}
-                  title={copiedShare ? 'Product Link Copied!' : 'Share Product'}
-                  aria-label="Share product"
-                >
-                  <Share2 className="w-5 h-5" />
-                </button>
-
+              {/* Wishlist action only; sharing sits with the product details below. */}
+              <div className="absolute top-4 right-4 z-10">
                 <button
                   type="button"
                   onClick={() => toggleWishlist(item.id)}
-                  className={`p-3 rounded-full backdrop-blur-md transition-all cursor-pointer shadow-lg ${
-                    isFavorite
-                      ? 'bg-[#e4002b] text-white'
-                      : 'bg-white/90 text-zinc-800 hover:bg-white hover:text-[#e4002b]'
-                  }`}
+                  className={`p-3 rounded-full shadow-lg ${isFavorite ? 'bg-[#e4002b] text-white' : 'bg-white/95 text-zinc-800'}`}
                   title={isFavorite ? 'Remove from Wishlist' : 'Add to Wishlist'}
                   aria-label="Add to wishlist"
                 >
@@ -321,7 +310,17 @@ export const ProductPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Guarantees Strip */}
+            {(item.galleryImages || []).filter((image) => image && image !== item.image).length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {[item.image, ...(item.galleryImages || [])].filter((image, index, list) => Boolean(image) && list.indexOf(image) === index).map((image, index) => (
+                  <button key={image} type="button" onClick={() => setActiveImage(image)} className={`w-16 h-16 shrink-0 rounded-xl overflow-hidden border-2 ${activeImage === image ? 'border-[#e4002b]' : 'border-zinc-200'}`} aria-label={`View product photo ${index + 1}`}>
+                    <img src={image} alt={`${item.name} photo ${index + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+
             <div className="p-4 rounded-2xl border bg-white border-zinc-200 text-zinc-700 grid grid-cols-3 gap-2 text-center text-xs shadow-2xs">
               <div className="space-y-0.5">
                 <Bike className="w-4 h-4 text-[#e4002b] mx-auto mb-1" />
@@ -350,11 +349,9 @@ export const ProductPage: React.FC = () => {
                 <span className="text-xs font-bold uppercase tracking-widest text-[#e4002b]">
                   KFC Chakwal Delivery Menu
                 </span>
-                {copiedShare && (
-                  <span className="text-xs text-emerald-600 font-bold animate-pulse">
-                    ✓ Share link copied!
-                  </span>
-                )}
+                <button type="button" onClick={handleShare} className="px-3 py-1.5 rounded-lg border border-zinc-200 bg-zinc-100 text-zinc-700 text-xs font-bold flex items-center gap-1.5" aria-label="Share product">
+                  <Share2 className="w-3.5 h-3.5" />{copiedShare ? 'Link copied' : 'Share product'}
+                </button>
               </div>
               <h1 className="font-kfc text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight leading-none text-zinc-950">
                 {item.name}
@@ -397,6 +394,19 @@ export const ProductPage: React.FC = () => {
                   Chakwal Special
                 </span>
               </div>
+
+              {item.customizableOptions?.allowSpiceLevel && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-700">Choose chicken style</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['Original Recipe', 'Hot & Crispy'] as const).map((choice) => (
+                      <button key={choice} type="button" onClick={() => setSpiceLevel(choice)} className={`p-3 rounded-xl border text-xs font-bold ${spiceLevel === choice ? 'border-[#e4002b] bg-red-50 text-zinc-900' : 'border-zinc-200 bg-zinc-50 text-zinc-700'}`}>
+                        {choice}{spiceLevel === choice ? ' ✓' : ''}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Beverage Choice with Image Thumbnails */}
               {item.customizableOptions?.allowDrinkChoice && (
@@ -558,6 +568,24 @@ export const ProductPage: React.FC = () => {
           </div>
 
         </div>
+
+        {/* Product recommendations */}
+        {(() => {
+          const sameCategory = menuItems.filter((product) => product.id !== item.id && product.categoryId === item.categoryId);
+          const recommendations = [...sameCategory, ...menuItems.filter((product) => product.id !== item.id && product.categoryId !== item.categoryId && !sameCategory.some((same) => same.id === product.id))].slice(0, 4);
+          return recommendations.length ? (
+            <section className="mt-14 space-y-4">
+              <div className="border-b border-zinc-200 pb-3">
+                <p className="text-[10px] uppercase font-black tracking-widest text-[#e4002b]">More to enjoy</p>
+                <h2 className="font-kfc text-2xl sm:text-3xl font-black uppercase tracking-tight text-zinc-900">You May Also Like</h2>
+                <p className="text-xs text-zinc-500 mt-1">Similar favourites picked for your next bucket.</p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                {recommendations.map((product) => <MenuItemCard key={product.id} item={product} />)}
+              </div>
+            </section>
+          ) : null;
+        })()}
 
         {/* CUSTOMER REVIEWS & RATINGS SECTION */}
         <div className={`mt-16 p-6 sm:p-8 rounded-3xl border space-y-6 ${
