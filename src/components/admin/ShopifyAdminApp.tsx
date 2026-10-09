@@ -274,7 +274,6 @@ export const ShopifyAdminApp: React.FC = () => {
 
   // New product multiple images, inventory, variants
   const [newProdGallery, setNewProdGallery] = useState<string[]>([]);
-  const [newProdAllowSpice, setNewProdAllowSpice] = useState(false);
   const [newProdAllowDrink, setNewProdAllowDrink] = useState(false);
   const [newProdAddons, setNewProdAddons] = useState<MenuItemAddon[]>([]);
   const [newProdTrackInventory, setNewProdTrackInventory] = useState(false);
@@ -641,7 +640,8 @@ export const ShopifyAdminApp: React.FC = () => {
       compareAtPrice: newProdComparePrice ? Number(newProdComparePrice) : undefined,
       image: newProdImage.trim(), // Can be empty or URL
       galleryImages: newProdGallery.filter(Boolean),
-      customizableOptions: { allowSpiceLevel: newProdAllowSpice, allowDrinkChoice: newProdAllowDrink, availableAddons: newProdAddons.filter((addon) => addon.name.trim()) },
+      badges: newProdBadge.split(',').map((label) => label.trim()).filter(Boolean).slice(0, 8),
+      customizableOptions: { allowDrinkChoice: newProdAllowDrink, availableAddons: newProdAddons.filter((addon) => addon.name.trim()) },
       isAvailable: true,
       customBadgeText: newProdBadge.trim() || undefined,
     };
@@ -654,7 +654,6 @@ export const ShopifyAdminApp: React.FC = () => {
     setNewProdComparePrice('');
     setNewProdBadge('');
     setNewProdGallery([]);
-    setNewProdAllowSpice(false);
     setNewProdAllowDrink(false);
     setNewProdAddons([]);
     setNewProdTrackInventory(false);
@@ -1071,7 +1070,7 @@ export const ShopifyAdminApp: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => { setNewProdGallery([]); setNewProdAllowSpice(false); setNewProdAllowDrink(false); setNewProdAddons([]); setIsAddingProduct(true); }}
+                    onClick={() => { setNewProdGallery([]); setNewProdBadge(''); setNewProdAllowDrink(false); setNewProdAddons([]); setIsAddingProduct(true); }}
                     className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-red-950/20 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
@@ -3280,8 +3279,7 @@ export const ShopifyAdminApp: React.FC = () => {
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
                 <h4 className="font-black text-zinc-900">Customize Options — This Product</h4>
-                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={Boolean(editingItem.customizableOptions?.allowSpiceLevel)} onChange={(e) => updateEditingCustomization({ allowSpiceLevel: e.target.checked })} />Allow spice / chicken style selection</label>
-                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={Boolean(editingItem.customizableOptions?.allowDrinkChoice)} onChange={(e) => updateEditingCustomization({ allowDrinkChoice: e.target.checked })} />Allow drink selection</label>
+                                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={Boolean(editingItem.customizableOptions?.allowDrinkChoice)} onChange={(e) => updateEditingCustomization({ allowDrinkChoice: e.target.checked })} />Allow drink selection</label>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between"><span className="font-bold text-zinc-800">Add-ons / upgrades</span><button type="button" onClick={addEditingAddon} className="px-3 py-1.5 rounded-lg text-xs font-bold">+ Add item</button></div>
                   {(editingItem.customizableOptions?.availableAddons || []).map((addon, index) => (
@@ -3293,6 +3291,17 @@ export const ShopifyAdminApp: React.FC = () => {
                   ))}
                   <p className="text-[11px] text-zinc-500">Yahan set kiye gaye add-ons sirf isi product ke Customize section mein show honge.</p>
                 </div>
+              </div>
+              <div>
+                <label className="block text-zinc-700 font-bold mb-1">Product Labels / Badges (comma-separated)</label>
+                <input
+                  type="text"
+                  value={(editingItem.badges || (editingItem.customBadgeText ? [editingItem.customBadgeText] : [])).join(', ')}
+                  onChange={(e) => setEditingItem({ ...editingItem, badges: e.target.value.split(',').map((label) => label.trim()).filter(Boolean).slice(0, 8), customBadgeText: undefined })}
+                  placeholder="Popular, Special, New Arrival"
+                  className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2"
+                />
+                <p className="text-[10px] text-zinc-500 mt-1">Is product ke image par sirf yahan likhe labels show honge. Remove karne ke liye field khaali kar dein.</p>
               </div>
               <div>
                 <label className="block text-zinc-700 font-bold mb-1">Product Description</label>
@@ -3403,8 +3412,7 @@ export const ShopifyAdminApp: React.FC = () => {
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
                 <h4 className="font-black text-zinc-900">Customize Options — This Product</h4>
-                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={newProdAllowSpice} onChange={(e) => setNewProdAllowSpice(e.target.checked)} />Allow spice / chicken style selection</label>
-                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={newProdAllowDrink} onChange={(e) => setNewProdAllowDrink(e.target.checked)} />Allow drink selection</label>
+                                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={newProdAllowDrink} onChange={(e) => setNewProdAllowDrink(e.target.checked)} />Allow drink selection</label>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between"><span className="font-bold text-zinc-800">Add-ons / upgrades</span><button type="button" onClick={() => setNewProdAddons((prev) => [...prev, { id: `addon-${Date.now()}`, name: '', price: 0 }])} className="px-3 py-1.5 rounded-lg text-xs font-bold">+ Add item</button></div>
                   {newProdAddons.map((addon, index) => (
@@ -3441,6 +3449,17 @@ export const ShopifyAdminApp: React.FC = () => {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-zinc-700 font-bold mb-1">Product Labels / Badges (comma-separated)</label>
+                <input
+                  type="text"
+                  value={newProdBadge}
+                  onChange={(e) => setNewProdBadge(e.target.value)}
+                  placeholder="Popular, Special, New Arrival"
+                  className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2"
+                />
+                <p className="text-[10px] text-zinc-500 mt-1">Multiple labels commas se separate karein. Khaali chhorne par product image par custom label nahi lagega.</p>
+              </div>
               <div>
                 <label className="block text-zinc-700 font-bold mb-1">Description</label>
                 <textarea
