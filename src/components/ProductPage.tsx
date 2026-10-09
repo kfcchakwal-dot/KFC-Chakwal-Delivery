@@ -670,6 +670,7 @@ export const ProductPage: React.FC = () => {
                 rows={2}
                 value={reviewComment}
                 onChange={(e) => setReviewComment(e.target.value)}
+                maxLength={1000}
                 placeholder="How was the taste, packaging, and rider delivery?"
                 className={`w-full text-xs rounded-xl px-3.5 py-2.5 border focus:outline-none focus:border-[#e4002b] ${
                   isDark ? 'bg-[#121214] border-[#2e2e38] text-white' : 'bg-white border-zinc-300 text-zinc-900'
