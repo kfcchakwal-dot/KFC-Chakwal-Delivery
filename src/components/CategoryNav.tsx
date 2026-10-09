@@ -55,6 +55,7 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
           {KFC_CATEGORIES.map((cat) => {
             const count = getCategoryCount(cat.id);
             const isSelected = selectedCategoryId === cat.id;
+            const isFeaturedShortcut = cat.id === 'family-sharing' || cat.id === 'midnight-deals';
 
             return (
               <button
