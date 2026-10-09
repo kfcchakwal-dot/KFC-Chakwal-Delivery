@@ -70,17 +70,20 @@ export const CustomerAuthModal: React.FC = () => {
     setSignupError('');
     setAuthNotice('');
     setAuthBusy(true);
-    const result = await signupUser({ fullName, email, password });
-    setAuthBusy(false);
-    if (!result.success) {
+    try {
+      const result = await signupUser({ fullName, email, password });
       if (result.error === 'ACCOUNT_CREATED_VERIFY') {
         setAuthNotice(settings.customerAuthCopy?.verificationMessage || 'Aapki Gmail par verification email bheji gayi hai. Inbox/Spam check karke email verify karein, phir Sign In karein.');
         setTab('login');
         setLoginEmail(email.trim().toLowerCase());
         setPassword('');
-      } else {
+      } else if (!result.success) {
         setSignupError(result.error || 'Account create nahi ho saka.');
       }
+    } catch (error: any) {
+      setSignupError(error?.message || 'Account create nahi ho saka. Dobara try karein.');
+    } finally {
+      setAuthBusy(false);
     }
   };
 
@@ -89,9 +92,14 @@ export const CustomerAuthModal: React.FC = () => {
     setLoginError('');
     setAuthNotice('');
     setAuthBusy(true);
-    const result = await loginUser(loginEmail, loginPassword);
-    setAuthBusy(false);
-    if (!result.success) setLoginError(result.error || 'Sign In nahi ho saka.');
+    try {
+      const result = await loginUser(loginEmail, loginPassword);
+      if (!result.success) setLoginError(result.error || 'Sign In nahi ho saka.');
+    } catch (error: any) {
+      setLoginError(error?.message || 'Sign In nahi ho saka. Dobara try karein.');
+    } finally {
+      setAuthBusy(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -99,9 +107,14 @@ export const CustomerAuthModal: React.FC = () => {
     setSignupError('');
     setAuthNotice('');
     setAuthBusy(true);
-    const result = await signInWithGoogle();
-    setAuthBusy(false);
-    if (!result.success) setLoginError(result.error || 'Google se login nahi ho saka.');
+    try {
+      const result = await signInWithGoogle();
+      if (!result.success) setLoginError(result.error || 'Google se login nahi ho saka.');
+    } catch (error: any) {
+      setLoginError(error?.message || 'Google se login nahi ho saka. Dobara try karein.');
+    } finally {
+      setAuthBusy(false);
+    }
   };
 
   const handleAddAddressSubmit = (e: React.FormEvent) => {
