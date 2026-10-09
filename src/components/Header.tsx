@@ -73,7 +73,7 @@ export const Header: React.FC = () => {
   const matchingItems = searchQuery.trim().length > 0
     ? menuItems.filter((item) =>
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(item.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.categoryId.toLowerCase().includes(searchQuery.toLowerCase())
       ).slice(0, 5)
     : [];
