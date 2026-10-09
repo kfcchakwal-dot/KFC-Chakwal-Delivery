@@ -2588,10 +2588,11 @@ export const ShopifyAdminApp: React.FC = () => {
             <div className="space-y-6 max-w-5xl">
               <div className="border-b border-zinc-200 pb-5">
                 <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">Reviews & Auto 12-Hour Flow</h2>
-                <p className="text-xs text-zinc-500 mt-1">Customer reviews are available in the storefront. Automatic 12-hour WhatsApp review requests are currently disabled until a server scheduler is deployed.</p>
+                <p className="text-xs text-zinc-500 mt-1">Customer reviews can be submitted without OTP. Review visibility is controlled below; automatic WhatsApp requests run after the Firebase Functions scheduler is deployed and WhatsApp API credentials are configured.</p>
               </div>
-              <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 text-sm">
-                <strong>Setup Required:</strong> Review automation ko browser timer se nahi chalaya jayega. Scheduler deploy hone ke baad hi automatic requests enable hongi.
+              <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-900 text-sm space-y-1">
+                <strong>Server-side review automation</strong>
+                <p className="text-xs">Function har 15 minute delivered orders check karti hai aur configured delay ke baad review request queue karti hai. WhatsApp auto-send ke liye Meta WhatsApp Cloud API access token, phone-number ID, aur approved template name/language Firebase Functions ke environment mein set hona zaroori hai. Credentials ke baghair request history mein “pending config” nazar aayega; message automatically sent nahi mana jayega.</p>
               </div>
               {reviewActionNotice && <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs">{reviewActionNotice}</div>}
               <div className="p-4 rounded-2xl border border-zinc-200 bg-white space-y-3">
