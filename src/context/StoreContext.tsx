@@ -1916,8 +1916,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
 
     void setDoc(doc(db, 'customers', currentUser.id), {
-      fullName: updatedUser.fullName, email: updatedUser.email || '',
-      defaultAddress: updatedUser.address, savedAddresses: updatedUser.savedAddresses,
+      fullName: updatedUser.fullName,
+      email: updatedUser.email || '',
+      phone: updatedUser.phone || '',
+      address: updatedUser.address,
+      defaultAddress: updatedUser.address,
+      savedAddresses: updatedUser.savedAddresses,
       updatedAt: new Date().toISOString(),
     }, { merge: true }).catch((error) => console.warn('Saved address sync failed:', error));
   };
