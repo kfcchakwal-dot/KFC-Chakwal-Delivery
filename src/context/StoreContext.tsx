@@ -133,6 +133,7 @@ interface StoreContextType {
   customerRecords: CustomerLoyaltyRecord[];
   fetchCustomers: () => Promise<void>;
   updateCustomerPoints: (phoneOrId: string, newPoints: number) => Promise<void>;
+  updateCustomerRecord: (customerId: string, updates: Partial<CustomerLoyaltyRecord>) => Promise<void>;
 
   // Store Policies
   policies: StorePolicy[];
@@ -482,6 +483,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Admin / Seller Auth
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+
+  // Apply the administrator-selected brand accent color across supported brand utility classes.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--brand-primary', settings.primaryColor || '#e4002b');
+  }, [settings.primaryColor]);
 
   // Monitor Firebase Auth state for Admin and free Google/email Customer login
   useEffect(() => {
@@ -860,15 +866,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const data: Order[] = snap.docs
         .map((d) => ({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      if (ordersInitializedRef.current && data.length > previousOrderCountRef.current) {
-        if (settings.orderNotificationSound !== false) {
-          playNewOrderChime();
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('🍗 New KFC Chakwal Order', {
-              body: 'New order #' + (data[0]?.id || '') + ' received.',
-              icon: '/icon-192.png',
-            });
-          }
+      if (isAdmin && ordersInitializedRef.current && data.length > previousOrderCountRef.current) {
+        if (settings.orderNotificationSound !== false) playNewOrderChime();
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('🍗 New KFC Chakwal Order', {
+            body: 'New order #' + (data[0]?.id || '') + ' received. Open Seller Center to review it.',
+            icon: '/icon-192.png',
+            tag: 'kfc-new-order-' + (data[0]?.id || ''),
+          });
         }
       }
       previousOrderCountRef.current = data.length;
@@ -925,6 +930,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCustomerRecords((prev) => prev.map((c) => c.id === target.id ? { ...c, loyaltyPoints } : c));
     if (currentUser && (currentUser.phone === target.phone || currentUser.id === target.id)) {
       setCurrentUser((prev) => prev ? { ...prev, loyaltyPoints } : prev);
+    }
+  };
+
+  const updateCustomerRecord = async (customerId: string, updates: Partial<CustomerLoyaltyRecord>) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    const target = customerRecords.find((c) => c.id === customerId);
+    if (!target) throw new Error('Customer not found.');
+    const cleanUpdates = {
+      ...(updates.fullName !== undefined ? { fullName: updates.fullName.trim().slice(0, 100) } : {}),
+      ...(updates.phone !== undefined ? { phone: updates.phone.trim().slice(0, 40) } : {}),
+      ...(updates.email !== undefined ? { email: updates.email.trim().slice(0, 160) } : {}),
+      ...(updates.address !== undefined ? { address: updates.address.trim().slice(0, 500), defaultAddress: updates.address.trim().slice(0, 500) } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    await setDoc(doc(db, 'customers', customerId), cleanUpdates, { merge: true });
+    setCustomerRecords((prev) => prev.map((customer) => customer.id === customerId ? { ...customer, ...updates } : customer));
+    if (currentUser?.id === customerId) {
+      const updatedUser = {
+        ...currentUser,
+        ...(updates.fullName !== undefined ? { fullName: String(updates.fullName) } : {}),
+        ...(updates.phone !== undefined ? { phone: String(updates.phone) } : {}),
+        ...(updates.email !== undefined ? { email: String(updates.email) } : {}),
+        ...(updates.address !== undefined ? { address: String(updates.address), defaultAddress: String(updates.address) } : {}),
+      };
+      setCurrentUser(updatedUser);
+      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
     }
   };
 
