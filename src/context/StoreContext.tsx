@@ -1012,16 +1012,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loginAdmin = async (): Promise<{ success: boolean; error?: string }> => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
       const cred = await signInWithPopup(auth, provider);
       const user = cred.user;
+      const tokenResult = await user.getIdTokenResult();
       const adminDoc = await getDoc(doc(db, 'adminUsers', user.uid));
-      const isAuthorizedAdmin =
+      const isAuthorizedAdmin = tokenResult.claims.admin === true || (
         adminDoc.exists() &&
         adminDoc.data()?.role === 'admin' &&
-        adminDoc.data()?.active !== false;
+        adminDoc.data()?.active !== false
+      );
 
       if (!isAuthorizedAdmin) {
         await signOut(auth);
@@ -1034,6 +1036,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return { success: true };
     } catch (err: any) {
       console.error('Admin Google authentication failure:', err);
+      if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported'].includes(err?.code)) {
+        try {
+          await signInWithRedirect(auth, provider);
+          return { success: true };
+        } catch (redirectError: any) {
+          console.error('Admin Google redirect sign-in failure:', redirectError);
+          return { success: false, error: getFriendlyAuthError(redirectError) };
+        }
+      }
       return { success: false, error: getFriendlyAuthError(err) };
     }
   };
