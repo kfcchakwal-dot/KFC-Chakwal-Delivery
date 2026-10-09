@@ -1813,7 +1813,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err: any) {
       if (err?.code === 'auth/user-not-found') return { success: false, error: 'Is email par koi account nahi mila.' };
       if (err?.code === 'auth/invalid-email') return { success: false, error: 'Email address valid nahi hai.' };
-      return { success: false, error: err?.message || 'Password reset email send nahi ho saki.' };
+      return { success: false, error: getFriendlyAuthError(err) || 'Password reset email send nahi ho saki.' };
     }
   };
 
@@ -1901,7 +1901,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (err?.code === 'auth/email-already-in-use') return { success: false, error: 'Ye Gmail pehle se account ke saath registered hai. Sign In karein.' };
       if (err?.code === 'auth/weak-password') return { success: false, error: 'Password zyada strong rakhein, kam az kam 6 characters.' };
       if (err?.code === 'auth/operation-not-allowed') return { success: false, error: 'Email/Password login Firebase Authentication mein enable nahi hai.' };
-      return { success: false, error: err?.message || 'Account create nahi ho saka.' };
+      return { success: false, error: getFriendlyAuthError(err) || 'Account create nahi ho saka.' };
     }
   };
 
@@ -1922,7 +1922,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return { success: false, error: 'Gmail ID ya password ghalat hai.' };
       }
       if (err?.code === 'auth/operation-not-allowed') return { success: false, error: 'Email/Password login Firebase mein enable nahi hai.' };
-      return { success: false, error: err?.message || 'Sign In nahi ho saka.' };
+      return { success: false, error: getFriendlyAuthError(err) || 'Sign In nahi ho saka.' };
     }
   };
 
