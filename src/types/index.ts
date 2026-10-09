@@ -412,6 +412,10 @@ export interface Order {
   markupAmount: number;
   deliveryFee: number;
   discount: number;
+  taxPercentage?: number;
+  taxAmount?: number;
+  serviceChargePercentage?: number;
+  serviceChargeAmount?: number;
   loyaltyPointsEarned?: number;
   loyaltyPointsRedeemed?: number;
   loyaltyDiscount?: number;
