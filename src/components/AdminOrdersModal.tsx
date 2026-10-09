@@ -159,7 +159,7 @@ export const AdminOrdersModal: React.FC = () => {
     `Status: ${String(order.status).toUpperCase()} | Type: ${order.orderType === 'self_pickup' ? 'TAKEAWAY / PICKUP' : 'DELIVERY'}`,
     '',
     'ORDER ITEMS',
-    ...order.items.map((item) => `• ${item.quantity} x ${item.menuItem.name}${item.options?.spiceLevel ? ' (' + item.options.spiceLevel + ')' : ''}${item.options?.drink ? ' · ' + item.options.drink : ''}${item.options?.addons?.length ? ' + ' + item.options.addons.map((addon) => addon.name).join(', ') : ''} — ${formatPKR(item.unitPrice * item.quantity)}`,
+    ...order.items.map((item) => `• ${item.quantity} x ${item.menuItem.name}${item.options?.spiceLevel ? ' (' + item.options.spiceLevel + ')' : ''}${item.options?.drink ? ' · ' + item.options.drink : ''}${item.options?.addons?.length ? ' + ' + item.options.addons.map((addon) => addon.name).join(', ') : ''} — ${formatPKR(item.unitPrice * item.quantity)}`),
     '',
     `Subtotal: ${formatPKR(order.subtotal)}`,
     `Discount: -${formatPKR(order.discount || 0)}`,
