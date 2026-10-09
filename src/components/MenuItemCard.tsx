@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { MenuItem, BadgePosition } from '../types';
 import { useStore } from '../context/StoreContext';
 import { Heart, Plus, Flame, SlidersHorizontal, Tag, Share2, Check } from 'lucide-react';
@@ -22,6 +22,8 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
   } = useStore();
 
   const [copiedShare, setCopiedShare] = useState(false);
+  const imageAreaRef = useRef<HTMLDivElement>(null);
+  const [flyingImage, setFlyingImage] = useState<{ src: string; left: number; top: number; size: number; targetLeft: number; targetTop: number; phase: boolean } | null>(null);
 
   const isDark = themeMode === 'dark';
   const isFavorite = wishlist.includes(item.id);
@@ -122,12 +124,12 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
       }`}
     >
       {/* Card Top: Image & Badges */}
-      <div className="relative aspect-[4/3] w-full bg-zinc-100 overflow-hidden flex items-center justify-center">
+      <div ref={imageAreaRef} className="relative aspect-[4/3] sm:aspect-[5/4] w-full bg-white overflow-hidden flex items-center justify-center">
         {item.image ? (
           <img
             src={item.image}
             alt={item.name}
-            className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-contain p-2 sm:p-3 object-center transform group-hover:scale-[1.02] transition-transform duration-300"
             loading="lazy"
             referrerPolicy="no-referrer"
             onError={(e) => {
@@ -136,7 +138,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
             }}
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-gradient-to-br from-[#1c1c24] to-[#121216] border-b border-zinc-800">
+          <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-zinc-50">
             <div className="flex gap-1 h-6 items-center opacity-70 mb-1.5">
               <span className="w-1.5 h-6 bg-[#e4002b] rounded-sm transform -skew-x-6"></span>
               <span className="w-1.5 h-5 bg-white rounded-sm transform -skew-x-6"></span>
@@ -145,41 +147,27 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
             <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-wider truncate max-w-full">
               {item.name}
             </span>
-            <span className="text-[9px] text-zinc-500 mt-0.5">No image · Add in Admin</span>
+            <span className="text-[9px] text-zinc-500 mt-0.5">Add product photo in Admin</span>
           </div>
         )}
 
-        {/* Gradient shadow for legibility */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
-
-        {/* Customizable Badges container with dynamic position */}
+        {/* Admin-managed product labels */}
         <div className={`absolute ${positionClasses[badgePosition]} flex flex-wrap gap-1 z-10 pointer-events-none`}>
           {hasComparePrice && discountPercent > 0 && (
             <span className="bg-emerald-600 text-white text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-md tracking-wider flex items-center gap-0.5">
-              <Tag className="w-2.5 h-2.5" />
-              SAVE {discountPercent}%
+              <Tag className="w-2.5 h-2.5" />SAVE {discountPercent}%
             </span>
           )}
-
-          {item.customBadgeText ? (
-            <span className="bg-[#e4002b] text-white text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-md tracking-wide">
-              {item.customBadgeText}
+          {(Array.isArray(item.badges)
+            ? item.badges
+            : item.customBadgeText
+              ? [item.customBadgeText]
+              : [ ...(item.isPopular ? ['Popular'] : []), ...(item.isSpicy ? ['Spicy'] : []) ]
+          ).filter((label) => String(label || '').trim()).map((label, index) => (
+            <span key={`${label}-${index}`} className="bg-[#e4002b] text-white text-[9px] sm:text-[10px] font-black uppercase px-2 py-1 rounded-lg shadow-md tracking-wide">
+              {label}
             </span>
-          ) : (
-            <>
-              {item.isPopular && (
-                <span className="bg-[#e4002b] text-white text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded shadow">
-                  Popular
-                </span>
-              )}
-              {item.isSpicy && (
-                <span className="bg-amber-600 text-white text-[9px] sm:text-[10px] font-bold uppercase px-1.5 sm:px-2 py-0.5 rounded flex items-center gap-1 shadow">
-                  <Flame className="w-2.5 h-2.5" />
-                  Spicy
-                </span>
-              )}
-            </>
-          )}
+          ))}
         </div>
 
         {/* Wishlist stays on the image; sharing is placed at the card footer. */}
@@ -187,6 +175,25 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            const removing = wishlist.includes(item.id);
+            if (!removing && item.image && imageAreaRef.current) {
+              const imageRect = imageAreaRef.current.getBoundingClientRect();
+              const target = Array.from(document.querySelectorAll<HTMLElement>('[data-wishlist-target="true"]')).find((node) => node.getClientRects().length > 0);
+              const targetRect = target?.getBoundingClientRect();
+              if (targetRect) {
+                setFlyingImage({
+                  src: item.image,
+                  left: imageRect.left + imageRect.width / 2 - 24,
+                  top: imageRect.top + imageRect.height / 2 - 24,
+                  size: 48,
+                  targetLeft: targetRect.left + targetRect.width / 2 - 10,
+                  targetTop: targetRect.top + targetRect.height / 2 - 10,
+                  phase: false,
+                });
+                window.setTimeout(() => setFlyingImage((current) => current ? { ...current, phase: true } : null), 30);
+                window.setTimeout(() => setFlyingImage(null), 850);
+              }
+            }
             toggleWishlist(item.id);
           }}
           className={`absolute top-2 right-2 z-20 p-2 rounded-full shadow-md ${isFavorite ? 'bg-[#e4002b] text-white' : 'bg-white/95 text-zinc-700'}`}
@@ -196,18 +203,23 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
           <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
         </button>
 
-        {/* Image bottom badge */}
-        <div className="absolute bottom-1.5 right-2 text-[9px] sm:text-[10px] text-zinc-300 bg-black/75 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 rounded border border-white/10 font-mono tabular-nums">
-          {isAdmin ? (
-            item.sellingPrice ? (
-              <span className="text-emerald-400 font-bold">Custom Price</span>
-            ) : (
-              `+${settings.markupPercentage}% Markup`
-            )
-          ) : (
-            'Chakwal Express'
-          )}
-        </div>
+        {flyingImage && (
+          <div
+            aria-hidden="true"
+            className="fixed z-[9999] pointer-events-none rounded-xl overflow-hidden shadow-2xl border-2 border-white"
+            style={{
+              left: flyingImage.phase ? flyingImage.targetLeft : flyingImage.left,
+              top: flyingImage.phase ? flyingImage.targetTop : flyingImage.top,
+              width: flyingImage.phase ? 20 : flyingImage.size,
+              height: flyingImage.phase ? 20 : flyingImage.size,
+              opacity: flyingImage.phase ? 0.25 : 1,
+              transform: flyingImage.phase ? 'rotate(18deg) scale(.65)' : 'rotate(0deg) scale(1)',
+              transition: 'left 720ms cubic-bezier(.2,.8,.2,1), top 720ms cubic-bezier(.2,.8,.2,1), width 720ms, height 720ms, opacity 720ms, transform 720ms',
+            }}
+          >
+            <img src={flyingImage.src} alt="" className="w-full h-full object-contain bg-white" />
+          </div>
+        )}
       </div>
 
       {/* Card Content - Responsive for 2 Columns on Mobile */}
