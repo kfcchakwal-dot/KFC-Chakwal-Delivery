@@ -21,7 +21,6 @@ import { Preloader } from './components/Preloader';
 import { DailyDealsSection } from './components/DailyDealsSection';
 import { HomepageVideoSection } from './components/HomepageVideoSection';
 import { LoyaltyPointsBanner } from './components/LoyaltyPointsBanner';
-import { NotificationPermissionPrompt } from './components/NotificationPermissionPrompt';
 import { PoliciesModal } from './components/PoliciesModal';
 import { DailyDealsPopupModal } from './components/DailyDealsPopupModal';
 import { LoyaltyProgramModal } from './components/LoyaltyProgramModal';
@@ -405,7 +404,6 @@ const MainShop: React.FC = () => {
       <LoyaltyProgramModal />
       <VipClubModal />
       <PointsEarnedNotification />
-      <NotificationPermissionPrompt />
     </div>
   );
 };
