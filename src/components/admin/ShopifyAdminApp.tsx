@@ -167,6 +167,16 @@ export const ShopifyAdminApp: React.FC = () => {
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState<CategoryId | 'all'>('all');
 
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    getDocs(collection(db, 'reviewRequests')).then((snapshot) => {
+      if (!active) return;
+      setReviewRequestRecords(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).sort((a: any, b: any) => String(b.requestedAt || '').localeCompare(String(a.requestedAt || ''))).slice(0, 50));
+    }).catch((error) => console.warn('Review request history load notice:', error));
+    return () => { active = false; };
+  }, [isAdmin]);
+
   const loadAdminUsers = async () => {
     try {
       if (!auth.currentUser) return;
@@ -312,6 +322,7 @@ export const ShopifyAdminApp: React.FC = () => {
   const [pointsAdjustmentVal, setPointsAdjustmentVal] = useState<number>(0);
   const [editingCustomerRecord, setEditingCustomerRecord] = useState<any | null>(null);
   const [adminNotificationStatus, setAdminNotificationStatus] = useState<string>('');
+  const [reviewRequestRecords, setReviewRequestRecords] = useState<any[]>([]);
   const [adminVapidKey, setAdminVapidKey] = useState<string>(settings.messagingVapidKey || '');
   useEffect(() => { setAdminVapidKey(settings.messagingVapidKey || ''); }, [settings.messagingVapidKey]);
   const [reviewActionNotice, setReviewActionNotice] = useState<string>('');
@@ -2591,13 +2602,13 @@ export const ShopifyAdminApp: React.FC = () => {
               <div className="p-4 rounded-2xl border border-zinc-200 bg-white space-y-3">
                 <h3 className="text-sm font-bold text-zinc-900">Review Requests for Delivered Orders</h3>
                 <p className="text-xs text-zinc-500">Delivered orders par WhatsApp review request manually bhejein.</p>
-                {allOrders.filter((order) => order.status === 'delivered' && order.customer?.phone).slice(0, 20).map((order) => {
+                {allOrders.filter((order) => order.status === 'delivered' && order.customer?.phone && Boolean((order.customer as any)?.uid)).slice(0, 20).map((order) => {
                   const rawPhone = String(order.customer.phone || '').replace(/[^0-9]/g, '');
                   const phone = rawPhone.startsWith('92') ? rawPhone : rawPhone.startsWith('0') ? '92' + rawPhone.slice(1) : '92' + rawPhone;
                   const firstItem = order.items?.[0]?.menuItem;
                   const reviewUrl = firstItem?.id ? `${window.location.origin}/?product=${encodeURIComponent(firstItem.id)}` : window.location.origin;
                   const message = `Assalam o Alaikum ${order.customer.fullName || 'Customer'}! Aap ke KFC Chakwal Delivery order #${order.id} ke liye shukriya. Meherbani karke apna review share karein: ${reviewUrl}`;
-                  return <div key={order.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 py-2"><div><div className="text-xs font-bold text-zinc-900">#{order.id} · {order.customer.fullName}</div><div className="text-[11px] text-zinc-500">{order.customer.phone} · {new Date(order.date).toLocaleDateString()}</div></div><button type="button" onClick={async () => { const whatsappWindow = window.open('about:blank', '_blank'); try { await createReviewRequest(order, reviewUrl); const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`; if (whatsappWindow) whatsappWindow.location.href = whatsappUrl; else window.location.href = whatsappUrl; } catch (error: any) { whatsappWindow?.close(); alert(error?.message || 'Review request record save nahi hua. Firestore Rules publish karein aur dobara try karein.'); } }} className="inline-flex justify-center bg-[#25D366] text-white font-bold text-xs px-3 py-2 rounded-lg">Send Review Request</button></div>;
+                  return <div key={order.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 py-2"><div><div className="text-xs font-bold text-zinc-900">#{order.id} · {order.customer.fullName}</div><div className="text-[11px] text-zinc-500">{order.customer.phone} · {new Date(order.date).toLocaleDateString()}</div></div><button type="button" onClick={async () => { const whatsappWindow = window.open('about:blank', '_blank'); try { await createReviewRequest(order, reviewUrl); setReviewRequestRecords((previous) => [{ id: order.id, orderId: order.id, customerName: order.customer.fullName || 'Customer', phone: order.customer.phone, reviewUrl, status: 'sent', requestedAt: new Date().toISOString() }, ...previous.filter((item) => item.id !== order.id)].slice(0, 50)); const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`; if (whatsappWindow) whatsappWindow.location.href = whatsappUrl; else window.location.href = whatsappUrl; } catch (error: any) { whatsappWindow?.close(); alert(error?.message || 'Review request record save nahi hua. Firestore Rules publish karein aur dobara try karein.'); } }} className="inline-flex justify-center bg-[#25D366] text-white font-bold text-xs px-3 py-2 rounded-lg">Send Review Request</button></div>;
                 })}
               </div>
             </div>
