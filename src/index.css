@@ -65,6 +65,9 @@
 [class~="border-[#e4002b]"] {
   border-color: var(--brand-primary, #e4002b) !important;
 }
+[class~="bg-[#c30025]"] {
+  background-color: var(--brand-secondary, #c30025) !important;
+}
 [class~="hover:bg-[#c30025]"]:hover {
-  background-color: var(--brand-primary, #e4002b) !important;
+  background-color: var(--brand-secondary, #c30025) !important;
 }
