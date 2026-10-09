@@ -236,6 +236,7 @@ interface StoreContextType {
   currentUser: CustomerUser | null;
   signupUser: (data: { fullName: string; email: string; password: string; emailMarketingConsent?: boolean }) => Promise<{ success: boolean; error?: string }>;
   loginUser: (email: string, password: string, emailMarketingConsent?: boolean) => Promise<{ success: boolean; error?: string }>;
+  updateEmailMarketingConsent: (consent: boolean) => Promise<void>;
   resetCustomerPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   logoutUser: () => void;
@@ -1956,6 +1957,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const updateEmailMarketingConsent = async (consent: boolean) => {
+    if (!currentUser) throw new Error('Pehle customer account mein sign in karein.');
+    const updatedAt = new Date().toISOString();
+    const updates = { emailMarketingConsent: consent, emailMarketingConsentAt: updatedAt, emailMarketingConsentSource: 'account-settings' as const, updatedAt };
+    await setDoc(doc(db, 'customers', currentUser.id), updates, { merge: true });
+    const updatedUser = { ...currentUser, ...updates };
+    setCurrentUser(updatedUser);
+    localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
+    setCustomerRecords((prev) => prev.map((customer) => customer.id === currentUser.id ? { ...customer, ...updates } : customer));
+  };
+
   const logoutUser = async () => {
     try {
       await signOut(auth);
@@ -2575,6 +2587,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentUser,
         signupUser,
         loginUser,
+        updateEmailMarketingConsent,
         resetCustomerPassword,
         signInWithGoogle,
         logoutUser,
