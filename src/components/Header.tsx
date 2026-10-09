@@ -349,71 +349,10 @@ export const Header: React.FC = () => {
               </div>
             </button>
 
-            {/* Desktop Center: Delivery Coverage & Search with Live Dropdown & Meal Box Suggestions */}
-            <div className="flex items-center gap-3 flex-1 min-w-0 max-w-2xl mx-2">
-              <div className="hidden xl:flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold shrink-0 bg-zinc-50 border-zinc-200 text-zinc-800">
-                <MapPin className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />
-                <span>Coverage: Within 3 KM (Chakwal)</span>
-              </div>
-
-              <div className="relative flex-1 min-w-[180px]">
-                <input
-                  type="search"
-                  aria-label="Search products"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search Zingers, Krunch, Family Deals..."
-                  className="w-full border text-xs rounded-xl pl-8 pr-7 py-2.5 focus:outline-none focus:border-[#e4002b] transition-colors bg-zinc-50 border-zinc-200 text-zinc-900 placeholder-zinc-400"
-                />
-                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-3 pointer-events-none" />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-zinc-800"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-
-                {/* Desktop Live Instant Search Dropdown */}
-                {searchQuery.trim().length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl border shadow-2xl z-[100] overflow-hidden divide-y bg-white border-zinc-200 divide-zinc-100 max-h-[min(70vh,420px)] overflow-y-auto" role="listbox" aria-label="Product search suggestions">
-                    {matchingItems.length === 0 ? (
-                      <div className="p-4 text-sm text-zinc-500">No products found for “{searchQuery.trim()}”.</div>
-                    ) : matchingItems.map((item) => (
-                      <div
-                        key={item.id}
-                        onClick={() => {
-                          viewProduct(item);
-                          setSearchQuery('');
-                        }}
-                        className="p-3 flex items-center justify-between gap-3 hover:bg-zinc-500/10 cursor-pointer transition"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="w-10 h-10 rounded-xl object-cover bg-black/40 shrink-0"
-                            onError={(e) => {
-                              e.currentTarget.src = '/src/assets/images/kfc_krunch_burger_1791015834419.jpg';
-                            }}
-                          />
-                          <div className="truncate">
-                            <h4 className="font-bold text-xs truncate text-zinc-900">{item.name}</h4>
-                            <p className="text-[11px] text-zinc-400 truncate">{item.description}</p>
-                          </div>
-                        </div>
-
-                        <div className="text-right shrink-0">
-                          <span className="font-mono font-bold text-xs text-emerald-600">
-                            {formatPKR(getItemEffectivePrice(item))}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+            {/* Desktop header keeps the brand and actions compact; search is on its own full-width row below. */}
+            <div className="hidden xl:flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold shrink-0 bg-zinc-50 border-zinc-200 text-zinc-800">
+              <MapPin className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />
+              <span>Coverage: Within 3 KM (Chakwal)</span>
             </div>
 
             {/* Desktop Right Actions */}
@@ -513,6 +452,64 @@ export const Header: React.FC = () => {
                 </div>
               </button>
 
+            </div>
+          </div>
+        </div>
+
+        {/* Dedicated desktop search row: stays visible on every desktop/tablet width and keeps suggestions above page content. */}
+        <div className="hidden md:block border-t border-zinc-200/80 bg-white/95 px-4 sm:px-6 lg:px-8 py-3">
+          <div className="max-w-5xl mx-auto">
+            <div className="relative">
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3.5 pointer-events-none" />
+              <input
+                type="search"
+                aria-label="Search menu products"
+                role="combobox"
+                aria-expanded={searchQuery.trim().length > 0}
+                aria-controls="desktop-product-search-results"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setSearchQuery('');
+                  if (e.key === 'Enter' && matchingItems[0]) {
+                    e.preventDefault();
+                    viewProduct(matchingItems[0]);
+                    setSearchQuery('');
+                  }
+                }}
+                placeholder="Search products by name, description, or category..."
+                className="w-full border border-zinc-300 text-sm rounded-2xl pl-11 pr-12 py-3 focus:outline-none focus:border-[#e4002b] focus:ring-2 focus:ring-red-100 transition-colors bg-zinc-50 text-zinc-900 placeholder-zinc-400"
+              />
+              {searchQuery && (
+                <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-2.5 p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200" aria-label="Clear search">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              {searchQuery.trim().length > 0 && (
+                <div id="desktop-product-search-results" className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-zinc-200 shadow-2xl z-[1000] overflow-hidden bg-white max-h-[min(65vh,480px)] overflow-y-auto" role="listbox" aria-label="Product search suggestions">
+                  {matchingItems.length === 0 ? (
+                    <div className="p-4 text-sm text-zinc-500">No products found for “{searchQuery.trim()}”. Try another name or category.</div>
+                  ) : matchingItems.map((item) => (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected="false"
+                      key={item.id}
+                      onClick={() => { viewProduct(item); setSearchQuery(''); }}
+                      className="w-full p-3.5 flex items-center justify-between gap-4 text-left hover:bg-red-50 focus:bg-red-50 focus:outline-none border-b border-zinc-100 last:border-b-0 transition"
+                    >
+                      <span className="flex items-center gap-3 min-w-0">
+                        <img src={item.image || '/pwa-192.png'} alt="" className="w-12 h-12 rounded-xl object-cover bg-zinc-100 shrink-0" onError={(e) => { e.currentTarget.src = '/pwa-192.png'; }} />
+                        <span className="min-w-0">
+                          <span className="block font-bold text-sm text-zinc-900 truncate">{item.name}</span>
+                          <span className="block text-xs text-zinc-500 truncate">{item.description || item.categoryId}</span>
+                        </span>
+                      </span>
+                      <span className="text-sm font-mono font-bold text-emerald-700 shrink-0">{formatPKR(getItemEffectivePrice(item))}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
