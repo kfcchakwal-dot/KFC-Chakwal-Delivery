@@ -181,8 +181,13 @@ const MainShop: React.FC = () => {
   });
 
   return (
-    <div 
-      style={{ fontFamily: settings.bodyFont || 'Plus Jakarta Sans' }}
+    <div
+      data-store-theme={isDark ? 'dark' : 'light'}
+      style={{
+        fontFamily: settings.bodyFont || 'Plus Jakarta Sans',
+        backgroundColor: isDark ? '#0e0e11' : (settings.storeBackgroundColor || '#f8f9fa'),
+        color: isDark ? '#f4f4f5' : (settings.storeTextColor || '#1a1a1f'),
+      }}
       className={`min-h-screen flex flex-col transition-colors overflow-x-hidden ${
         isDark ? 'bg-[#0e0e11] text-[#f4f4f5]' : 'bg-[#f8f9fa] text-[#1a1a1f]'
       }`}
