@@ -268,6 +268,7 @@ interface StoreContextType {
 
   // VIP Club Program
   vipTiers: VipTier[];
+  updateVipTierImage: (tierId: VipTierId, imageUrl: string) => Promise<void>;
   vipRequests: VipMembershipRequest[];
   isVipModalOpen: boolean;
   setIsVipModalOpen: (open: boolean) => void;
@@ -659,7 +660,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // VIP Club
-  const [vipTiers] = useState<VipTier[]>(DEFAULT_VIP_TIERS);
+  const [vipTiers, setVipTiers] = useState<VipTier[]>(DEFAULT_VIP_TIERS);
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'vipTiers'), (snapshot) => {
+      if (snapshot.empty) return;
+      const saved = new Map(snapshot.docs.map((item) => [item.id, item.data() as Partial<VipTier>]));
+      setVipTiers(DEFAULT_VIP_TIERS.map((tier) => ({ ...tier, ...(saved.get(tier.id) || {}) })));
+    }, (error) => console.warn('VIP pass image sync notice:', error));
+    return unsubscribe;
+  }, []);
+  const updateVipTierImage = async (tierId: VipTierId, imageUrl: string) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    if (imageUrl.startsWith('data:') && imageUrl.length > 850000) {
+      throw new Error('Image bohat bari hai. 600 KB se chhoti/compressed image upload karein.');
+    }
+    const tier = vipTiers.find((item) => item.id === tierId) || DEFAULT_VIP_TIERS.find((item) => item.id === tierId);
+    if (!tier) throw new Error('VIP pass nahi mila.');
+    await setDoc(doc(db, 'vipTiers', tierId), { ...tier, imageUrl, updatedAt: new Date().toISOString() }, { merge: true });
+    setVipTiers((prev) => prev.map((item) => item.id === tierId ? { ...item, imageUrl } : item));
+  };
   const [vipRequests, setVipRequests] = useState<VipMembershipRequest[]>(() => {
     try {
       const saved = localStorage.getItem(VIP_REQUESTS_KEY);
@@ -2559,6 +2578,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isOrdersDashboardOpen,
         setIsOrdersDashboardOpen,
         vipTiers,
+        updateVipTierImage,
         vipRequests,
         isVipModalOpen,
         setIsVipModalOpen,
