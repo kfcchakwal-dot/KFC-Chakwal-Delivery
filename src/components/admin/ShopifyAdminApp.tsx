@@ -121,6 +121,7 @@ export const ShopifyAdminApp: React.FC = () => {
     reviews,
     addReview,
     deleteReview,
+    setReviewVisibility,
     policies,
     updatePolicy,
     addPolicy,
@@ -131,6 +132,7 @@ export const ShopifyAdminApp: React.FC = () => {
     updateDailyDealConfig,
     customerRecords,
     updateCustomerPoints,
+    updateCustomerRecord,
     serverSyncStatus,
     syncStoreToServer,
     isAdmin,
@@ -306,12 +308,46 @@ export const ShopifyAdminApp: React.FC = () => {
   // Customer Loyalty Adjustment Modal
   const [adjustingCustomer, setAdjustingCustomer] = useState<any | null>(null);
   const [pointsAdjustmentVal, setPointsAdjustmentVal] = useState<number>(0);
+  const [editingCustomerRecord, setEditingCustomerRecord] = useState<any | null>(null);
+  const [adminNotificationStatus, setAdminNotificationStatus] = useState<string>('');
+  const [reviewActionNotice, setReviewActionNotice] = useState<string>('');
 
   // Policy Form state
   const [editingPolicy, setEditingPolicy] = useState<StorePolicy | null>(null);
   const [newPolicyTitle, setNewPolicyTitle] = useState('');
   const [newPolicyContent, setNewPolicyContent] = useState('');
   const [isAddingPolicy, setIsAddingPolicy] = useState(false);
+
+  const handleSavePolicy = () => {
+    const title = newPolicyTitle.trim();
+    const content = newPolicyContent.trim();
+    if (!title || !content) {
+      alert('Policy title aur content dono required hain.');
+      return;
+    }
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (editingPolicy) updatePolicy({ ...editingPolicy, title, content, slug: editingPolicy.slug || slug });
+    else addPolicy({ title, content, slug });
+    setEditingPolicy(null);
+    setIsAddingPolicy(false);
+    setNewPolicyTitle('');
+    setNewPolicyContent('');
+  };
+
+  const enableAdminNotifications = async () => {
+    if (!('Notification' in window)) {
+      setAdminNotificationStatus('Is browser mein notifications supported nahi hain.');
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      setAdminNotificationStatus(permission === 'granted'
+        ? 'Notifications enabled on this device while Seller Center is running.'
+        : 'Permission allow nahi hui. Browser/site settings mein notifications allow karein.');
+    } catch {
+      setAdminNotificationStatus('Notification permission request nahi ho saki.');
+    }
+  };
 
   // Copied Link feedback
   const [copiedLink, setCopiedLink] = useState<'customer' | 'seller' | null>(null);
@@ -1219,7 +1255,14 @@ export const ShopifyAdminApp: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={enableAdminNotifications}
+                    className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    <span>Enable This Device Notifications</span>
+                  </button>
                   <button
                     onClick={fetchOrders}
                     className="bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm"
@@ -1228,6 +1271,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     <span>Refresh Orders</span>
                   </button>
                 </div>
+                {adminNotificationStatus && <p className="text-xs text-zinc-500 mt-2">{adminNotificationStatus}</p>}
               </div>
 
               {/* Status Filter Tabs */}
@@ -2347,13 +2391,25 @@ export const ShopifyAdminApp: React.FC = () => {
                 </ul>
               </div>
 
+              {/* Customer search */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="search"
+                  value={customerSearchQuery}
+                  onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                  placeholder="Search customer name, email, phone or address..."
+                  className="w-full sm:max-w-md bg-white border border-zinc-200 rounded-xl px-3 py-2.5 text-xs text-zinc-900"
+                />
+                <p className="text-xs text-zinc-500 self-center">{customerRecords.filter((c) => [c.fullName, c.email, c.phone, c.address].some((v) => String(v || '').toLowerCase().includes(customerSearchQuery.toLowerCase()))).length} customers</p>
+              </div>
+
               {/* Customers Table */}
               <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 font-bold uppercase">
                       <tr>
-                        <th className="p-3.5">Customer Name</th>
+                        <th className="p-3.5">Customer Details</th>
                         <th className="p-3.5">Phone Number</th>
                         <th className="p-3.5">Orders</th>
                         <th className="p-3.5">Total Spent</th>
@@ -2369,9 +2425,13 @@ export const ShopifyAdminApp: React.FC = () => {
                           </td>
                         </tr>
                       ) : (
-                        customerRecords.map((cust) => (
+                        customerRecords.filter((c) => [c.fullName, c.email, c.phone, c.address].some((v) => String(v || '').toLowerCase().includes(customerSearchQuery.toLowerCase()))).map((cust) => (
                           <tr key={cust.id} className="hover:bg-zinc-50">
-                            <td className="p-3.5 font-bold text-zinc-900">{cust.fullName}</td>
+                            <td className="p-3.5">
+                              <div className="font-bold text-zinc-900">{cust.fullName || 'Customer'}</div>
+                              <div className="text-[11px] text-zinc-500 break-all">{cust.email || 'No email saved'}</div>
+                              <div className="text-[11px] text-zinc-500 max-w-[240px] truncate">{cust.address || 'No shipping address saved'}</div>
+                            </td>
                             <td className="p-3.5 font-mono text-zinc-700">{cust.phone}</td>
                             <td className="p-3.5">{cust.totalOrdersCount || 0}</td>
                             <td className="p-3.5 font-mono font-bold text-emerald-600">{formatPKR(cust.totalSpent || 0)}</td>
@@ -2379,15 +2439,23 @@ export const ShopifyAdminApp: React.FC = () => {
                               {cust.loyaltyPoints || 0} pts
                             </td>
                             <td className="p-3.5 text-right">
-                              <button
-                                onClick={() => {
-                                  setAdjustingCustomer(cust);
-                                  setPointsAdjustmentVal(cust.loyaltyPoints || 0);
-                                }}
-                                className="bg-zinc-100 hover:bg-[#e4002b] hover:text-white text-zinc-800 text-xs font-bold px-3 py-1.5 rounded-lg transition"
-                              >
-                                Adjust Points
-                              </button>
+                              <div className="flex flex-col sm:flex-row justify-end gap-2">
+                                <button
+                                  onClick={() => setEditingCustomerRecord({ ...cust, address: cust.address || cust.defaultAddress || '' })}
+                                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg transition"
+                                >
+                                  View / Edit Details
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setAdjustingCustomer(cust);
+                                    setPointsAdjustmentVal(cust.loyaltyPoints || 0);
+                                  }}
+                                  className="bg-zinc-100 hover:bg-[#e4002b] hover:text-white text-zinc-800 text-xs font-bold px-3 py-1.5 rounded-lg transition"
+                                >
+                                  Adjust Points
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -2471,9 +2539,34 @@ export const ShopifyAdminApp: React.FC = () => {
               <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 text-sm">
                 <strong>Setup Required:</strong> Review automation ko browser timer se nahi chalaya jayega. Scheduler deploy hone ke baad hi automatic requests enable hongi.
               </div>
-              <div className="p-4 rounded-2xl border border-zinc-200 bg-white">
-                <p className="text-sm font-bold text-zinc-900">Current reviews: {reviews.length}</p>
-                <p className="text-xs text-zinc-500 mt-1">Manual review management existing storefront/admin workflow se available hai.</p>
+              {reviewActionNotice && <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs">{reviewActionNotice}</div>}
+              <div className="p-4 rounded-2xl border border-zinc-200 bg-white space-y-3">
+                <p className="text-sm font-bold text-zinc-900">Product Reviews ({reviews.length})</p>
+                {reviews.length === 0 ? <p className="text-xs text-zinc-500">Abhi koi review nahi aaya.</p> : reviews.map((review) => (
+                  <div key={review.id} className="border border-zinc-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-bold text-sm text-zinc-900">{review.customerName} · {'★'.repeat(Math.max(0, Math.min(5, review.rating)))}</div>
+                      <div className="text-xs text-zinc-500">{menuItems.find((item) => item.id === review.productId)?.name || review.productId} · {review.date ? new Date(review.date).toLocaleDateString() : ''}</div>
+                      <p className="text-sm text-zinc-700 mt-1 whitespace-pre-wrap">{review.comment}</p>
+                      <span className={`inline-block mt-2 text-[10px] font-bold uppercase rounded-full px-2 py-1 ${review.isVisible === false ? 'bg-zinc-100 text-zinc-500' : 'bg-emerald-50 text-emerald-700'}`}>{review.isVisible === false ? 'Hidden from storefront' : 'Visible on storefront'}</span>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button type="button" onClick={async () => { try { await setReviewVisibility(review.id, review.isVisible === false); setReviewActionNotice(review.isVisible === false ? 'Review storefront par show ho raha hai.' : 'Review storefront se hide kar diya gaya.'); } catch (e: any) { setReviewActionNotice(e?.message || 'Review visibility update failed.'); } }} className="text-xs font-bold px-3 py-2 bg-blue-50 text-blue-700 rounded-lg">{review.isVisible === false ? 'Show' : 'Hide'}</button>
+                      <button type="button" onClick={async () => { if (!window.confirm('Is review ko permanently remove karna hai?')) return; try { await deleteReview(review.id); setReviewActionNotice('Review delete kar diya gaya.'); } catch (e: any) { setReviewActionNotice(e?.message || 'Review delete nahi hua.'); } }} className="text-xs font-bold px-3 py-2 bg-red-50 text-red-700 rounded-lg">Remove</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-4 rounded-2xl border border-zinc-200 bg-white space-y-3">
+                <h3 className="text-sm font-bold text-zinc-900">Review Requests for Delivered Orders</h3>
+                <p className="text-xs text-zinc-500">Delivered orders par WhatsApp review request manually bhejein.</p>
+                {allOrders.filter((order) => order.status === 'delivered' && order.customer?.phone).slice(0, 20).map((order) => {
+                  const phone = String(order.customer.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '92');
+                  const firstItem = order.items?.[0]?.menuItem;
+                  const reviewUrl = firstItem?.id ? `${window.location.origin}/?product=${encodeURIComponent(firstItem.id)}` : window.location.origin;
+                  const message = `Assalam o Alaikum ${order.customer.fullName || 'Customer'}! Aap ke KFC Chakwal Delivery order #${order.id} ke liye shukriya. Meherbani karke apna review share karein: ${reviewUrl}`;
+                  return <div key={order.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 py-2"><div><div className="text-xs font-bold text-zinc-900">#{order.id} · {order.customer.fullName}</div><div className="text-[11px] text-zinc-500">{order.customer.phone} · {new Date(order.date).toLocaleDateString()}</div></div><a href={`https://wa.me/${phone}?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer" className="inline-flex justify-center bg-[#25D366] text-white font-bold text-xs px-3 py-2 rounded-lg">Send Review Request</a></div>;
+                })}
               </div>
             </div>
           )}
@@ -2503,6 +2596,19 @@ export const ShopifyAdminApp: React.FC = () => {
               </div>
 
               {/* Typography */}
+              <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <h3 className="font-bold text-sm text-zinc-900 flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-[#e4002b]" />
+                  <span>Theme Color Scheme</span>
+                </h3>
+                <p className="text-xs text-zinc-500">Choose the store's main accent color. It is saved with store settings and applies to supported brand buttons and labels.</p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <input type="color" aria-label="Store primary color" value={settings.primaryColor || '#e4002b'} onChange={(e) => updateSettings({ primaryColor: e.target.value })} className="w-14 h-12 rounded-lg border border-zinc-200 cursor-pointer bg-white p-1" />
+                  <div><div className="text-sm font-bold text-zinc-900">{settings.primaryColor || '#e4002b'}</div><button type="button" onClick={() => updateSettings({ primaryColor: '#e4002b' })} className="text-xs text-[#e4002b] font-bold underline">Reset KFC Red</button></div>
+                  <div className="rounded-xl px-4 py-2 text-white text-xs font-bold" style={{ backgroundColor: settings.primaryColor || '#e4002b' }}>Live Preview</div>
+                </div>
+              </div>
+
               <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
                 <h3 className="font-bold text-sm text-zinc-900 flex items-center gap-2">
                   <Sliders className="w-4 h-4 text-[#e4002b]" />
@@ -2577,7 +2683,12 @@ export const ShopifyAdminApp: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => setIsAddingPolicy(true)}
+                  onClick={() => {
+                    setEditingPolicy(null);
+                    setNewPolicyTitle('');
+                    setNewPolicyContent('');
+                    setIsAddingPolicy(true);
+                  }}
                   className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-md cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
@@ -2592,7 +2703,12 @@ export const ShopifyAdminApp: React.FC = () => {
                       <h4 className="font-bold text-sm text-zinc-900">{pol.title}</h4>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setEditingPolicy(pol)}
+                          onClick={() => {
+                            setEditingPolicy(pol);
+                            setNewPolicyTitle(pol.title);
+                            setNewPolicyContent(pol.content);
+                            setIsAddingPolicy(false);
+                          }}
                           className="text-xs text-zinc-600 hover:text-zinc-900 font-bold px-2 py-1 bg-zinc-100 rounded-lg"
                         >
                           Edit
@@ -3313,6 +3429,38 @@ export const ShopifyAdminApp: React.FC = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* POLICY CREATE / EDIT MODAL */}
+      {(isAddingPolicy || editingPolicy) && (
+        <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={(e) => { e.preventDefault(); handleSavePolicy(); }} className="w-full max-w-xl bg-white rounded-3xl shadow-2xl p-6 space-y-4 text-zinc-900">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <h3 className="text-lg font-black">{editingPolicy ? 'Edit Store Policy' : 'Add Store Policy'}</h3>
+              <button type="button" onClick={() => { setEditingPolicy(null); setIsAddingPolicy(false); setNewPolicyTitle(''); setNewPolicyContent(''); }} className="p-2 rounded-lg hover:bg-zinc-100" aria-label="Close policy editor"><X className="w-4 h-4" /></button>
+            </div>
+            <div><label className="block text-xs font-bold mb-1">Policy Title *</label><input value={newPolicyTitle} onChange={(e) => setNewPolicyTitle(e.target.value)} required maxLength={120} className="w-full border border-zinc-300 rounded-xl p-3 text-sm" placeholder="e.g. Delivery Policy" /></div>
+            <div><label className="block text-xs font-bold mb-1">Policy Content *</label><textarea value={newPolicyContent} onChange={(e) => setNewPolicyContent(e.target.value)} required rows={8} maxLength={10000} className="w-full border border-zinc-300 rounded-xl p-3 text-sm" placeholder="Write your policy here..." /></div>
+            <div className="flex justify-end gap-2"><button type="button" onClick={() => { setEditingPolicy(null); setIsAddingPolicy(false); setNewPolicyTitle(''); setNewPolicyContent(''); }} className="px-4 py-2 rounded-xl bg-zinc-100 text-zinc-700 text-sm font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-[#e4002b] text-white text-sm font-bold">{editingPolicy ? 'Save Changes' : 'Add Policy'}</button></div>
+          </form>
+        </div>
+      )}
+
+      {/* CUSTOMER DETAILS VIEW / EDIT MODAL */}
+      {editingCustomerRecord && (
+        <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={async (e) => { e.preventDefault(); try { await updateCustomerRecord(editingCustomerRecord.id, { fullName: editingCustomerRecord.fullName || '', phone: editingCustomerRecord.phone || '', email: editingCustomerRecord.email || '', address: editingCustomerRecord.address || '' }); setEditingCustomerRecord(null); alert('Customer details save ho gayi hain.'); } catch (error: any) { alert(error?.message || 'Customer details save nahi ho sakin.'); } }} className="w-full max-w-xl bg-white rounded-3xl shadow-2xl p-6 space-y-4 text-zinc-900">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3"><div><h3 className="text-lg font-black">Customer Details</h3><p className="text-xs text-zinc-500 break-all">Customer ID: {editingCustomerRecord.id}</p></div><button type="button" onClick={() => setEditingCustomerRecord(null)} className="p-2 rounded-lg hover:bg-zinc-100" aria-label="Close customer details"><X className="w-4 h-4" /></button></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><label className="block text-xs font-bold mb-1">Full Name</label><input value={editingCustomerRecord.fullName || ''} onChange={(e) => setEditingCustomerRecord({ ...editingCustomerRecord, fullName: e.target.value })} required maxLength={100} className="w-full border border-zinc-300 rounded-xl p-3 text-sm" /></div>
+              <div><label className="block text-xs font-bold mb-1">Phone Number</label><input value={editingCustomerRecord.phone || ''} onChange={(e) => setEditingCustomerRecord({ ...editingCustomerRecord, phone: e.target.value })} maxLength={40} className="w-full border border-zinc-300 rounded-xl p-3 text-sm" /></div>
+              <div className="sm:col-span-2"><label className="block text-xs font-bold mb-1">Email Address</label><input type="email" value={editingCustomerRecord.email || ''} onChange={(e) => setEditingCustomerRecord({ ...editingCustomerRecord, email: e.target.value })} maxLength={160} className="w-full border border-zinc-300 rounded-xl p-3 text-sm" /></div>
+              <div className="sm:col-span-2"><label className="block text-xs font-bold mb-1">Shipping / Delivery Address</label><textarea value={editingCustomerRecord.address || editingCustomerRecord.defaultAddress || ''} onChange={(e) => setEditingCustomerRecord({ ...editingCustomerRecord, address: e.target.value })} rows={3} maxLength={500} className="w-full border border-zinc-300 rounded-xl p-3 text-sm" /></div>
+              <div className="sm:col-span-2 bg-zinc-50 rounded-xl p-3 text-xs text-zinc-600">Orders: {editingCustomerRecord.totalOrdersCount || 0} · Total spent: {formatPKR(editingCustomerRecord.totalSpent || 0)} · Loyalty points: {editingCustomerRecord.loyaltyPoints || 0}</div>
+            </div>
+            <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditingCustomerRecord(null)} className="px-4 py-2 rounded-xl bg-zinc-100 text-zinc-700 text-sm font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-[#e4002b] text-white text-sm font-bold">Save Customer</button></div>
+          </form>
         </div>
       )}
 
