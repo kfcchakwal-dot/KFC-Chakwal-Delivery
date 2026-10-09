@@ -153,3 +153,17 @@ input, textarea, select {
   color: #18181b !important;
   border-color: #d4d4d8;
 }
+
+/* Neutralize legacy gray and colorful utility surfaces; cards/panels stay white. */
+[class*="bg-zinc-"], [class*="bg-gray-"], [class*="bg-slate-"], [class*="bg-neutral-"],
+[class*="bg-indigo-"], [class*="bg-emerald-"], [class*="bg-amber-"], [class*="bg-blue-"],
+[class*="bg-green-"], [class*="bg-purple-"], [class*="bg-violet-"], [class*="bg-orange-"],
+[class*="bg-teal-"], [class*="bg-cyan-"], [class*="bg-sky-"] {
+  background-color: #ffffff !important;
+}
+[class*="text-emerald-"], [class*="text-amber-"], [class*="text-indigo-"],
+[class*="text-blue-"], [class*="text-green-"], [class*="text-purple-"],
+[class*="text-violet-"], [class*="text-orange-"], [class*="text-teal-"],
+[class*="text-cyan-"], [class*="text-sky-"] {
+  color: #e4002b !important;
+}
