@@ -1533,17 +1533,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         : existingAddresses;
       const profileUpdate = {
         id: user.uid,
-        uid: user.uid,
         fullName,
         email,
         phone,
         address,
         defaultAddress: address,
         savedAddresses,
-        lastOrderId: savedOrder.id,
-        lastOrderAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        ...(currentUser?.createdAt ? {} : { createdAt: new Date().toISOString() }),
       };
       await setDoc(doc(db, 'customers', user.uid), profileUpdate, { merge: true });
       const updatedProfile: CustomerUser = {
