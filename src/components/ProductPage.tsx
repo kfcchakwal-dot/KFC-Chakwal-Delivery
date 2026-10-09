@@ -88,7 +88,6 @@ export const ProductPage: React.FC = () => {
   const [addedAnimation, setAddedAnimation] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
   const [activeImage, setActiveImage] = useState(item.image || '');
-  const [spiceLevel, setSpiceLevel] = useState<'Hot & Crispy' | 'Original Recipe'>('Original Recipe');
   useEffect(() => { setActiveImage(item.image || ''); setSelectedAddons([]); }, [item.id, item.image]);
 
   // Review Form state
@@ -113,7 +112,6 @@ export const ProductPage: React.FC = () => {
     addToCart(
       item,
       {
-        spiceLevel: item.customizableOptions?.allowSpiceLevel ? spiceLevel : undefined,
         drink: item.customizableOptions?.allowDrinkChoice ? drink : undefined,
         addons: selectedAddons,
         specialInstructions: instructions.trim() || undefined,
@@ -395,18 +393,7 @@ export const ProductPage: React.FC = () => {
                 </span>
               </div>
 
-              {item.customizableOptions?.allowSpiceLevel && (
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-700">Choose chicken style</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(['Original Recipe', 'Hot & Crispy'] as const).map((choice) => (
-                      <button key={choice} type="button" onClick={() => setSpiceLevel(choice)} className={`p-3 rounded-xl border text-xs font-bold ${spiceLevel === choice ? 'border-[#e4002b] bg-red-50 text-zinc-900' : 'border-zinc-200 bg-zinc-50 text-zinc-700'}`}>
-                        {choice}{spiceLevel === choice ? ' ✓' : ''}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+
 
               {/* Beverage Choice with Image Thumbnails */}
               {item.customizableOptions?.allowDrinkChoice && (
