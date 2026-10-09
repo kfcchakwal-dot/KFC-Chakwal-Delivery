@@ -209,10 +209,9 @@ export const DailyDealsSection: React.FC = () => {
                     <button
                       type="button"
                       onClick={(e) => handleAddDailyDeal(item, e)}
-                      className="w-full mt-2 min-h-[40px] bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-black uppercase py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-red-950/40 cursor-pointer"
+                      className="buy-button w-full mt-2 min-h-[40px] bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-black uppercase py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md shadow-red-950/40 cursor-pointer"
                       aria-label={`Add deal ${item.name} to bucket`}
                     >
-                      <ShoppingBag className="w-3.5 h-3.5" />
                       <span>Add to Bucket</span>
                     </button>
                   </div>
