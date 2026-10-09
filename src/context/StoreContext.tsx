@@ -871,11 +871,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (isAdmin && ordersInitializedRef.current && data.length > previousOrderCountRef.current) {
         if (settings.orderNotificationSound !== false) playNewOrderChime();
         if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('🍗 New KFC Chakwal Order', {
-            body: 'New order #' + (data[0]?.id || '') + ' received. Open Seller Center to review it.',
+          const title = '🍗 New KFC Chakwal Order';
+          const options: NotificationOptions = {
+            body: 'New order #' + (data[0]?.id || '') + ' received. Tap to open Seller Center.',
             icon: '/pwa-192.png',
             tag: 'kfc-new-order-' + (data[0]?.id || ''),
-          });
+            data: { url: '/seller' },
+          };
+          if ('serviceWorker' in navigator) {
+            void navigator.serviceWorker.ready
+              .then((registration) => registration.showNotification(title, options))
+              .catch(() => {
+                const notification = new Notification(title, options);
+                notification.onclick = () => { window.focus(); window.location.href = '/seller'; };
+              });
+          } else {
+            const notification = new Notification(title, options);
+            notification.onclick = () => { window.focus(); window.location.href = '/seller'; };
+          }
         }
       }
       previousOrderCountRef.current = data.length;
