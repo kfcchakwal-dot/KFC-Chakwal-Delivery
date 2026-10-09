@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { Header } from './components/Header';
 import { AnnouncementBars } from './components/AnnouncementBars';
@@ -73,6 +73,11 @@ const MainShop: React.FC = () => {
   const [navSelectedCategory, setNavSelectedCategory] = useState<CategoryId | 'all'>('all');
   const initialProductHandled = useRef(false);
   const isDark = themeMode === 'dark';
+  const storefrontCategories = useMemo(() => {
+    const knownIds = new Set(KFC_CATEGORIES.map((category) => String(category.id)));
+    const extraIds = Array.from(new Set(menuItems.map((item) => String(item.categoryId)).filter((id) => id && !knownIds.has(id))));
+    return [...KFC_CATEGORIES, ...extraIds.map((id) => ({ id: id as CategoryId, name: id.replace(/-/g, ' ').replace(/\\b\\w/g, (m) => m.toUpperCase()), subtitle: '' }))];
+  }, [menuItems]);
   const sectionColorCss = Object.entries(settings.sectionColorSchemes || {}).map(([key, scheme]) => {
     const selectors: Record<string, string> = {
       header: 'header',
@@ -111,7 +116,7 @@ const MainShop: React.FC = () => {
   useEffect(() => {
     if (currentView !== 'home' && currentView !== 'collection') return;
     if (selectedCategory !== 'all' || searchQuery) return;
-    const nodes = KFC_CATEGORIES
+    const nodes = storefrontCategories
       .map((category) => document.getElementById(`category-section-${category.id}`))
       .filter((node): node is HTMLElement => Boolean(node));
     if (!nodes.length || typeof IntersectionObserver === 'undefined') return;
@@ -128,7 +133,7 @@ const MainShop: React.FC = () => {
     }, { root: null, rootMargin: '-125px 0px -58% 0px', threshold: [0.05, 0.2, 0.4] });
     nodes.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
-  }, [currentView, selectedCategory, searchQuery, menuItems, setActiveCategory]);
+  }, [currentView, selectedCategory, searchQuery, storefrontCategories, menuItems, setActiveCategory]);
 
   // Keep one history entry inside the app so the first Back action can be handled gracefully.
   useEffect(() => {
@@ -281,9 +286,14 @@ const MainShop: React.FC = () => {
             <CategoryNav
               selectedCategoryId={navSelectedCategory}
               onSelectCategory={(catId) => {
-                setSelectedCategory(catId);
+                setSelectedCategory('all');
                 setNavSelectedCategory(catId);
-                if (catId !== 'all') setActiveCategory(catId);
+                if (catId !== 'all') {
+                  setActiveCategory(catId);
+                  window.setTimeout(() => document.getElementById(`category-section-${catId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+                } else {
+                  window.setTimeout(() => document.getElementById('kfc-menu-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+                }
               }}
             />
 
@@ -336,7 +346,7 @@ const MainShop: React.FC = () => {
                   {/* Category by Category View (2 items per row on mobile) */}
                   {selectedCategory === 'all' && !searchQuery ? (
                     <div className="space-y-10 sm:space-y-12">
-                      {KFC_CATEGORIES.map((category) => {
+                      {storefrontCategories.map((category) => {
                         const categoryItems = searchedItems.filter(
                           (item) => item.categoryId === category.id
                         );
