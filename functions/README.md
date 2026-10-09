@@ -29,6 +29,17 @@ Use a valid WhatsApp Cloud API access token, the WhatsApp **phone-number ID** (n
 
 In the Admin → Reviews section, enable automated review requests and choose the delay. Only orders whose status is Delivered are eligible. WhatsApp may still reject requests if the token expires, the template/language is incorrect, or Meta account setup is incomplete; those requests are recorded as failed for troubleshooting.
 
+## Automatic customer order-status emails (optional)
+
+The Functions code sends an email when an order is created and whenever its status changes (Confirmed/Received, In Kitchen/Processing, Dispatched, Delivered, or Cancelled). It requires the customer to provide an email address at checkout and requires a verified sender domain in Resend.
+
+1. Create a Resend account and verify the domain you will send from.
+2. Set `RESEND_API_KEY` and `ORDER_EMAIL_FROM` in the Firebase Functions environment for the target project. The sender must use the verified domain, for example `KFC Chakwal Delivery <orders@yourdomain.com>`.
+3. Redeploy with `firebase deploy --only functions --project gen-lang-client-0313861453`.
+4. Place a test order with an email address and update its status from Admin → Orders. Check delivery logs in Firebase Functions if an email fails.
+
+Without the API key, verified sender, and customer email, the function safely skips sending and records the reason in logs; it does not report an email as sent.
+
 ## Product previews
 
 The `productShare` HTTPS function serves server-rendered Open Graph and Twitter metadata using the public catalogue, then opens the product in the storefront. It needs to be deployed before Facebook/WhatsApp can generate the product-specific preview. Social platforms cache previews, so use their sharing/debugging tools to refresh a previously cached URL after a product image or description changes.
