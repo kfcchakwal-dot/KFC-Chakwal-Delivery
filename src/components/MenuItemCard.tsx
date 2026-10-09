@@ -286,7 +286,6 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
               className="buy-button min-h-[44px] text-[11px] sm:text-xs font-black uppercase py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-sm"
               aria-label={`Add ${item.name} to bucket`}
             >
-              <Plus className="w-4 h-4 stroke-[3] shrink-0" />
               <span>Add to Bucket</span>
             </button>
             <button
