@@ -19,7 +19,7 @@ export const MetaAdsManager: React.FC = () => {
   const config = settings.metaCommerce || {
     pixelId: '',
     conversionsApiToken: '',
-    catalogFeedUrl: `${window.location.origin}/api/facebook-catalog.xml`,
+    catalogFeedUrl: '',
     testEventCode: '',
     instagramShoppingEnabled: true,
     facebookShopEnabled: true,
@@ -33,9 +33,11 @@ export const MetaAdsManager: React.FC = () => {
   const [copiedFeed, setCopiedFeed] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const feedUrl = `${window.location.origin}/api/facebook-catalog.xml`;
+  // A static Worker does not currently expose the dynamic XML route Meta needs.
+  const feedUrl = '';
 
   const handleCopyFeed = () => {
+    if (!feedUrl) return;
     navigator.clipboard.writeText(feedUrl);
     setCopiedFeed(true);
     setTimeout(() => setCopiedFeed(false), 2000);
@@ -62,7 +64,7 @@ export const MetaAdsManager: React.FC = () => {
             <span>Facebook, Instagram & Meta Ads Manager</span>
           </h2>
           <p className="text-xs text-zinc-500 mt-1">
-            Product catalog feed real hai. Meta Pixel/CAPI tracking tab active hogi jab Meta credentials server-side configure aur tracking endpoints enable hon.
+            Meta Pixel/CAPI aur scheduled product feed tabhi kaam kareinge jab unke actual hosting endpoints configure hon. Current static Worker par XML feed endpoint abhi available nahi hai.
           </p>
         </div>
 
@@ -93,25 +95,26 @@ export const MetaAdsManager: React.FC = () => {
                 Live Product Catalog Feed (XML / RSS)
               </h3>
               <p className="text-[11px] text-zinc-500">
-                Syncs all {menuItems.length} active KFC items with prices, images, descriptions and stock to Meta Commerce Manager.
+                {menuItems.length} active KFC items app mein hain. Meta ko scheduled sync dene ke liye public XML feed endpoint abhi deploy karna baqi hai.
               </p>
             </div>
           </div>
 
           <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
-            Active Feed
+            Feed Not Deployed
           </span>
         </div>
 
         <div className="p-3.5 bg-zinc-50 rounded-xl border border-zinc-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 font-mono text-xs">
-          <span className="truncate text-zinc-800 font-semibold">{feedUrl}</span>
+          <span className="truncate text-zinc-800 font-semibold">{feedUrl || 'Not available — XML feed endpoint is not deployed'}</span>
           <button
             type="button"
             onClick={handleCopyFeed}
-            className="bg-[#1877f2] hover:bg-[#166fe5] text-white text-xs font-sans font-bold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow shrink-0 active:scale-95"
+            disabled={!feedUrl}
+            className="bg-[#1877f2] disabled:opacity-50 hover:bg-[#166fe5] text-white text-xs font-sans font-bold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow shrink-0 active:scale-95"
           >
             <Copy className="w-3.5 h-3.5" />
-            <span>{copiedFeed ? 'Copied Feed URL!' : 'Copy Catalog URL'}</span>
+            <span>{copiedFeed ? 'Copied Feed URL!' : feedUrl ? 'Copy Catalog URL' : 'Feed Not Deployed'}</span>
           </button>
         </div>
 
@@ -120,7 +123,7 @@ export const MetaAdsManager: React.FC = () => {
           <p className="text-[11px] text-blue-800/90 leading-relaxed">
             1. Go to <strong>Meta Commerce Manager</strong> ➔ Catalogs ➔ Data Sources.<br />
             2. Choose <strong>Data Feed (Scheduled Feed)</strong>.<br />
-            3. Paste the URL above and set schedule to <strong>Daily at 12:00 AM</strong>. Your Facebook & Instagram store will automatically sync!
+            3. Scheduled feed setup tab karein jab hosting par working public XML endpoint deploy ho. Current Worker URL ko Meta mein paste na karein, kyun ke route available nahi hai.
           </p>
         </div>
       </div>
