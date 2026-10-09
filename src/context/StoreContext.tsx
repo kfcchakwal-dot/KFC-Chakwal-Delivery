@@ -1519,6 +1519,60 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       discountCode: appliedDiscountCode || null,
       redeemLoyaltyPoints: requestedLoyaltyDiscount > 0,
     }));
+    // Persist delivery contact details against the authenticated Google account before accepting the order.
+    // If this write fails, stop checkout rather than silently losing the customer's phone/address.
+    if (user) {
+      const phone = String(customer.phone || currentUser?.phone || user.phoneNumber || '').trim();
+      const address = String(customer.address || currentUser?.defaultAddress || currentUser?.address || '').trim();
+      const fullName = String(customer.fullName || currentUser?.fullName || user.displayName || 'Customer').trim();
+      const email = String(user.email || currentUser?.email || '').trim();
+      const existingAddresses = currentUser?.savedAddresses || [];
+      const addressExists = address && existingAddresses.some((saved) => saved.address.trim().toLowerCase() === address.toLowerCase());
+      const savedAddresses = address && !addressExists
+        ? [...existingAddresses, { id: `addr-${Date.now()}`, label: 'Recent Order', address }]
+        : existingAddresses;
+      const customerProfileRef = doc(db, 'customers', user.uid);
+      const existingCustomerProfile = await getDoc(customerProfileRef);
+      const profileUpdate = {
+        fullName,
+        email,
+        phone,
+        address,
+        defaultAddress: address,
+        savedAddresses,
+        updatedAt: new Date().toISOString(),
+      };
+      if (existingCustomerProfile.exists()) {
+        await setDoc(customerProfileRef, profileUpdate, { merge: true });
+      } else {
+        await setDoc(customerProfileRef, {
+          id: user.uid,
+          ...profileUpdate,
+          loyaltyPoints: 50,
+          totalSpent: 0,
+          ordersCount: 0,
+          createdAt: new Date().toISOString(),
+        }, { merge: true });
+      }
+      const updatedProfile: CustomerUser = {
+        id: user.uid,
+        fullName,
+        email,
+        phone,
+        address,
+        defaultAddress: address,
+        savedAddresses,
+        loyaltyPoints: Number(currentUser?.loyaltyPoints || 0),
+        createdAt: currentUser?.createdAt || new Date().toISOString(),
+        totalSpent: Number(currentUser?.totalSpent || 0),
+        ordersCount: Number(currentUser?.ordersCount || 0),
+        ...(currentUser?.vipTier ? { vipTier: currentUser.vipTier } : {}),
+        ...(currentUser?.vipStatus ? { vipStatus: currentUser.vipStatus } : {}),
+      };
+      setCurrentUser(updatedProfile);
+      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedProfile));
+    }
+
     await setDoc(doc(db, 'orders', savedOrder.id), firestoreOrder);
 
     // Only update local customer/order state after the server has accepted the order.
@@ -1574,10 +1628,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fullName: customer.fullName || currentUser.fullName,
         phone: customer.phone || currentUser.phone,
         address: customer.address || currentUser.address,
+        defaultAddress: customer.address || currentUser.defaultAddress || currentUser.address,
+        email: auth.currentUser?.email || currentUser.email,
         savedAddresses: updatedAddresses,
         loyaltyPoints: Math.max(0, (currentUser.loyaltyPoints || 0) - redeemedPoints) + earnedPoints,
+        totalSpent: Number(currentUser.totalSpent || 0) + Number(savedOrder.total || 0),
+        ordersCount: Number(currentUser.ordersCount || 0) + 1,
       };
       setCurrentUser(updatedUser);
+      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
     }
 
     setAllOrders((prev) => [savedOrder, ...prev.filter((order) => order.id !== savedOrder.id)]);

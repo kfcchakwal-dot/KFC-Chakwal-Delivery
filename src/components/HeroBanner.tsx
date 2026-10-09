@@ -75,7 +75,7 @@ export const HeroBanner: React.FC = () => {
                 isDark ? 'text-white' : 'text-zinc-900'
               }`}>
                 {headline} <br />
-                <span className="text-[#e4002b]">{highlightText}</span> GOOD.
+                <span className="text-[#e4002b]">{highlightText}</span> {settings.hero?.endingText ?? 'GOOD.'}
               </h1>
               <p className={`text-sm sm:text-base max-w-xl pt-2 font-normal leading-relaxed ${
                 isDark ? 'text-zinc-400' : 'text-zinc-600'
@@ -121,7 +121,7 @@ export const HeroBanner: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
               <button
                 onClick={scrollToMenu}
-                className="w-full sm:w-auto min-h-[48px] bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-xl px-7 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2.5 transition-all shadow-xl shadow-red-950/50 hover:shadow-red-900/60 cursor-pointer active:scale-98"
+                className="buy-button w-full sm:w-auto min-h-[48px] bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-xl px-7 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2.5 transition-all shadow-xl shadow-red-950/50 hover:shadow-red-900/60 cursor-pointer active:scale-98"
                 aria-label="Explore all KFC menu items"
               >
                 <span>{ctaText}</span>

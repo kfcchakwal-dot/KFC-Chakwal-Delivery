@@ -50,6 +50,8 @@ export interface MenuItem {
   lowStockThreshold?: number;
   variants?: ProductVariant[]; // Flexible product variants
   customBadgeText?: string;
+  /** Admin-managed labels shown on this product image, e.g. Popular, Special, New. */
+  badges?: string[];
   customBadgePosition?: BadgePosition;
   allowedBeverageIds?: string[];
   allowedAddonIds?: string[];
@@ -105,6 +107,7 @@ export interface HeroConfig {
   imageUrl: string;
   headline: string;
   highlightText: string;
+  endingText?: string;
   subtext: string;
   ctaButtonText: string;
   deliveryBadgeText: string;

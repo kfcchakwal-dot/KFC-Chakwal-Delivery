@@ -69,6 +69,7 @@ export const DEFAULT_HERO_CONFIG: HeroConfig = {
   imageUrl: '/src/assets/images/kfc_hero_zinger_combo_1791015805739.jpg',
   headline: 'CRISPY. JUICY.',
   highlightText: "FINGER LICKIN'",
+  endingText: "GOOD.",
   subtext: 'Order your favorite KFC Pakistan Zingers, Krunch Combos, Hot Wings, and Mega Buckets delivered piping hot right to your doorstep anywhere in Chakwal.',
   ctaButtonText: 'EXPLORE ALL ITEMS',
   deliveryBadgeText: 'Chakwal Fast Delivery',
