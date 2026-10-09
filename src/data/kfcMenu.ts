@@ -117,7 +117,7 @@ export const DEFAULT_CUSTOM_DOMAIN_CONFIG: CustomDomainConfig = {
 export const DEFAULT_META_COMMERCE_CONFIG: MetaCommerceConfig = {
   pixelId: '',
   conversionsApiToken: '',
-  catalogFeedUrl: 'https://kfcchk.kintrends.com/api/facebook-catalog.xml',
+  catalogFeedUrl: '',
   testEventCode: '',
   instagramShoppingEnabled: false,
   facebookShopEnabled: false,
