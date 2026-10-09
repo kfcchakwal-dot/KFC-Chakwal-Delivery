@@ -322,6 +322,8 @@ export const Header: React.FC = () => {
                 onClick={openWishlist}
                 className="relative p-2.5 rounded-xl border transition-all cursor-pointer bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-700"
                 title="Wishlist"
+                aria-label="Wishlist"
+                data-wishlist-target="true"
               >
                 <Heart className={`w-4 h-4 ${wishlist.length > 0 ? 'text-[#e4002b] fill-[#e4002b]' : ''}`} />
                 {wishlist.length > 0 && (
