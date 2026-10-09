@@ -284,7 +284,7 @@ export const ItemCustomizeModal: React.FC = () => {
             aria-label="Confirm and add to bucket"
           >
             <span>ADD TO BUCKET</span>
-            <span className="font-sans text-sm font-extrabold tabular-nums bg-black/25 px-2.5 py-1 rounded-lg">
+            <span className="font-sans text-sm font-extrabold tabular-nums">
               {formatPKR(totalPrice)}
             </span>
           </button>
