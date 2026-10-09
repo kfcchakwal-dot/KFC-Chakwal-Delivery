@@ -137,7 +137,7 @@ export const Header: React.FC = () => {
               <img
                 src={settings.customPreloaderLogoUrl || '/logo.svg'}
                 alt="KFC Chakwal Delivery"
-                className="w-11 h-11 object-contain bg-transparent"
+                className="w-11 h-11 object-contain bg-transparent mix-blend-multiply"
                 onError={(e) => { e.currentTarget.src = '/pwa-192.png'; }}
               />
             </button>
@@ -301,7 +301,7 @@ export const Header: React.FC = () => {
               <img
                 src={settings.customPreloaderLogoUrl || '/logo.svg'}
                 alt="KFC Chakwal Delivery"
-                className="w-14 h-14 object-contain bg-transparent"
+                className="w-14 h-14 object-contain bg-transparent mix-blend-multiply"
                 onError={(e) => { e.currentTarget.src = '/pwa-192.png'; }}
               />
             </button>
