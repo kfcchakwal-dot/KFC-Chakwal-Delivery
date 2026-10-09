@@ -181,3 +181,8 @@ button[class]:hover, button[class]:focus-visible {
   background-color: #c30025 !important;
   border-color: #c30025 !important;
 }
+
+/* Dialog backdrops use a soft white veil instead of a black screen. */
+.fixed[class*="bg-black"] {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+}
