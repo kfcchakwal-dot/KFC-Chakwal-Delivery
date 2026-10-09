@@ -398,6 +398,7 @@ export type PaymentMethod = 'cod' | 'jazzcash' | 'easypaisa' | 'bank_transfer';
 export interface CustomerDetails {
   fullName: string;
   phone: string;
+  email?: string;
   address: string;
   area?: string;
   landmark?: string;
