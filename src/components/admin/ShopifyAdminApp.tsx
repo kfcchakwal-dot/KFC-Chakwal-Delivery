@@ -607,6 +607,25 @@ export const ShopifyAdminApp: React.FC = () => {
     return order.status === orderStatusFilter;
   });
 
+  const updateEditingCustomization = (patch: Partial<NonNullable<MenuItem['customizableOptions']>>) => {
+    if (!editingItem) return;
+    setEditingItem({ ...editingItem, customizableOptions: { ...editingItem.customizableOptions, ...patch } });
+  };
+  const updateEditingAddon = (index: number, patch: Partial<MenuItemAddon>) => {
+    if (!editingItem) return;
+    const addons = [...(editingItem.customizableOptions?.availableAddons || [])];
+    addons[index] = { ...addons[index], ...patch };
+    updateEditingCustomization({ availableAddons: addons });
+  };
+  const addEditingAddon = () => {
+    if (!editingItem) return;
+    updateEditingCustomization({ availableAddons: [...(editingItem.customizableOptions?.availableAddons || []), { id: `addon-${Date.now()}`, name: '', price: 0 }] });
+  };
+  const removeEditingAddon = (index: number) => {
+    if (!editingItem) return;
+    updateEditingCustomization({ availableAddons: (editingItem.customizableOptions?.availableAddons || []).filter((_, i) => i !== index) });
+  };
+
   // Handle Add Product Submit
   const handleAddProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -3259,6 +3278,22 @@ export const ShopifyAdminApp: React.FC = () => {
                   </div>
                 ))}
               </div>
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
+                <h4 className="font-black text-zinc-900">Customize Options — This Product</h4>
+                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={Boolean(editingItem.customizableOptions?.allowSpiceLevel)} onChange={(e) => updateEditingCustomization({ allowSpiceLevel: e.target.checked })} />Allow spice / chicken style selection</label>
+                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={Boolean(editingItem.customizableOptions?.allowDrinkChoice)} onChange={(e) => updateEditingCustomization({ allowDrinkChoice: e.target.checked })} />Allow drink selection</label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between"><span className="font-bold text-zinc-800">Add-ons / upgrades</span><button type="button" onClick={addEditingAddon} className="px-3 py-1.5 rounded-lg text-xs font-bold">+ Add item</button></div>
+                  {(editingItem.customizableOptions?.availableAddons || []).map((addon, index) => (
+                    <div key={addon.id} className="grid grid-cols-[1fr_90px_auto] gap-2 items-center">
+                      <input value={addon.name} onChange={(e) => updateEditingAddon(index, { name: e.target.value })} placeholder="Item name" className="min-w-0 border border-zinc-300 rounded-lg px-2 py-2" />
+                      <input type="number" min="0" value={addon.price} onChange={(e) => updateEditingAddon(index, { price: Number(e.target.value) })} aria-label="Add-on price" className="w-full border border-zinc-300 rounded-lg px-2 py-2" />
+                      <button type="button" onClick={() => removeEditingAddon(index)} className="px-2 py-2 rounded-lg text-xs">Remove</button>
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-zinc-500">Yahan set kiye gaye add-ons sirf isi product ke Customize section mein show honge.</p>
+                </div>
+              </div>
               <div>
                 <label className="block text-zinc-700 font-bold mb-1">Product Description</label>
                 <textarea
@@ -3280,7 +3315,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    updateMenuItem(editingItem);
+                    updateMenuItem({ ...editingItem, galleryImages: newProdGallery.filter(Boolean) });
                     setEditingItem(null);
                   }}
                   className="bg-[#e4002b] hover:bg-[#c30025] text-white font-bold px-5 py-2 rounded-xl cursor-pointer"
@@ -3365,6 +3400,22 @@ export const ShopifyAdminApp: React.FC = () => {
                     <ImageUploadPicker label={`Gallery image ${index + 1}`} value={url} onChange={(next) => setNewProdGallery((prev) => prev.map((value, i) => i === index ? next : value))} aspectRatio="wide" />
                   </div>
                 ))}
+              </div>
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
+                <h4 className="font-black text-zinc-900">Customize Options — This Product</h4>
+                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={newProdAllowSpice} onChange={(e) => setNewProdAllowSpice(e.target.checked)} />Allow spice / chicken style selection</label>
+                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={newProdAllowDrink} onChange={(e) => setNewProdAllowDrink(e.target.checked)} />Allow drink selection</label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between"><span className="font-bold text-zinc-800">Add-ons / upgrades</span><button type="button" onClick={() => setNewProdAddons((prev) => [...prev, { id: `addon-${Date.now()}`, name: '', price: 0 }])} className="px-3 py-1.5 rounded-lg text-xs font-bold">+ Add item</button></div>
+                  {newProdAddons.map((addon, index) => (
+                    <div key={addon.id} className="grid grid-cols-[1fr_90px_auto] gap-2 items-center">
+                      <input value={addon.name} onChange={(e) => setNewProdAddons((prev) => prev.map((a, i) => i === index ? { ...a, name: e.target.value } : a))} placeholder="Item name" className="min-w-0 border border-zinc-300 rounded-lg px-2 py-2" />
+                      <input type="number" min="0" value={addon.price} onChange={(e) => setNewProdAddons((prev) => prev.map((a, i) => i === index ? { ...a, price: Number(e.target.value) } : a))} aria-label="Add-on price" className="w-full border border-zinc-300 rounded-lg px-2 py-2" />
+                      <button type="button" onClick={() => setNewProdAddons((prev) => prev.filter((_, i) => i !== index))} className="px-2 py-2 rounded-lg text-xs">Remove</button>
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-zinc-500">Sirf yahan add kiye gaye items is product ke Customize section mein nazar aayenge.</p>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
