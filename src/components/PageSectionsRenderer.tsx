@@ -129,10 +129,7 @@ export const PageSectionsRenderer: React.FC<PageSectionsRendererProps> = ({ page
               >
                 <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                   <div className="lg:col-span-7 space-y-3">
-                    <div className="inline-flex items-center gap-2 bg-[#e4002b]/10 text-[#e4002b] border border-[#e4002b]/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                      <Bike className="w-3.5 h-3.5" />
-                      <span>{section.badgeText || 'Chakwal Express'}</span>
-                    </div>
+
 
                     <h2
                       style={{ fontFamily: settings.headingFont || 'Barlow Condensed' }}
