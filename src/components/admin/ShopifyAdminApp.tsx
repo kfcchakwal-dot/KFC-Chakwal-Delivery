@@ -2965,6 +2965,33 @@ export const ShopifyAdminApp: React.FC = () => {
                 </p>
               </div>
 
+              {/* Editable multi-announcement bars */}
+              <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-bold text-sm text-zinc-900">Announcement Bars</h3>
+                    <p className="text-[11px] text-zinc-500 mt-1">Har bar ka text change, show/hide, ya remove karein. Multiple bars add kar sakte hain.</p>
+                  </div>
+                  <button type="button" onClick={() => updateSettings({ announcementBars: [...(settings.announcementBars || []), { id: `announcement-${Date.now()}`, text: '', enabled: true }] })} className="shrink-0 rounded-xl bg-[#e4002b] px-3 py-2 text-xs font-black text-white">+ Add Bar</button>
+                </div>
+                {(settings.announcementBars || [{ id: 'announcement-1', text: settings.announcementText || '', enabled: settings.showAnnouncement !== false }]).map((bar, index) => (
+                  <div key={bar.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-black text-zinc-700">Announcement {index + 1}</span>
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-zinc-600">
+                          <input type="checkbox" checked={bar.enabled} onChange={(e) => updateSettings({ announcementBars: (settings.announcementBars || [{ id: 'announcement-1', text: settings.announcementText || '', enabled: settings.showAnnouncement !== false }]).map((item) => item.id === bar.id ? { ...item, enabled: e.target.checked } : item) })} />
+                          Show
+                        </label>
+                        <button type="button" onClick={() => updateSettings({ announcementBars: (settings.announcementBars || [{ id: 'announcement-1', text: settings.announcementText || '', enabled: settings.showAnnouncement !== false }]).filter((item) => item.id !== bar.id), showAnnouncement: false })} className="rounded-lg border border-red-200 px-2 py-1 text-[11px] font-bold text-red-600">Remove</button>
+                      </div>
+                    </div>
+                    <textarea rows={2} value={bar.text} onChange={(e) => updateSettings({ announcementBars: (settings.announcementBars || [{ id: 'announcement-1', text: settings.announcementText || '', enabled: settings.showAnnouncement !== false }]).map((item) => item.id === bar.id ? { ...item, text: e.target.value } : item) })} placeholder="Announcement text..." className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-900" />
+                  </div>
+                ))}
+                {(settings.announcementBars || []).length === 0 && <p className="text-xs text-zinc-500">Koi announcement bar nahi. “Add Bar” se naya bar banayein.</p>}
+              </div>
+
               {/* Logo, App Icon & Hero Banner Uploads (Device File Upload Supported) */}
               <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
                 <h3 className="font-bold text-sm text-zinc-900 flex items-center gap-2">

@@ -279,6 +279,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   isStoreOpen: true,
   announcementText: '🍗 Fresh KFC Picked from Kallar Kahar Motorway & Delivered in Chakwal (Within 3 KM)! Order before 4:00 PM for Delivery by 8:00 PM.',
   showAnnouncement: true,
+  announcementBars: [{ id: 'announcement-1', text: '🍗 Fresh KFC Picked from Kallar Kahar Motorway & Delivered in Chakwal (Within 3 KM)! Order before 4:00 PM for Delivery by 8:00 PM.', enabled: true }],
   themeMode: 'light', // Default day theme as requested
   headingFont: 'Barlow Condensed',
   bodyFont: 'Plus Jakarta Sans',

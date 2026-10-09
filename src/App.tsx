@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { Header } from './components/Header';
+import { AnnouncementBars } from './components/AnnouncementBars';
 import { HeroBanner } from './components/HeroBanner';
 import { CategoryNav } from './components/CategoryNav';
 import { MenuItemCard } from './components/MenuItemCard';
@@ -67,6 +68,8 @@ const MainShop: React.FC = () => {
     viewProduct,
   } = useStore();
 
+  const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  const allowExitRef = useRef(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
   const [navSelectedCategory, setNavSelectedCategory] = useState<CategoryId | 'all'>('all');
   const initialProductHandled = useRef(false);
@@ -111,6 +114,11 @@ const MainShop: React.FC = () => {
     return () => observer.disconnect();
   }, [currentView, selectedCategory, searchQuery, menuItems, setActiveCategory]);
 
+  // Keep one history entry inside the app so the first Back action can be handled gracefully.
+  useEffect(() => {
+    window.history.pushState({ kfcExitGuard: true }, '');
+  }, []);
+
   // Android Back Gesture & System Back Button Handling: Close top-most modal/subview gracefully
   useEffect(() => {
     const isAnyModalOpen =
@@ -131,6 +139,7 @@ const MainShop: React.FC = () => {
     }
 
     const handlePopState = () => {
+      if (allowExitRef.current) return;
       if (isDailyDealsPopupOpen) {
         setIsDailyDealsPopupOpen(false);
       } else if (isVipModalOpen) {
@@ -153,6 +162,9 @@ const MainShop: React.FC = () => {
         clearActiveOrder();
       } else if (currentView !== 'home') {
         goHome();
+      } else {
+        setIsExitConfirmOpen(true);
+        window.history.pushState({ kfcExitGuard: true }, '');
       }
     };
 
@@ -220,6 +232,9 @@ const MainShop: React.FC = () => {
 
       {/* Brand Animated Preloader */}
       <Preloader />
+
+      {/* Admin-managed announcement bars sit above the sticky header. */}
+      <AnnouncementBars />
 
       {/* 100% Customer Facing Header (Mobile Optimized, Zero Overflow) */}
       <Header />
@@ -404,6 +419,18 @@ const MainShop: React.FC = () => {
       <CheckoutModal />
       <OrderConfirmationModal />
       <AdminLoginModal />
+      {isExitConfirmOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4" role="dialog" aria-modal="true" aria-labelledby="exit-confirm-title">
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-5 text-zinc-900 shadow-2xl">
+            <h2 id="exit-confirm-title" className="text-lg font-black">Exit KFC Chakwal Delivery?</h2>
+            <p className="mt-2 text-sm text-zinc-600">Kya aap app se exit karna chahte hain?</p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => setIsExitConfirmOpen(false)} className="rounded-xl border border-zinc-300 px-4 py-3 text-sm font-bold text-zinc-700">Nahi, yahin rahen</button>
+              <button type="button" onClick={() => { allowExitRef.current = true; setIsExitConfirmOpen(false); window.history.back(); }} className="rounded-xl bg-[#e4002b] px-4 py-3 text-sm font-black text-white">Haan, Exit</button>
+            </div>
+          </div>
+        </div>
+      )}
       <CustomerAuthModal />
       <PoliciesModal />
       <FloatingCartBar />
