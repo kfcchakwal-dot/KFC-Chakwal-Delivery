@@ -32,7 +32,7 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
           <button
             type="button"
             onClick={() => onSelectCategory('all')}
-            className={`min-h-[40px] whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all duration-150 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95 ${
+            className={`min-h-[40px] whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all duration-150 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95 ${selectedCategoryId === 'all' ? 'buy-button' : ''} ${
               selectedCategoryId === 'all'
                 ? 'bg-[#e4002b] text-white shadow-md shadow-red-950/40'
                 : isDark 
@@ -62,7 +62,7 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
                 key={cat.id}
                 type="button"
                 onClick={() => onSelectCategory(cat.id)}
-                className={`min-h-[40px] whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all duration-150 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95 ${
+                className={`min-h-[40px] whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all duration-150 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95 ${(isSelected || isFeaturedShortcut) ? 'buy-button' : ''} ${
                   isSelected || isFeaturedShortcut
                     ? 'bg-[#e4002b] text-white shadow-md shadow-red-950/20'
                     : isDark 
