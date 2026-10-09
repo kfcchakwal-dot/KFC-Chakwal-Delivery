@@ -104,7 +104,7 @@ export const LoyaltyPointsBanner: React.FC = () => {
             <button
               type="button"
               onClick={handleRedeemNow}
-              className="bg-white hover:bg-yellow-50 text-red-600 font-black text-xs sm:text-sm px-6 py-2.5 rounded-xl uppercase tracking-wider shadow-xl transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+              className="buy-button bg-[#e4002b] hover:bg-[#c30025] text-white font-black text-xs sm:text-sm px-6 py-2.5 rounded-xl uppercase tracking-wider shadow-xl transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
             >
               <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />
               <span>Redeem Now</span>
