@@ -52,6 +52,7 @@ import { auth, db } from '../lib/firebase';
 import {
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -549,6 +550,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }, { merge: true });
           }
           setCurrentUser(customerProfile);
+          setIsCustomerAuthModalOpen(false);
         } catch (e) {
           console.warn('Customer profile sync notice:', e);
         }
@@ -1637,10 +1639,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return { success: true };
     } catch (err: any) {
       console.error('Customer Google sign-in failure:', err);
-      if (err?.code === 'auth/popup-closed-by-user') {
-        return { success: false, error: 'Google login cancel ho gaya.' };
+      if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-this-environment') {
+        try {
+          await signInWithRedirect(auth, provider);
+          return { success: true };
+        } catch (redirectError: any) {
+          console.error('Customer Google redirect sign-in failure:', redirectError);
+          return { success: false, error: getFriendlyAuthError(redirectError) };
+        }
       }
-      return { success: false, error: err?.message || 'Google se login nahi ho saka.' };
+      return { success: false, error: getFriendlyAuthError(err) };
     }
   };
 
