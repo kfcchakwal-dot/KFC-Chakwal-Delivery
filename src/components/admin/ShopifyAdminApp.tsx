@@ -3190,7 +3190,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 label="Collection Image"
                 value={newColImage}
                 onChange={(url) => setNewColImage(url)}
-                aspectRatio="landscape"
+                aspectRatio="wide"
                 helperText="Optional collection cover image."
               />
 
