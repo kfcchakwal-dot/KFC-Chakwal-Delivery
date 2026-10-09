@@ -75,7 +75,7 @@ export const HeroBanner: React.FC = () => {
                 isDark ? 'text-white' : 'text-zinc-900'
               }`}>
                 {headline} <br />
-                <span className="text-[#e4002b]">{highlightText}</span> GOOD.
+                <span className="text-[#e4002b]">{highlightText}</span> {settings.hero?.endingText ?? 'GOOD.'}
               </h1>
               <p className={`text-sm sm:text-base max-w-xl pt-2 font-normal leading-relaxed ${
                 isDark ? 'text-zinc-400' : 'text-zinc-600'
