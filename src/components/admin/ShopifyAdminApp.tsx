@@ -973,7 +973,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrders > 0 ? pendingOrders : undefined },
                 { id: 'pos', label: 'Restaurant POS & Billing', icon: Receipt },
                 { id: 'abandoned', label: 'Abandoned Checkouts (Manual)', icon: AlertCircle, badge: abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length > 0 ? abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length : undefined },
-                { id: 'products', label: 'Products & Catalog', icon: UtensilsCrossed },
+                { id: 'products', label: 'Menu Editor & Products', icon: UtensilsCrossed },
                 { id: 'daily-deals', label: 'Daily 5 Deals (4% OFF)', icon: Flame },
                 { id: 'customers', label: 'Customers & Loyalty', icon: Users },
                 { id: 'vip-club', label: "Colonel's VIP Club", icon: Crown },
