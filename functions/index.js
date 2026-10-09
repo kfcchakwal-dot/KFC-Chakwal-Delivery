@@ -96,7 +96,11 @@ exports.productShare = onRequest({ region: 'us-central1', cors: true }, async (r
   const destination = APP_ORIGIN + (productId ? '/?product=' + encodeURIComponent(productId) : '/');
   try {
     const publicSnapshot = await db.collection('storePublic').doc('global').get();
-    const publicData = publicSnapshot.exists ? publicSnapshot.data() || {} : {};
+    let publicData = publicSnapshot.exists ? publicSnapshot.data() || {} : {};
+    if (!Array.isArray(publicData.menuItems) || publicData.menuItems.length === 0) {
+      const legacySnapshot = await db.collection('storeSettings').doc('global').get();
+      if (legacySnapshot.exists) publicData = { ...legacySnapshot.data(), ...publicData };
+    }
     const products = Array.isArray(publicData.menuItems) ? publicData.menuItems : [];
     const item = products.find((product) => String(product.id) === productId);
     if (!item) {
