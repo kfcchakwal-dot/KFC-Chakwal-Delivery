@@ -82,3 +82,74 @@
 [data-store-theme="light"] .text-zinc-900 {
   color: var(--store-text, #1a1a1f) !important;
 }
+
+
+/* Global KFC red-and-white theme: keep every surface light and every button red. */
+:root {
+  color-scheme: light;
+  --brand-primary: #e4002b;
+  --brand-secondary: #c30025;
+}
+html, body, #root {
+  background: #ffffff !important;
+  color: #18181b;
+}
+body {
+  color-scheme: light !important;
+}
+/* Legacy dark-mode and dark utility surfaces across storefront and Seller Center. */
+[class*="bg-black"],
+[class*="bg-zinc-9"],
+[class*="bg-zinc-8"],
+[class*="bg-gray-9"],
+[class*="bg-gray-8"],
+[class*="bg-slate-9"],
+[class*="bg-slate-8"],
+[class*="bg-neutral-9"],
+[class*="bg-neutral-8"],
+[class*="bg-[#"]:not([class*="bg-[#e4002b]"]):not([class*="bg-[#c30025]"]) {
+  background-color: #ffffff !important;
+  color: #18181b !important;
+  border-color: #e4e4e7 !important;
+}
+/* Remove the remaining dark inline utility palettes and keep inputs readable. */
+[class*="bg-[#121"], [class*="bg-[#151"], [class*="bg-[#161"], [class*="bg-[#171"],
+[class*="bg-[#181"], [class*="bg-[#1a"], [class*="bg-[#1b"], [class*="bg-[#1c"],
+[class*="bg-[#202"], [class*="bg-[#252"], [class*="bg-[#272"], [class*="bg-[#2b"],
+[class*="bg-[#2c"], [class*="bg-[#2e"] {
+  background-color: #ffffff !important;
+  color: #18181b !important;
+  border-color: #e4e4e7 !important;
+}
+[class~="text-white"] {
+  color: #18181b !important;
+}
+[class*="bg-[#e4002b]"][class~="text-white"],
+[class*="bg-[#c30025]"][class~="text-white"],
+[class*="bg-[#e4002b]"] [class~="text-white"],
+[class*="bg-[#c30025]"] [class~="text-white"] {
+  color: #ffffff !important;
+}
+/* Buttons are consistently KFC red with white labels, including hover and focus states. */
+button,
+button:visited {
+  background-color: #e4002b !important;
+  color: #ffffff !important;
+  border-color: #e4002b !important;
+}
+button:hover,
+button:focus-visible {
+  background-color: #c30025 !important;
+  color: #ffffff !important;
+  border-color: #c30025 !important;
+}
+button *,
+button [class~="text-white"],
+button svg {
+  color: #ffffff !important;
+}
+input, textarea, select {
+  background-color: #ffffff !important;
+  color: #18181b !important;
+  border-color: #d4d4d8;
+}
