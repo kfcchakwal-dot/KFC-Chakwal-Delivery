@@ -1397,7 +1397,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setPointsEarnedNotice(earnedPoints);
       const earnTx: LoyaltyTransaction = {
         id: `tx-${Date.now()}-earn`,
-        customerId: auth.currentUser.uid,
+        customerId: user.uid,
         type: 'earned',
         points: earnedPoints,
         description: `Earned on Order #${savedOrder.id}`,
@@ -1414,7 +1414,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (user && redeemedPoints > 0) {
       const redeemTx: LoyaltyTransaction = {
         id: `tx-${Date.now()}-redeem`,
-        customerId: auth.currentUser.uid,
+        customerId: user.uid,
         type: 'redeemed',
         points: redeemedPoints,
         description: `Redeemed on Order #${savedOrder.id}`,
