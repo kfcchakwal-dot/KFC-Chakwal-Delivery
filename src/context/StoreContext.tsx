@@ -982,6 +982,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => clearInterval(interval);
   }, [settings.orderNotificationSound, isAdmin]);
 
+  // Manual refresh helper retained for the admin UI; the live listener below keeps this current automatically.
+  const fetchCustomers = async () => {
+    if (!auth.currentUser || !isAdmin) return;
+    try {
+      const snapshot = await getDocs(collection(db, 'customers'));
+      const data = snapshot.docs.map((item) => {
+        const record = item.data() as Omit<CustomerLoyaltyRecord, 'id'>;
+        return {
+          id: item.id,
+          ...record,
+          email: record.email || '',
+          phone: record.phone || '',
+          address: record.address || record.defaultAddress || '',
+          defaultAddress: record.defaultAddress || record.address || '',
+          savedAddresses: record.savedAddresses || [],
+        };
+      });
+      setCustomerRecords(data);
+      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(data));
+    } catch (error) {
+      console.warn('Customers Firestore refresh notice:', error);
+    }
+  };
+
   // Keep the customer admin list synced live so new Google-account profiles appear without a refresh.
   useEffect(() => {
     if (!isAdmin || !auth.currentUser) return;
