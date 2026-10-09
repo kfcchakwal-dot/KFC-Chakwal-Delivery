@@ -116,7 +116,8 @@ const MainShop: React.FC = () => {
   useEffect(() => {
     if (currentView !== 'home' && currentView !== 'collection') return;
     if (selectedCategory !== 'all' || searchQuery) return;
-    const nodes = storefrontCategories
+    const visibleCategories = storefrontCategories.filter((category) => !(settings.collectionNavHidden || []).includes(category.id));
+    const nodes = visibleCategories
       .map((category) => document.getElementById(`category-section-${category.id}`))
       .filter((node): node is HTMLElement => Boolean(node));
     if (!nodes.length || typeof IntersectionObserver === 'undefined') return;
@@ -133,7 +134,7 @@ const MainShop: React.FC = () => {
     }, { root: null, rootMargin: '-125px 0px -58% 0px', threshold: [0.05, 0.2, 0.4] });
     nodes.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
-  }, [currentView, selectedCategory, searchQuery, storefrontCategories, menuItems, setActiveCategory]);
+  }, [currentView, selectedCategory, searchQuery, storefrontCategories, settings.collectionNavHidden, menuItems, setActiveCategory]);
 
   // Keep one history entry inside the app so the first Back action can be handled gracefully.
   useEffect(() => {
