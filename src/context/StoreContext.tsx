@@ -584,9 +584,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             await setDoc(customerDocRef, initialCustomerRecord, { merge: true });
           }
           setCurrentUser(customerProfile);
+          localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(customerProfile));
           setIsCustomerAuthModalOpen(false);
         } catch (e) {
+          // Authentication can succeed even if a temporary Firestore/rules issue blocks profile sync.
+          // Keep the customer signed in locally without writing guessed profile data to Firestore.
           console.warn('Customer profile sync notice:', e);
+          let cached: Partial<CustomerUser> | null = null;
+          try {
+            const raw = localStorage.getItem(CUSTOMER_USER_KEY);
+            const parsed = raw ? JSON.parse(raw) : null;
+            if (parsed?.id === firebaseUser.uid) cached = parsed;
+          } catch {}
+          const fallbackProfile: CustomerUser = {
+            id: firebaseUser.uid,
+            fullName: String(cached?.fullName || firebaseUser.displayName || 'Customer'),
+            phone: String(cached?.phone || firebaseUser.phoneNumber || ''),
+            email: String(cached?.email || firebaseUser.email || ''),
+            address: String(cached?.address || cached?.defaultAddress || ''),
+            defaultAddress: String(cached?.defaultAddress || cached?.address || ''),
+            savedAddresses: Array.isArray(cached?.savedAddresses) ? cached!.savedAddresses as CustomerAddress[] : [],
+            loyaltyPoints: Number(cached?.loyaltyPoints ?? 0),
+            totalSpent: Number(cached?.totalSpent ?? 0),
+            ordersCount: Number(cached?.ordersCount ?? 0),
+            createdAt: String(cached?.createdAt || new Date().toISOString()),
+            ...(cached?.vipTier !== undefined ? { vipTier: cached.vipTier } : {}),
+            ...(cached?.vipStatus !== undefined ? { vipStatus: cached.vipStatus } : {}),
+          };
+          setCurrentUser(fallbackProfile);
+          localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(fallbackProfile));
+          setIsCustomerAuthModalOpen(false);
         }
       }
     });
@@ -1676,7 +1703,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     provider.setCustomParameters({ prompt: 'select_account' });
     try {
       const cred = await signInWithPopup(auth, provider);
-      await buildCustomerProfile(cred.user);
+      try {
+        await buildCustomerProfile(cred.user);
+      } catch (profileError) {
+        // Do not report Google authentication as failed when only profile sync is unavailable.
+        // The auth-state listener keeps a local session profile and retries on the next app load.
+        console.warn('Google sign-in succeeded; customer profile sync will need a retry:', profileError);
+        let cached: Partial<CustomerUser> | null = null;
+        try {
+          const raw = localStorage.getItem(CUSTOMER_USER_KEY);
+          const parsed = raw ? JSON.parse(raw) : null;
+          if (parsed?.id === cred.user.uid) cached = parsed;
+        } catch {}
+        const fallbackProfile: CustomerUser = {
+          id: cred.user.uid,
+          fullName: String(cached?.fullName || cred.user.displayName || 'Customer'),
+          phone: String(cached?.phone || cred.user.phoneNumber || ''),
+          email: String(cached?.email || cred.user.email || ''),
+          address: String(cached?.address || cached?.defaultAddress || ''),
+          defaultAddress: String(cached?.defaultAddress || cached?.address || ''),
+          savedAddresses: Array.isArray(cached?.savedAddresses) ? cached!.savedAddresses as CustomerAddress[] : [],
+          loyaltyPoints: Number(cached?.loyaltyPoints ?? 0),
+          totalSpent: Number(cached?.totalSpent ?? 0),
+          ordersCount: Number(cached?.ordersCount ?? 0),
+          createdAt: String(cached?.createdAt || new Date().toISOString()),
+          ...(cached?.vipTier !== undefined ? { vipTier: cached.vipTier } : {}),
+          ...(cached?.vipStatus !== undefined ? { vipStatus: cached.vipStatus } : {}),
+        };
+        setCurrentUser(fallbackProfile);
+        localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(fallbackProfile));
+      }
       setIsCustomerAuthModalOpen(false);
       return { success: true };
     } catch (err: any) {
