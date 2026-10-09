@@ -150,6 +150,7 @@ export const ShopifyAdminApp: React.FC = () => {
     marketingCampaigns,
     createMarketingBroadcast,
     sendReviewCollectionWhatsapp,
+    createReviewRequest,
     categories,
     addCategory,
   } = useStore();
@@ -2596,7 +2597,7 @@ export const ShopifyAdminApp: React.FC = () => {
                   const firstItem = order.items?.[0]?.menuItem;
                   const reviewUrl = firstItem?.id ? `${window.location.origin}/?product=${encodeURIComponent(firstItem.id)}` : window.location.origin;
                   const message = `Assalam o Alaikum ${order.customer.fullName || 'Customer'}! Aap ke KFC Chakwal Delivery order #${order.id} ke liye shukriya. Meherbani karke apna review share karein: ${reviewUrl}`;
-                  return <div key={order.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 py-2"><div><div className="text-xs font-bold text-zinc-900">#{order.id} · {order.customer.fullName}</div><div className="text-[11px] text-zinc-500">{order.customer.phone} · {new Date(order.date).toLocaleDateString()}</div></div><a href={`https://wa.me/${phone}?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer" className="inline-flex justify-center bg-[#25D366] text-white font-bold text-xs px-3 py-2 rounded-lg">Send Review Request</a></div>;
+                  return <div key={order.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 py-2"><div><div className="text-xs font-bold text-zinc-900">#{order.id} · {order.customer.fullName}</div><div className="text-[11px] text-zinc-500">{order.customer.phone} · {new Date(order.date).toLocaleDateString()}</div></div><button type="button" onClick={async () => { const whatsappWindow = window.open('about:blank', '_blank'); try { await createReviewRequest(order, reviewUrl); const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`; if (whatsappWindow) whatsappWindow.location.href = whatsappUrl; else window.location.href = whatsappUrl; } catch (error: any) { whatsappWindow?.close(); alert(error?.message || 'Review request record save nahi hua. Firestore Rules publish karein aur dobara try karein.'); } }} className="inline-flex justify-center bg-[#25D366] text-white font-bold text-xs px-3 py-2 rounded-lg">Send Review Request</button></div>;
                 })}
               </div>
             </div>
