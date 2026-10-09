@@ -139,6 +139,7 @@ export const ShopifyAdminApp: React.FC = () => {
     loginAdmin,
     logoutAdmin,
     playOrderSound,
+    registerAdminPushNotifications,
     goHome,
     liveStats,
     abandonedCheckouts,
@@ -351,9 +352,16 @@ export const ShopifyAdminApp: React.FC = () => {
     }
     try {
       const permission = await Notification.requestPermission();
-      setAdminNotificationStatus(permission === 'granted'
-        ? 'Notifications enabled on this device while Seller Center is running.'
-        : 'Permission allow nahi hui. Browser/site settings mein notifications allow karein.');
+      if (permission !== 'granted') {
+        setAdminNotificationStatus('Permission allow nahi hui. Browser/site settings mein notifications allow karein.');
+        return;
+      }
+      try {
+        await registerAdminPushNotifications();
+        setAdminNotificationStatus('Background push is device par register ho gayi. Ab Cloud Function deploy honi chahiye taake app band hone par bhi new-order alert aaye.');
+      } catch (pushError: any) {
+        setAdminNotificationStatus(pushError?.message || 'Background push setup incomplete hai. Local notification permission enabled hai.');
+      }
     } catch {
       setAdminNotificationStatus('Notification permission request nahi ho saki.');
     }
