@@ -1645,9 +1645,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const signInWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
       const cred = await signInWithPopup(auth, provider);
       await buildCustomerProfile(cred.user);
       setIsCustomerAuthModalOpen(false);
@@ -2367,6 +2367,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         customerNotificationAllowed,
         setCustomerNotificationAllowed,
         requestNotificationPermission,
+        registerAdminPushNotifications,
       }}
     >
       {children}
