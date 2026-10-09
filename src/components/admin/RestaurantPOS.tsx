@@ -21,6 +21,8 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
   const [deliveryFee, setDeliveryFee] = useState(Number(settings.deliveryFee || 0));
   const [discount, setDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed');
+  const [taxPercentage, setTaxPercentage] = useState(0);
+  const [serviceChargePercentage, setServiceChargePercentage] = useState(0);
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -40,7 +42,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
   const changeQty = (id: string, delta: number) => setCart((prev) => prev.map((x) => x.item.id === id ? { ...x, quantity: x.quantity + delta } : x).filter((x) => x.quantity > 0));
   const subtotal = cart.reduce((sum, x) => sum + Number(calculatePrice(x.item.baseKfcPrice, x.item.sellingPrice) || x.item.baseKfcPrice || 0) * x.quantity, 0);
   const discountAmount = Math.min(subtotal, Math.max(0, discountType === 'percent' ? subtotal * Math.min(100, discount) / 100 : discount));
-  const total = Math.max(0, subtotal + (orderType === 'delivery' ? Math.max(0, deliveryFee) : 0) - discountAmount);
+  const taxableSubtotal = Math.max(0, subtotal - discountAmount);\n  const taxAmount = taxableSubtotal * Math.min(100, Math.max(0, taxPercentage)) / 100;\n  const serviceChargeAmount = taxableSubtotal * Math.min(100, Math.max(0, serviceChargePercentage)) / 100;\n  const total = Math.max(0, taxableSubtotal + taxAmount + serviceChargeAmount + (orderType === 'delivery' ? Math.max(0, deliveryFee) : 0));
 
   const printReceipt = () => window.print();
   const createOrder = async () => {
@@ -61,7 +63,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
         id, date: new Date().toISOString(), createdAt: new Date().toISOString(),
         orderType, items, subtotal, markupAmount: 0,
         deliveryFee: orderType === 'delivery' ? Math.max(0, deliveryFee) : 0,
-        discount: discountAmount, total,
+        discount: discountAmount, taxPercentage, taxAmount, serviceChargePercentage, serviceChargeAmount, total,
         customer: { fullName: customerName.trim(), phone: phone.trim(), address: address.trim(), notes: notes.trim() },
         specialInstructions: notes.trim(), paymentMethod: payment, status: 'confirmed',
         source: 'admin-pos', createdBy: auth.currentUser.uid,
@@ -114,8 +116,9 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
         <label className="block text-xs font-bold">Delivery address / table note<input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Address or pickup details" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label>
         <label className="block text-xs font-bold">Kitchen notes<textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="No onion, extra crispy..." rows={2} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label>
         <div className="grid grid-cols-[1fr_auto] gap-2"><label className="text-xs font-bold">Discount<input type="number" min="0" value={discount} onChange={e=>setDiscount(Math.max(0,Number(e.target.value)||0))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label><select value={discountType} onChange={e=>setDiscountType(e.target.value as any)} aria-label="Discount type" className="mt-5 rounded-lg border p-2 text-sm"><option value="fixed">Rs off</option><option value="percent">% off</option></select></div>
+        <div className="grid grid-cols-2 gap-2"><label className="text-xs font-bold">Tax (%)<input type="number" min="0" max="100" value={taxPercentage} onChange={e=>setTaxPercentage(Math.min(100,Math.max(0,Number(e.target.value)||0)))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label><label className="text-xs font-bold">Service charge (%)<input type="number" min="0" max="100" value={serviceChargePercentage} onChange={e=>setServiceChargePercentage(Math.min(100,Math.max(0,Number(e.target.value)||0)))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label></div>
         {orderType==='delivery' && <label className="block text-xs font-bold">Delivery fee (PKR)<input type="number" min="0" value={deliveryFee} onChange={e=>setDeliveryFee(Math.max(0,Number(e.target.value)||0))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label>}
-        <div className="space-y-2 border-t pt-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{formatPKR(subtotal)}</span></div><div className="flex justify-between"><span>Discount</span><span>- {formatPKR(discountAmount)}</span></div><div className="flex justify-between"><span>Delivery</span><span>{formatPKR(orderType==='delivery'?deliveryFee:0)}</span></div><div className="flex justify-between border-t pt-2 text-xl font-black"><span>Total</span><span>{formatPKR(total)}</span></div></div>
+        <div className="space-y-2 border-t pt-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{formatPKR(subtotal)}</span></div><div className="flex justify-between"><span>Discount</span><span>- {formatPKR(discountAmount)}</span></div><div className="flex justify-between"><span>Tax ({taxPercentage}%)</span><span>{formatPKR(taxAmount)}</span></div><div className="flex justify-between"><span>Service charge ({serviceChargePercentage}%)</span><span>{formatPKR(serviceChargeAmount)}</span></div><div className="flex justify-between"><span>Delivery</span><span>{formatPKR(orderType==='delivery'?deliveryFee:0)}</span></div><div className="flex justify-between border-t pt-2 text-xl font-black"><span>Total</span><span>{formatPKR(total)}</span></div></div>
         <button onClick={createOrder} disabled={busy || !cart.length} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#e4002b] px-4 py-3.5 font-black text-white disabled:opacity-50">{busy?'Saving order...':<><CheckCircle2 size={18}/> Save Order & Prepare Receipt</>}</button>
       </section>
     </div>
