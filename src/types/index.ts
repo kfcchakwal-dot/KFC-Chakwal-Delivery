@@ -176,6 +176,7 @@ export interface StoreSettings {
   showAnnouncement: boolean;
   adminPin?: string;
   themeMode: ThemeMode;
+  primaryColor?: string;
   headingFont: 'Barlow Condensed' | 'Plus Jakarta Sans' | 'Oswald' | 'Inter' | 'Roboto';
   bodyFont: 'Plus Jakarta Sans' | 'Inter' | 'Roboto' | 'Barlow Condensed';
   descriptionWordLimit: number; // 10 to 300 words (default: 25)
@@ -410,6 +411,8 @@ export interface ProductReview {
   rating: number; // 1 to 5
   comment: string;
   date: string;
+  customerUid?: string | null;
+  isVisible?: boolean;
 }
 
 export interface CustomerUser {
