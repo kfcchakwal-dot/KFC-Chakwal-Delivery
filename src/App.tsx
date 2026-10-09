@@ -69,6 +69,7 @@ const MainShop: React.FC = () => {
   } = useStore();
 
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
+  const [navSelectedCategory, setNavSelectedCategory] = useState<CategoryId | 'all'>('all');
   const initialProductHandled = useRef(false);
   const isDark = themeMode === 'dark';
 
@@ -87,6 +88,29 @@ const MainShop: React.FC = () => {
       initialProductHandled.current = true;
     }
   }, [menuItems, viewProduct]);
+
+  // Keep the sticky collection bar in sync with the category currently visible while browsing all products.
+  useEffect(() => {
+    if (currentView !== 'home' && currentView !== 'collection') return;
+    if (selectedCategory !== 'all' || searchQuery) return;
+    const nodes = KFC_CATEGORIES
+      .map((category) => document.getElementById(`category-section-${category.id}`))
+      .filter((node): node is HTMLElement => Boolean(node));
+    if (!nodes.length || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      const categoryId = (visible.target as HTMLElement).dataset.categoryId as CategoryId | undefined;
+      if (categoryId) {
+        setNavSelectedCategory(categoryId);
+        setActiveCategory(categoryId);
+      }
+    }, { root: null, rootMargin: '-125px 0px -58% 0px', threshold: [0.05, 0.2, 0.4] });
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, [currentView, selectedCategory, searchQuery, menuItems, setActiveCategory]);
 
   // Android Back Gesture & System Back Button Handling: Close top-most modal/subview gracefully
   useEffect(() => {
@@ -227,36 +251,16 @@ const MainShop: React.FC = () => {
           {/* Main Menu Section (pb-28 on mobile avoids FloatingCartBar overlap) */}
           <section id="kfc-menu-section" className="flex-1 pb-28 sm:pb-16">
             <CategoryNav
-              selectedCategoryId={selectedCategory}
+              selectedCategoryId={navSelectedCategory}
               onSelectCategory={(catId) => {
                 setSelectedCategory(catId);
+                setNavSelectedCategory(catId);
                 if (catId !== 'all') setActiveCategory(catId);
               }}
             />
 
             <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-6 sm:pt-8">
               
-              {/* Customizable Delivery Announcement Section */}
-              {(settings.deliverySection?.enabled ?? true) && (
-                <div className={`mb-6 sm:mb-8 border p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
-                  isDark ? 'bg-[#18181d] border-[#2b2b35]' : 'bg-white border-zinc-200 shadow-sm'
-                }`}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#e4002b]/15 text-[#e4002b] flex items-center justify-center shrink-0">
-                      <Bike className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className={`font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
-                        {settings.deliverySection?.badgeText || '⚡ KFC Chakwal Express Delivery'} · <span className="text-[#e4002b] font-black">{settings.deliverySection?.deliveryFeeText || `Rs. ${settings.deliveryFee}`}</span>
-                      </p>
-                      <p className="text-zinc-500 text-[11px] mt-0.5">
-                        {settings.deliverySection?.description || 'Hot, crispy & piping fresh meals delivered straight to your doorstep across Chakwal.'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Search Active Filter Notice */}
               {searchQuery && (
                 <div className={`mb-6 flex items-center justify-between border p-3 rounded-xl ${
@@ -311,7 +315,7 @@ const MainShop: React.FC = () => {
                         if (categoryItems.length === 0) return null;
 
                         return (
-                          <div key={category.id} className="space-y-3.5 sm:space-y-4">
+                          <div id={`category-section-${category.id}`} data-category-id={category.id} key={category.id} className="space-y-3.5 sm:space-y-4 scroll-mt-32">
                             {/* Category Header */}
                             <div className={`border-b pb-2.5 flex items-end justify-between ${
                               isDark ? 'border-[#25252c]' : 'border-zinc-200'
