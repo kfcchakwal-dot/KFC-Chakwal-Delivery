@@ -90,7 +90,7 @@ const MainShop: React.FC = () => {
     return selector + ' { background-color: ' + scheme.background + ' !important; color: ' + scheme.text + ' !important; border-color: ' + scheme.border + ' !important; }\\n' +
       selector + ' button[class*="bg-[#e4002b]"], ' + selector + ' .section-color-button { background-color: ' + scheme.button + ' !important; color: ' + scheme.buttonText + ' !important; }\\n' +
       selector + ' button, ' + selector + ' a { border-color: ' + scheme.border + ' !important; }';
-  }).join('\\n');
+  }).join('\n');
 
   // Open a product directly when a shared product link is opened.
   useEffect(() => {
