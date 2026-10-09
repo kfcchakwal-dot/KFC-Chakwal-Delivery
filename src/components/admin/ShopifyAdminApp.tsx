@@ -75,7 +75,8 @@ import { OrderEditModal } from './OrderEditModal';
 import { BulkProductEditor } from './BulkProductEditor';
 import { CategoryId, MenuItem, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
 import { KFC_CATEGORIES } from '../../data/kfcMenu';
-import { auth } from '../../lib/firebase';
+import { auth, db } from '../../lib/firebase';
+import { collection, deleteDoc, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 
 type SellerTab = 
   | 'dashboard'
@@ -154,6 +155,7 @@ export const ShopifyAdminApp: React.FC = () => {
   const [adminUsers, setAdminUsers] = useState<Array<{ uid: string; email: string; name?: string; role?: string; active?: boolean }>>([]);
   const [newAdminName, setNewAdminName] = useState('');
   const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminUid, setNewAdminUid] = useState('');
   const [adminUserBusy, setAdminUserBusy] = useState(false);
   const [adminUserNotice, setAdminUserNotice] = useState('');
   const [activeTab, setActiveTab] = useState<SellerTab>('dashboard');
@@ -163,38 +165,51 @@ export const ShopifyAdminApp: React.FC = () => {
 
   const loadAdminUsers = async () => {
     try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) return;
-      const response = await fetch('/api/admin/users', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) return;
-      setAdminUsers(await response.json());
+      if (!auth.currentUser) return;
+      const snapshot = await getDocs(collection(db, 'adminUsers'));
+      setAdminUsers(snapshot.docs.map((item) => {
+        const data = item.data();
+        return {
+          uid: item.id,
+          email: String(data.email || ''),
+          name: String(data.name || ''),
+          role: String(data.role || 'admin'),
+          active: data.active !== false,
+        };
+      }));
     } catch (error) {
       console.warn('Admin users load failed:', error);
+      setAdminUserNotice('Admin list load nahi hui. Firestore rules aur admin access check karein.');
     }
   };
 
   const addAdminUserFromPanel = async () => {
-    if (!newAdminEmail.trim()) {
-      setAdminUserNotice('Email required hai.');
+    const uid = newAdminUid.trim();
+    if (!uid || !newAdminEmail.trim()) {
+      setAdminUserNotice('Firebase User UID aur email dono required hain.');
+      return;
+    }
+    if (uid === auth.currentUser?.uid) {
+      setAdminUserNotice('Aap pehle se admin hain.');
       return;
     }
     setAdminUserBusy(true);
     setAdminUserNotice('');
     try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) throw new Error('Admin session expired. Dobara sign in karein.');
-      const response = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ email: newAdminEmail.trim(), name: newAdminName.trim(), role: 'admin' }),
+      if (!auth.currentUser) throw new Error('Admin session expired. Dobara sign in karein.');
+      await setDoc(doc(db, 'adminUsers', uid), {
+        uid,
+        email: newAdminEmail.trim().toLowerCase(),
+        name: newAdminName.trim(),
+        role: 'admin',
+        active: true,
+        createdAt: new Date().toISOString(),
+        createdBy: auth.currentUser.uid,
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || 'Admin user add nahi ho saka.');
       setNewAdminName('');
       setNewAdminEmail('');
-      setAdminUserNotice(`${data.email} ko Admin access de diya gaya.`);
+      setNewAdminUid('');
+      setAdminUserNotice(`${newAdminEmail.trim()} ko Admin access de diya gaya.`);
       await loadAdminUsers();
     } catch (error: any) {
       setAdminUserNotice(error?.message || 'Admin user add nahi ho saka.');
@@ -205,15 +220,8 @@ export const ShopifyAdminApp: React.FC = () => {
 
   const toggleAdminUser = async (uid: string, active: boolean) => {
     try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) throw new Error('Admin session expired.');
-      const response = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ active }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || 'Status update failed.');
+      if (!auth.currentUser) throw new Error('Admin session expired.');
+      await updateDoc(doc(db, 'adminUsers', uid), { active, updatedAt: new Date().toISOString() });
       await loadAdminUsers();
     } catch (error: any) {
       setAdminUserNotice(error?.message || 'Status update failed.');
@@ -2766,7 +2774,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     <span>Admin Team Access</span>
                   </h3>
                   <p className="text-[11px] text-zinc-500 mt-1">
-                    Pehle Firebase Authentication mein user ka Google account bana ho. Phir yahan usi Gmail ko Admin access dein.
+                    Pehle user Firebase Authentication mein Google se sign in kare. Phir uska Firebase User UID aur email yahan add karein.
                   </p>
                 </div>
 
@@ -2782,6 +2790,12 @@ export const ShopifyAdminApp: React.FC = () => {
                     value={newAdminEmail}
                     onChange={(e) => setNewAdminEmail(e.target.value)}
                     placeholder="user@example.com"
+                    className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs"
+                  />
+                  <input
+                    value={newAdminUid}
+                    onChange={(e) => setNewAdminUid(e.target.value)}
+                    placeholder="Firebase User UID"
                     className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs"
                   />
                   <button
@@ -2822,14 +2836,8 @@ export const ShopifyAdminApp: React.FC = () => {
                           onClick={async () => {
                             if (!window.confirm(`Is admin ka access remove karna hai?\n\n${user.email}`)) return;
                             try {
-                              const token = await auth.currentUser?.getIdToken();
-                              if (!token) throw new Error('Admin session expired.');
-                              const response = await fetch(`/api/admin/users/${encodeURIComponent(user.uid)}`, {
-                                method: 'DELETE',
-                                headers: { Authorization: `Bearer ${token}` },
-                              });
-                              const data = await response.json().catch(() => ({}));
-                              if (!response.ok) throw new Error(data.error || 'Admin remove nahi ho saka.');
+                              if (!auth.currentUser) throw new Error('Admin session expired.');
+                              await deleteDoc(doc(db, 'adminUsers', user.uid));
                               setAdminUserNotice(`${user.email} ka Admin access remove kar diya gaya.`);
                               await loadAdminUsers();
                             } catch (error: any) {
