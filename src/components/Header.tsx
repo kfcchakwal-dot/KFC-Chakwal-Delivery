@@ -111,7 +111,7 @@ export const Header: React.FC = () => {
         {/* Guaranteed ZERO overflow outside mobile screen! */}
         {/* ========================================================================= */}
         <div className="md:hidden max-w-full px-2 py-2">
-          <div className="flex items-center justify-between gap-1 w-full flex-nowrap">
+          <div className="relative flex items-center justify-between gap-1 w-full flex-nowrap">
             
             {/* 1. LEFT SIDE: Menu (☰) + Signup (👤) */}
             <div className="flex items-center gap-1.5 shrink-0">
@@ -151,7 +151,7 @@ export const Header: React.FC = () => {
             <button
               type="button"
               onClick={goHome}
-              className="flex-1 min-w-0 mx-1 flex items-center justify-center cursor-pointer overflow-hidden py-1"
+              className="absolute left-1/2 -translate-x-1/2 z-10 flex items-center justify-center cursor-pointer py-1"
               aria-label="Go to home"
             >
               <img
