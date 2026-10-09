@@ -276,6 +276,7 @@ export const ShopifyAdminApp: React.FC = () => {
   const [marketingSubject, setMarketingSubject] = useState('🍗 Exclusive KFC Chakwal Offer!');
   const [marketingMessage, setMarketingMessage] = useState('Assalam o Alaikum {name}! Special crispy KFC meal box deal is now live for Chakwal. Freshly picked from Kallar Kahar Motorway and delivered to your doorstep. Order now on WhatsApp or App!');
   const [marketingStatusMessage, setMarketingStatusMessage] = useState<string | null>(null);
+  const [marketingQuickText, setMarketingQuickText] = useState('Assalam o Alaikum, KFC Chakwal Delivery se order ya marketing campaign ke baray mein rabta karna hai.');
 
   // New product multiple images, inventory, variants
   const [newProdGallery, setNewProdGallery] = useState<string[]>([]);
@@ -1466,6 +1467,7 @@ export const ShopifyAdminApp: React.FC = () => {
                           <p className="text-xs text-zinc-700 font-bold mt-1">
                             Customer: {order.customer.fullName} · <span className="font-mono text-zinc-900">{order.customer.phone}</span>
                           </p>
+                          {order.customer.phone && <a className="mt-2 inline-flex rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white" target="_blank" rel="noreferrer" href={`https://wa.me/${String(order.customer.phone).replace(/[^0-9]/g, '').replace(/^0/, '92')}`}>WhatsApp Customer</a>}
                           <p className="text-xs text-zinc-500">
                             Delivery Address (Within 3 KM): {order.customer.address}
                           </p>
@@ -1536,6 +1538,10 @@ export const ShopifyAdminApp: React.FC = () => {
                         <span className="text-base font-black text-emerald-600 font-mono">
                           Total: {formatPKR(order.total)}
                         </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {order.customer.phone && <a target="_blank" rel="noreferrer" className="inline-flex rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800" href={`https://wa.me/${String(order.customer.phone).replace(/[^0-9]/g, '').replace(/^0/, '92')}?text=${encodeURIComponent([`Assalam o Alaikum ${order.customer.fullName || 'Customer'}!`, `KFC Chakwal Delivery Order #${order.id}`, ...order.items.map((item) => `${item.quantity}x ${item.menuItem.name} — Rs. ${Math.round(item.unitPrice * item.quantity).toLocaleString('en-PK')} | Image: ${item.menuItem.image || 'N/A'}`), `Total Bill: ${formatPKR(order.total)}`, 'Thank you for ordering!'].join('\\n'))}`}>Send order details on WhatsApp</a>}
+                        {order.status !== 'delivered' && order.status !== 'cancelled' && <button type="button" onClick={() => { if (window.confirm(`Order #${order.id} cancel karna hai?`)) void updateOrderStatus(order.id, 'cancelled' as any); }} className="inline-flex rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">Cancel Order</button>}
                       </div>
                     </div>
                   ))
@@ -2528,6 +2534,12 @@ export const ShopifyAdminApp: React.FC = () => {
               </div>
 
               {/* Customer search */}
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200 bg-white p-3">
+                <button type="button" onClick={() => setSelectedMarketingCustomerIds(customerRecords.filter((c) => Boolean(c.email && String(c.email).includes('@') && ((c as any).emailMarketingConsent === true || (c as any).emailSubscribed === true || (c as any).acceptsMarketing === true))).map((c) => c.id))} className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-bold text-zinc-800">Select all email subscribers</button>
+                <button type="button" onClick={() => setSelectedMarketingCustomerIds([])} className="rounded-xl border border-zinc-300 px-3 py-2 text-xs font-bold text-zinc-700">Clear selection</button>
+                <button type="button" onClick={() => { const emails = customerRecords.filter((c) => selectedMarketingCustomerIds.includes(c.id) && c.email && String(c.email).includes('@') && ((c as any).emailMarketingConsent === true || (c as any).emailSubscribed === true || (c as any).acceptsMarketing === true)).map((c) => String(c.email).trim()); if (!emails.length) { alert('Selected customers mein consent ke sath email subscribers nahi mile.'); return; } const url = 'mailto:?bcc=' + encodeURIComponent(emails.join(',')) + '&subject=' + encodeURIComponent(marketingSubject) + '&body=' + encodeURIComponent(marketingMessage); window.location.href = url; }} className="rounded-xl bg-[#e4002b] px-3 py-2 text-xs font-black text-white">Email selected (BCC)</button>
+                <span className="text-[11px] text-zinc-500">Selected: {selectedMarketingCustomerIds.length}. Sirf consent-marked email subscribers bulk email mein shamil honge. Send aapki email app se hota hai.</span>
+              </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="search"
@@ -2545,6 +2557,7 @@ export const ShopifyAdminApp: React.FC = () => {
                   <table className="w-full text-left text-xs">
                     <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 font-bold uppercase">
                       <tr>
+                        <th className="p-3.5">Select</th>
                         <th className="p-3.5">Customer Details</th>
                         <th className="p-3.5">Phone Number</th>
                         <th className="p-3.5">Orders</th>
@@ -2556,13 +2569,14 @@ export const ShopifyAdminApp: React.FC = () => {
                     <tbody className="divide-y divide-zinc-100">
                       {customerRecords.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="p-8 text-center text-zinc-400">
+                          <td colSpan={7} className="p-8 text-center text-zinc-400">
                             No registered customers yet. When customers sign up or order, they appear here.
                           </td>
                         </tr>
                       ) : (
                         customerRecords.filter((c) => [c.fullName, c.email, c.phone, c.address].some((v) => String(v || '').toLowerCase().includes(customerSearchQuery.toLowerCase()))).map((cust) => (
                           <tr key={cust.id} className="hover:bg-zinc-50">
+                            <td className="p-3.5"><input type="checkbox" aria-label={`Select ${cust.fullName || cust.email || 'customer'}`} checked={selectedMarketingCustomerIds.includes(cust.id)} onChange={(e) => setSelectedMarketingCustomerIds((prev) => e.target.checked ? [...new Set([...prev, cust.id])] : prev.filter((id) => id !== cust.id))} /></td>
                             <td className="p-3.5">
                               <div className="font-bold text-zinc-900">{cust.fullName || 'Customer'}</div>
                               <div className="text-[11px] text-zinc-500 break-all">{cust.email || 'No email saved'}</div>
@@ -2576,6 +2590,8 @@ export const ShopifyAdminApp: React.FC = () => {
                             </td>
                             <td className="p-3.5 text-right">
                               <div className="flex flex-col sm:flex-row justify-end gap-2">
+                                {cust.phone && <a href={`https://wa.me/${String(cust.phone).replace(/[^0-9]/g, '').replace(/^0/, '92')}`} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white">WhatsApp</a>}
+                                {cust.email && <a href={`mailto:${encodeURIComponent(cust.email)}`} className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white">Email</a>}
                                 <button
                                   onClick={() => setEditingCustomerRecord({ ...cust, address: cust.address || '' })}
                                   className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg transition"
@@ -2650,14 +2666,14 @@ export const ShopifyAdminApp: React.FC = () => {
               <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 text-sm">
                 <strong>Free WhatsApp mode:</strong> WhatsApp Business API ki zaroorat nahi. Neeche diye gaye button se customer ki WhatsApp chat pre-filled message ke saath open hogi. Official WhatsApp Click-to-Chat links mobile aur WhatsApp Web dono par kaam karte hain.
               </div>
-              <a
-                href="https://wa.me/923252777574?text=Assalam%20o%20Alaikum%2C%20KFC%20Chakwal%20Delivery%20se%20order%20ya%20marketing%20campaign%20ke%20baray%20mein%20rabta%20karna%20hai."
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-black text-white shadow-sm"
-              >
-                Open KFC WhatsApp
-              </a>
+              <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">
+                <label className="block text-xs font-bold text-zinc-700">WhatsApp par bhejne wala auto-text (editable)</label>
+                <textarea rows={3} value={marketingQuickText} onChange={(e) => setMarketingQuickText(e.target.value)} placeholder="Apna WhatsApp message likhein..." className="w-full rounded-xl border border-zinc-300 p-3 text-sm text-zinc-900" />
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setMarketingQuickText('')} className="rounded-xl border border-zinc-300 px-3 py-2 text-xs font-bold text-zinc-700">Clear text</button>
+                  <a href={`https://wa.me/923252777574?text=${encodeURIComponent(marketingQuickText)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2 text-sm font-black text-white shadow-sm">Open WhatsApp with this text</a>
+                </div>
+              </div>
               <div className="space-y-3">
                 {marketingCampaigns.length === 0 ? (
                   <div className="p-8 rounded-2xl border border-dashed border-zinc-300 text-center text-sm text-zinc-500">Abhi koi marketing campaign record nahi hai.</div>
