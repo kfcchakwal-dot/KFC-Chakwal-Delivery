@@ -73,7 +73,7 @@ export const CheckoutModal: React.FC = () => {
 
   // Only Cash on Delivery is currently supported by createOrder; online gateways are not configured yet.
   // Keep the store's saved payment settings untouched, but don't offer methods that will fail at checkout.
-  const availablePaymentMethods = [
+  const availablePaymentMethods: Array<{ id: PaymentMethod; name: string; accountNumber?: string; accountTitle?: string }> = [
     { id: 'cod', name: 'Cash on Delivery (COD)' },
   ];
 
