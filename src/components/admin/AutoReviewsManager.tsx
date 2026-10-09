@@ -20,6 +20,7 @@ export const AutoReviewsManager: React.FC = () => {
     reviews,
     addReview,
     deleteReview,
+    setReviewVisibility,
     allOrders,
     sendReviewCollectionWhatsapp,
   } = useStore();
@@ -231,14 +232,11 @@ export const AutoReviewsManager: React.FC = () => {
                       "{rev.comment}"
                     </td>
                     <td className="py-3 px-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => deleteReview(rev.id)}
-                        className="text-red-500 hover:text-red-700 p-1.5 cursor-pointer"
-                        title="Delete Review"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="inline-flex items-center gap-2">
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${rev.isVisible === false ? 'bg-zinc-100 text-zinc-500' : 'bg-emerald-50 text-emerald-700'}`}>{rev.isVisible === false ? 'Hidden' : 'Visible'}</span>
+                        <button type="button" onClick={async () => { try { await setReviewVisibility(rev.id, rev.isVisible === false); } catch (error: any) { alert(error?.message || 'Review visibility update nahi hui.'); } }} className="text-blue-600 hover:text-blue-800 p-1.5 cursor-pointer" title={rev.isVisible === false ? 'Show Review' : 'Hide Review'}>{rev.isVisible === false ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}</button>
+                        <button type="button" onClick={async () => { if (!window.confirm('Is review ko permanently delete karna hai?')) return; try { await deleteReview(rev.id); } catch (error: any) { alert(error?.message || 'Review delete nahi hua.'); } }} className="text-red-500 hover:text-red-700 p-1.5 cursor-pointer" title="Delete Review"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
                     </td>
                   </tr>
                 ))
