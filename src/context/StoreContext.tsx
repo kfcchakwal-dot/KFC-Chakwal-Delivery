@@ -777,6 +777,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (publicPayload.settings) {
         publicPayload.settings = { ...publicPayload.settings };
         delete publicPayload.settings.adminUsers;
+        delete publicPayload.settings.adminPin;
+        if (publicPayload.settings.shopify) {
+          publicPayload.settings.shopify = { ...publicPayload.settings.shopify };
+          delete publicPayload.settings.shopify.storefrontAccessToken;
+          delete publicPayload.settings.shopify.adminWebhookUrl;
+        }
         if (publicPayload.settings.metaCommerce) {
           publicPayload.settings.metaCommerce = { ...publicPayload.settings.metaCommerce };
           delete publicPayload.settings.metaCommerce.conversionsApiToken;
@@ -1696,7 +1702,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   ) => {
     if (!currentUser || !auth.currentUser) throw new Error('Please sign in before requesting VIP membership.');
     const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
-    const newReq: VipMembershipRequest = {
+    const newReq: VipMembershipRequest & { uid: string } = {
       id: `vip-req-${Date.now()}`, customerId: currentUser.id, uid: auth.currentUser.uid,
       customerName: currentUser.fullName || 'VIP Customer', phone: currentUser.phone || '',
       tierId, amount: tier.price, paymentMethod, transactionId,
@@ -1739,7 +1745,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const user = auth.currentUser;
     if (!user) throw new Error('Customer authentication required for VIP request.');
     const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
-    const saved: VipMembershipRequest = {
+    const saved: VipMembershipRequest & { uid: string } = {
       id: `vip-req-${Date.now()}`, customerId: user.uid, uid: user.uid,
       customerName: customerName.trim(), phone: phone.trim(), email: email?.trim() || '',
       tierId, amount: tier.price, paymentMethod: 'whatsapp', transactionId: '',
