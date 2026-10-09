@@ -1,30 +1,33 @@
-importScripts(
-  'https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging-compat.js'
-);
-
-firebase.initializeApp({
-  apiKey: 'AIzaSyBa5832EUW-67-jlgM37kaS6zhCu4PLilw',
-  authDomain: 'gen-lang-client-0313861453.firebaseapp.com',
-  projectId: 'gen-lang-client-0313861453',
-  storageBucket: 'gen-lang-client-0313861453.firebasestorage.app',
-  messagingSenderId: '909205564375',
-  appId: '1:909205564375:web:46603629d1b11823de7992',
-});
-
-const messaging = firebase.messaging();
-messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || '🍗 New KFC Chakwal Order';
-  const options = {
-    body: payload.notification?.body || 'A new order has arrived.',
-    icon: '/pwa-192.png',
-    badge: '/pwa-192.png',
-    tag: payload.data?.orderId ? 'kfc-order-' + payload.data.orderId : 'kfc-new-order',
-    requireInteraction: true,
-    data: { url: payload.data?.url || '/seller' },
-  };
-  return self.registration.showNotification(title, options);
-});
+try {
+  importScripts(
+    'https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js',
+    'https://www.gstatic.com/firebasejs/12.19.0/firebase-messaging-compat.js'
+  );
+  firebase.initializeApp({
+    apiKey: 'AIzaSyBa5832EUW-67-jlgM37kaS6zhCu4PLilw',
+    authDomain: 'gen-lang-client-0313861453.firebaseapp.com',
+    projectId: 'gen-lang-client-0313861453',
+    storageBucket: 'gen-lang-client-0313861453.firebasestorage.app',
+    messagingSenderId: '909205564375',
+    appId: '1:909205564375:web:46603629d1b11823de7992',
+  });
+  const messaging = firebase.messaging();
+  messaging.onBackgroundMessage((payload) => {
+    const title = payload.notification?.title || '🍗 New KFC Chakwal Order';
+    const options = {
+      body: payload.notification?.body || 'A new order has arrived.',
+      icon: '/pwa-192.png',
+      badge: '/pwa-192.png',
+      tag: payload.data?.orderId ? 'kfc-order-' + payload.data.orderId : 'kfc-new-order',
+      requireInteraction: true,
+      data: { url: payload.data?.url || '/seller' },
+    };
+    return self.registration.showNotification(title, options);
+  });
+} catch (error) {
+  // Do not let an unavailable third-party SDK break offline/PWA navigation.
+  console.warn('Firebase background messaging could not initialize:', error);
+}
 
 const CACHE_NAME = 'kfc-chakwal-v8';
 const PRECACHE_URLS = [
