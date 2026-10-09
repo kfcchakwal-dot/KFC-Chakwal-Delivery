@@ -122,12 +122,12 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
       }`}
     >
       {/* Card Top: Image & Badges */}
-      <div ref={imageAreaRef} className="relative aspect-[4/3] sm:aspect-[5/4] w-full bg-white overflow-hidden flex items-center justify-center">
+      <div ref={imageAreaRef} className="relative aspect-square sm:aspect-[4/3] w-full bg-white overflow-hidden flex items-center justify-center">
         {item.image ? (
           <img
             src={item.image}
             alt={item.name}
-            className="w-full h-full object-contain p-2 sm:p-3 object-center transform group-hover:scale-[1.02] transition-transform duration-300"
+            className="w-full h-full object-contain p-1 sm:p-2 object-center transform group-hover:scale-[1.02] transition-transform duration-300"
             loading="lazy"
             referrerPolicy="no-referrer"
             onError={(e) => {
