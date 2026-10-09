@@ -32,7 +32,7 @@ export const OfflineNotice: React.FC = () => {
     setIsRetrying(true);
     try {
       // Test actual connectivity with a head/get request
-      const res = await fetch('/api/store-data', { method: 'HEAD', cache: 'no-store' });
+      const res = await fetch('/manifest.json', { method: 'HEAD', cache: 'no-store' });
       if (res.ok) {
         setIsOffline(false);
         setShowRestoredNotice(true);
