@@ -42,7 +42,10 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
   const changeQty = (id: string, delta: number) => setCart((prev) => prev.map((x) => x.item.id === id ? { ...x, quantity: x.quantity + delta } : x).filter((x) => x.quantity > 0));
   const subtotal = cart.reduce((sum, x) => sum + Number(calculatePrice(x.item.baseKfcPrice, x.item.sellingPrice) || x.item.baseKfcPrice || 0) * x.quantity, 0);
   const discountAmount = Math.min(subtotal, Math.max(0, discountType === 'percent' ? subtotal * Math.min(100, discount) / 100 : discount));
-  const taxableSubtotal = Math.max(0, subtotal - discountAmount);\n  const taxAmount = taxableSubtotal * Math.min(100, Math.max(0, taxPercentage)) / 100;\n  const serviceChargeAmount = taxableSubtotal * Math.min(100, Math.max(0, serviceChargePercentage)) / 100;\n  const total = Math.max(0, taxableSubtotal + taxAmount + serviceChargeAmount + (orderType === 'delivery' ? Math.max(0, deliveryFee) : 0));
+  const taxableSubtotal = Math.max(0, subtotal - discountAmount);
+  const taxAmount = taxableSubtotal * Math.min(100, Math.max(0, taxPercentage)) / 100;
+  const serviceChargeAmount = taxableSubtotal * Math.min(100, Math.max(0, serviceChargePercentage)) / 100;
+  const total = Math.max(0, taxableSubtotal + taxAmount + serviceChargeAmount + (orderType === 'delivery' ? Math.max(0, deliveryFee) : 0));
 
   const printReceipt = () => window.print();
   const createOrder = async () => {
