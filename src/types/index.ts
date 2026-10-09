@@ -377,7 +377,7 @@ export interface CustomerLoyaltyRecord {
   /** Explicit opt-in for promotional emails; only true means subscribed. */
   emailMarketingConsent?: boolean;
   emailMarketingConsentAt?: string;
-  emailMarketingConsentSource?: 'signup' | 'signin' | 'google';
+  emailMarketingConsentSource?: 'signup' | 'signin' | 'google' | 'account-settings';
   loyaltyPoints: number;
   vipTier?: VipTierId;
   totalOrdersCount: number;
@@ -447,7 +447,7 @@ export interface CustomerUser {
   id: string;
   emailMarketingConsent?: boolean;
   emailMarketingConsentAt?: string;
-  emailMarketingConsentSource?: 'signup' | 'signin' | 'google';
+  emailMarketingConsentSource?: 'signup' | 'signin' | 'google' | 'account-settings';
   fullName: string;
   phone: string;
   address: string;
