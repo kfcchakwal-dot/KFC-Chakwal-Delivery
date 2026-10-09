@@ -2561,7 +2561,8 @@ export const ShopifyAdminApp: React.FC = () => {
                 <h3 className="text-sm font-bold text-zinc-900">Review Requests for Delivered Orders</h3>
                 <p className="text-xs text-zinc-500">Delivered orders par WhatsApp review request manually bhejein.</p>
                 {allOrders.filter((order) => order.status === 'delivered' && order.customer?.phone).slice(0, 20).map((order) => {
-                  const phone = String(order.customer.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '92');
+                  const rawPhone = String(order.customer.phone || '').replace(/[^0-9]/g, '');
+                  const phone = rawPhone.startsWith('92') ? rawPhone : rawPhone.startsWith('0') ? '92' + rawPhone.slice(1) : '92' + rawPhone;
                   const firstItem = order.items?.[0]?.menuItem;
                   const reviewUrl = firstItem?.id ? `${window.location.origin}/?product=${encodeURIComponent(firstItem.id)}` : window.location.origin;
                   const message = `Assalam o Alaikum ${order.customer.fullName || 'Customer'}! Aap ke KFC Chakwal Delivery order #${order.id} ke liye shukriya. Meherbani karke apna review share karein: ${reviewUrl}`;
