@@ -164,6 +164,12 @@ export interface StorePolicy {
   content: string;
 }
 
+export interface AnnouncementBarConfig {
+  id: string;
+  text: string;
+  enabled: boolean;
+}
+
 export interface StoreSettings {
   storeName: string;
   tagline: string;
@@ -177,6 +183,8 @@ export interface StoreSettings {
   isStoreOpen: boolean;
   announcementText: string;
   showAnnouncement: boolean;
+  /** Multiple independently editable announcement bars; legacy single-bar fields remain supported. */
+  announcementBars?: AnnouncementBarConfig[];
   adminPin?: string;
   themeMode: ThemeMode;
   primaryColor?: string;
