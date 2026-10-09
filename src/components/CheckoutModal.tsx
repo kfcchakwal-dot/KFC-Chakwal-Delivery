@@ -566,7 +566,7 @@ export const CheckoutModal: React.FC = () => {
           <button
             type="button"
             onClick={() => handlePlaceOrder(false)}
-            className="flex-1 bg-[#e4002b] hover:bg-[#c30025] active:scale-95 text-white font-bold text-xs py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-red-950/20 cursor-pointer transition"
+            className="buy-button flex-1 bg-[#e4002b] hover:bg-[#c30025] active:scale-95 text-white font-bold text-xs py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-red-950/20 cursor-pointer transition"
           >
             <span>Confirm & Place Order</span>
             <ArrowRight className="w-4 h-4" />
