@@ -178,6 +178,9 @@ export interface StoreSettings {
   themeMode: ThemeMode;
   primaryColor?: string;
   secondaryColor?: string;
+  storeBackgroundColor?: string;
+  storeSurfaceColor?: string;
+  storeTextColor?: string;
   messagingVapidKey?: string;
   headingFont: 'Barlow Condensed' | 'Plus Jakarta Sans' | 'Oswald' | 'Inter' | 'Roboto';
   bodyFont: 'Plus Jakarta Sans' | 'Inter' | 'Roboto' | 'Barlow Condensed';
