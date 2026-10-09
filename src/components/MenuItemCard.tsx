@@ -76,22 +76,39 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const shareUrl = `${window.location.origin}/?product=${encodeURIComponent(item.id)}`;
+    const shortDescription = (item.description || 'Fresh KFC meal from KFC Chakwal Delivery.').trim().split(/\\s+/).slice(0, 28).join(' ');
+    const imageUrl = item.image || '';
+    const shareText = `${item.name}\\n${shortDescription}${shortDescription.endsWith('...') ? '' : '...'}\\nSelling Price: ${formatPKR(effectivePrice)}\\nOrder: ${shareUrl}${imageUrl ? `\\nProduct image: ${imageUrl}` : ''}`;
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: item.name,
-          text: `Check out ${item.name} on KFC Chakwal Delivery!`,
-          url: shareUrl,
-        });
+        if (imageUrl && navigator.canShare && navigator.canShare({ files: [new File([], 'product.jpg', { type: 'image/jpeg' })] })) {
+          try {
+            const response = await fetch(imageUrl, { mode: 'cors' });
+            if (response.ok) {
+              const blob = await response.blob();
+              const file = new File([blob], `${item.name.replace(/[^a-z0-9-_]/gi, '-').slice(0, 50) || 'product'}.jpg`, { type: blob.type || 'image/jpeg' });
+              if (navigator.canShare({ files: [file] })) {
+                await navigator.share({ title: item.name, text: shareText, files: [file] });
+                return;
+              }
+            }
+          } catch (imageError) {
+            console.warn('Product image attachment unavailable; sharing product details instead.', imageError);
+          }
+        }
+        await navigator.share({ title: item.name, text: shareText, url: shareUrl });
         return;
-      } catch {}
+      } catch (error: any) {
+        if (error?.name === 'AbortError') return;
+      }
     }
-    // Fallback: Copy to clipboard
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(shareText);
       setCopiedShare(true);
       setTimeout(() => setCopiedShare(false), 2500);
-    } catch {}
+    } catch {
+      window.prompt('Copy product details and link:', shareText);
+    }
   };
 
   return (
