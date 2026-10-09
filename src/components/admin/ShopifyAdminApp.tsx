@@ -643,7 +643,7 @@ export const ShopifyAdminApp: React.FC = () => {
       badges: newProdBadge.split(',').map((label) => label.trim()).filter(Boolean).slice(0, 8),
       customizableOptions: { allowDrinkChoice: newProdAllowDrink, availableAddons: newProdAddons.filter((addon) => addon.name.trim()) },
       isAvailable: true,
-      customBadgeText: newProdBadge.trim() || undefined,
+      customBadgeText: undefined,
     };
 
     addMenuItem(newItem);
@@ -3336,7 +3336,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 <label className="block text-zinc-700 font-bold mb-1">Product Labels / Badges (comma-separated)</label>
                 <input
                   type="text"
-                  value={(editingItem.badges || (editingItem.customBadgeText ? [editingItem.customBadgeText] : [])).join(', ')}
+                  value={(editingItem.badges ?? (editingItem.customBadgeText ? [editingItem.customBadgeText] : [ ...(editingItem.isPopular ? ['Popular'] : []), ...(editingItem.isSpicy ? ['Spicy'] : []) ])).join(', ')}
                   onChange={(e) => setEditingItem({ ...editingItem, badges: e.target.value.split(',').map((label) => label.trim()).filter(Boolean).slice(0, 8), customBadgeText: undefined })}
                   placeholder="Popular, Special, New Arrival"
                   className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2"
