@@ -66,6 +66,7 @@ const MainShop: React.FC = () => {
     activeOrder,
     clearActiveOrder,
     goHome,
+    viewProduct,
   } = useStore();
 
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
