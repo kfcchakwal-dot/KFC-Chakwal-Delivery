@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { KFC_CATEGORIES } from '../data/kfcMenu';
 import { CategoryId } from '../types';
@@ -13,8 +13,40 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
   selectedCategoryId,
   onSelectCategory,
 }) => {
-  const { menuItems, themeMode } = useStore();
+  const { menuItems, themeMode, settings } = useStore();
   const isDark = themeMode === 'dark';
+  const [scrollingUp, setScrollingUp] = useState(true);
+  const stickyOnScrollUp = settings.collectionNavStickyOnScrollUp !== false;
+  useEffect(() => {
+    let previousY = window.scrollY;
+    let lastUpdate = 0;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const now = Date.now();
+      if (now - lastUpdate > 40) {
+        if (Math.abs(y - previousY) > 4) setScrollingUp(y < previousY);
+        previousY = y;
+        lastUpdate = now;
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  const categories = useMemo(() => {
+    const knownIds = new Set(KFC_CATEGORIES.map((category) => category.id as string));
+    const extraIds = Array.from(new Set(menuItems.map((item) => String(item.categoryId)).filter((id) => id && !knownIds.has(id))));
+    const extras = extraIds.map((id) => ({ id: id as CategoryId, name: id.replace(/-/g, ' ').replace(/\\b\\w/g, (m) => m.toUpperCase()), subtitle: '' }));
+    const all = [...KFC_CATEGORIES, ...extras];
+    const order = settings.collectionNavOrder || [];
+    const hidden = settings.collectionNavHidden || [];
+    return all.filter((category) => !hidden.includes(category.id)).sort((a, b) => {
+      const ai = order.indexOf(a.id); const bi = order.indexOf(b.id);
+      if (ai < 0 && bi < 0) return 0;
+      if (ai < 0) return 1;
+      if (bi < 0) return -1;
+      return ai - bi;
+    });
+  }, [menuItems, settings.collectionNavOrder, settings.collectionNavHidden]);
 
   const getCategoryCount = (id: CategoryId | 'all') => {
     if (id === 'all') return menuItems.length;
@@ -22,7 +54,7 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
   };
 
   return (
-    <div className={`sticky top-14 md:top-20 z-30 backdrop-blur-md border-b shadow-sm py-2.5 transition-colors ${
+    <div className={`${stickyOnScrollUp ? 'sticky top-14 md:top-20 z-30 ' + (scrollingUp ? 'translate-y-0' : '-translate-y-[115%]') : 'relative'} backdrop-blur-md border-b shadow-sm py-2.5 transition-all duration-200 ${
       isDark ? 'bg-[#121215]/95 border-[#26262d]' : 'bg-white/95 border-zinc-200'
     }`}>
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -52,10 +84,10 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
           </button>
 
           {/* Each KFC Category */}
-          {KFC_CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const count = getCategoryCount(cat.id);
             const isSelected = selectedCategoryId === cat.id;
-            const isFeaturedShortcut = cat.id === 'family-sharing' || cat.id === 'midnight-deals';
+            const isFeaturedShortcut = false;
 
             return (
               <button
