@@ -100,7 +100,15 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
     <div className="pos-no-print grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
       <section className="rounded-2xl border bg-white p-4">
         <div className="flex flex-col gap-3 sm:flex-row">
-          <label className="relative flex-1"><Search size={17} className="absolute left-3 top-3 text-zinc-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Product search..." className="w-full rounded-xl border py-2.5 pl-9 pr-3"/></label>
+          <div className="relative flex-1">
+            <label className="relative block"><Search size={17} className="absolute left-3 top-3 text-zinc-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search product name or category..." autoComplete="off" className="w-full rounded-xl border py-2.5 pl-9 pr-3"/></label>
+            {search.trim() && <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-zinc-200 bg-white shadow-xl">
+              {menuItems.filter(item => item.isAvailable !== false && (item.name.toLowerCase().includes(search.trim().toLowerCase()) || String(item.description || '').toLowerCase().includes(search.trim().toLowerCase()) || String(item.categoryId).toLowerCase().includes(search.trim().toLowerCase()))).slice(0,8).map(item=><button type="button" key={item.id} onClick={()=>{setCategory('all');setSearch(item.name);add(item);}} className="flex w-full items-center gap-3 border-b border-zinc-100 px-3 py-2 text-left hover:bg-red-50">
+                {item.image && <img src={item.image} alt="" className="h-9 w-9 rounded-md object-cover"/>}<span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-zinc-900">{item.name}</span><span className="block text-[10px] text-zinc-500">{String(item.categoryId).replace(/-/g,' ')}</span></span><span className="text-xs font-black text-red-600">{formatPKR(Number(calculatePrice(item.baseKfcPrice,item.sellingPrice)||item.baseKfcPrice||0))}</span>
+              </button>)}
+              {!menuItems.some(item=>item.isAvailable !== false && (item.name.toLowerCase().includes(search.trim().toLowerCase()) || String(item.description || '').toLowerCase().includes(search.trim().toLowerCase()) || String(item.categoryId).toLowerCase().includes(search.trim().toLowerCase()))) && <p className="p-3 text-xs text-zinc-500">No matching products.</p>}
+            </div>}
+          </div>
           <select value={category} onChange={e=>setCategory(e.target.value)} className="rounded-xl border px-3 py-2"><option value="all">All categories</option>{categories.map(c=><option key={c} value={c}>{String(c).replace(/-/g,' ')}</option>)}</select>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
