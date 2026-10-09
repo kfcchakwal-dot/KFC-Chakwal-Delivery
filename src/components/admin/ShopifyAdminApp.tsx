@@ -3006,6 +3006,40 @@ export const ShopifyAdminApp: React.FC = () => {
                 </p>
               </div>
 
+              {/* Homepage collection navigation controls */}
+              <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <div>
+                  <h3 className="font-bold text-sm text-zinc-900">Homepage Collection Bar</h3>
+                  <p className="mt-1 text-[11px] text-zinc-500">Sticky-on-scroll-up ko on/off karein aur homepage bar mein collections ko show/hide aur reorder karein.</p>
+                </div>
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700">
+                  <span>Sticky while customer scrolls up</span>
+                  <input type="checkbox" checked={settings.collectionNavStickyOnScrollUp !== false} onChange={(e) => updateSettings({ collectionNavStickyOnScrollUp: e.target.checked })} className="h-4 w-4 accent-red-600" />
+                </label>
+                {(settings.collectionNavOrder || categories.map((category) => category.id)).length > 0 && [...categories].sort((a,b) => {
+                  const order = settings.collectionNavOrder || [];
+                  const ai = order.indexOf(a.id); const bi = order.indexOf(b.id);
+                  if (ai < 0 && bi < 0) return 0; if (ai < 0) return 1; if (bi < 0) return -1; return ai-bi;
+                }).map((category, index, list) => {
+                  const order = settings.collectionNavOrder || list.map((item) => item.id);
+                  const hidden = settings.collectionNavHidden || [];
+                  const move = (direction: -1 | 1) => {
+                    const ids = [...order];
+                    const current = ids.indexOf(category.id);
+                    const next = current + direction;
+                    if (current < 0 || next < 0 || next >= ids.length) return;
+                    [ids[current], ids[next]] = [ids[next], ids[current]];
+                    updateSettings({ collectionNavOrder: ids });
+                  };
+                  return <div key={category.id} className="flex items-center gap-2 rounded-lg border border-zinc-100 px-3 py-2">
+                    <input aria-label={`Show ${category.name} in homepage collection bar`} type="checkbox" checked={!hidden.includes(category.id)} onChange={(e) => updateSettings({ collectionNavHidden: e.target.checked ? hidden.filter((id) => id !== category.id) : [...hidden, category.id] })} className="accent-red-600" />
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-zinc-800">{category.name}</span>
+                    <button type="button" disabled={index === 0} onClick={() => move(-1)} className="rounded border px-2 py-1 text-[10px] disabled:opacity-30" aria-label={`Move ${category.name} up`}>↑</button>
+                    <button type="button" disabled={index === list.length - 1} onClick={() => move(1)} className="rounded border px-2 py-1 text-[10px] disabled:opacity-30" aria-label={`Move ${category.name} down`}>↓</button>
+                  </div>;
+                })}
+              </div>
+
               {/* Editable multi-announcement bars */}
               <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
