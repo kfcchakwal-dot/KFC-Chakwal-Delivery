@@ -132,3 +132,14 @@ button:hover, button[class]:hover, button:focus-visible, button[class]:focus-vis
   background-color: #c30025 !important; border-color: #c30025 !important;
 }
 .fixed[class*="bg-black"] { background-color: rgba(243, 244, 246, 0.96) !important; }
+
+/* Enforce the CTA rule even where legacy Tailwind classes request red. */
+button[class*="bg-[#e4002b]"]:not(.buy-button),
+button[class*="bg-[#c30025]"]:not(.buy-button) {
+  background-color: #e5e7eb !important;
+  color: #27272a !important;
+  border-color: #d1d5db !important;
+}
+button[class*="bg-[#e4002b]"]:not(.buy-button) *,
+button[class*="bg-[#c30025]"]:not(.buy-button) * { color: #27272a !important; }
+.buy-button [class~="text-white"], button.buy-button [class~="text-white"] { color: #fff !important; }
