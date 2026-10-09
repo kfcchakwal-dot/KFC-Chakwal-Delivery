@@ -10,7 +10,11 @@ function getDailyDealItems(items: MenuItem[], config: DailyDealConfig): MenuItem
   // 1. Manual Selection Mode
   if (config.selectionMode === 'manual' && config.selectedProductIds && config.selectedProductIds.length > 0) {
     const selected = items.filter((it) => config.selectedProductIds!.includes(it.id));
-    if (selected.length > 0) return selected.slice(0, count);
+    if (selected.length > 0) {
+      const selectedIds = new Set(selected.map((item) => item.id));
+      const fillRemaining = items.filter((item) => !selectedIds.has(item.id));
+      return [...selected, ...fillRemaining].slice(0, count);
+    }
   }
 
   // 2. Collection Selection Mode
