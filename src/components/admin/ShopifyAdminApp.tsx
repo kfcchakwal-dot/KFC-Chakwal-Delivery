@@ -2602,11 +2602,13 @@ export const ShopifyAdminApp: React.FC = () => {
                   <Palette className="w-4 h-4 text-[#e4002b]" />
                   <span>Theme Color Scheme</span>
                 </h3>
-                <p className="text-xs text-zinc-500">Choose the store's main accent color. It is saved with store settings and applies to supported brand buttons and labels.</p>
+                <p className="text-xs text-zinc-500">Primary aur secondary colors choose karein. Settings save hoti hain aur supported brand buttons/labels par apply hoti hain.</p>
                 <div className="flex flex-wrap items-center gap-4">
-                  <input type="color" aria-label="Store primary color" value={settings.primaryColor || '#e4002b'} onChange={(e) => updateSettings({ primaryColor: e.target.value })} className="w-14 h-12 rounded-lg border border-zinc-200 cursor-pointer bg-white p-1" />
-                  <div><div className="text-sm font-bold text-zinc-900">{settings.primaryColor || '#e4002b'}</div><button type="button" onClick={() => updateSettings({ primaryColor: '#e4002b' })} className="text-xs text-[#e4002b] font-bold underline">Reset KFC Red</button></div>
-                  <div className="rounded-xl px-4 py-2 text-white text-xs font-bold" style={{ backgroundColor: settings.primaryColor || '#e4002b' }}>Live Preview</div>
+                  <label className="flex items-center gap-2 text-xs font-bold text-zinc-700">Primary <input type="color" aria-label="Store primary color" value={settings.primaryColor || '#e4002b'} onChange={(e) => updateSettings({ primaryColor: e.target.value })} className="w-12 h-10 rounded-lg border border-zinc-200 cursor-pointer bg-white p-1" /></label>
+                  <label className="flex items-center gap-2 text-xs font-bold text-zinc-700">Secondary <input type="color" aria-label="Store secondary color" value={settings.secondaryColor || '#c30025'} onChange={(e) => updateSettings({ secondaryColor: e.target.value })} className="w-12 h-10 rounded-lg border border-zinc-200 cursor-pointer bg-white p-1" /></label>
+                  <div className="text-xs text-zinc-700"><div>Primary: <strong>{settings.primaryColor || '#e4002b'}</strong></div><div>Secondary: <strong>{settings.secondaryColor || '#c30025'}</strong></div><button type="button" onClick={() => updateSettings({ primaryColor: '#e4002b', secondaryColor: '#c30025' })} className="text-xs text-[#e4002b] font-bold underline mt-1">Reset KFC Colors</button></div>
+                  <div className="rounded-xl px-4 py-2 text-white text-xs font-bold" style={{ backgroundColor: settings.primaryColor || '#e4002b' }}>Primary Preview</div>
+                  <div className="rounded-xl px-4 py-2 text-white text-xs font-bold" style={{ backgroundColor: settings.secondaryColor || '#c30025' }}>Secondary Preview</div>
                 </div>
               </div>
 
