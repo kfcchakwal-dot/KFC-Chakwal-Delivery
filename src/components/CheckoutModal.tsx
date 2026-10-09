@@ -71,10 +71,10 @@ export const CheckoutModal: React.FC = () => {
 
   if (!isCheckoutOpen) return null;
 
-  const availablePaymentMethods = settings.paymentMethods?.filter((p) => p.enabled) || [
+  // Only Cash on Delivery is currently supported by createOrder; online gateways are not configured yet.
+  // Keep the store's saved payment settings untouched, but don't offer methods that will fail at checkout.
+  const availablePaymentMethods = [
     { id: 'cod', name: 'Cash on Delivery (COD)' },
-    { id: 'jazzcash', name: 'JazzCash' },
-    { id: 'easypaisa', name: 'Easypaisa' },
   ];
 
   const savedAddresses = currentUser?.savedAddresses || [];
@@ -141,28 +141,28 @@ export const CheckoutModal: React.FC = () => {
             `${i.options.drink ? ` [${i.options.drink}]` : ''}` +
             `${i.options.addons && i.options.addons.length > 0 ? ` (+${i.options.addons.map(a => a.name).join(', ')})` : ''}`
         )
-        .join('\\n');
+        .join('\n');
 
-      const message = `🍗 *NEW ORDER - KFC CHAKWAL DELIVERY*\\n` +
-        `Order ID: #${newOrder.id}\\n` +
-        `-------------------------\\n` +
-        `*Items Ordered:*\\n${itemsList}\\n` +
-        `-------------------------\\n` +
-        `Subtotal: ${formatPKR(newOrder.subtotal)}\\n` +
-        `Delivery Type: ${deliveryMode === 'pickup' ? 'Self Pickup from Tehsil Chowk' : 'Doorstep Delivery'}\\n` +
-        `Delivery Charges: ${formatPKR(newOrder.deliveryFee)}\\n` +
-        (newOrder.discount > 0 ? `Discount: -${formatPKR(newOrder.discount)}\\n` : '') +
-        (newOrder.loyaltyDiscount ? `Loyalty Points Discount: -${formatPKR(newOrder.loyaltyDiscount)}\\n` : '') +
-        (newOrder.vipDiscount ? `VIP Lifetime Discount (${newOrder.vipTierApplied?.toUpperCase()}): -${formatPKR(newOrder.vipDiscount)}\\n` : '') +
-        `*Total Bill: ${formatPKR(newOrder.total)} (PKR)*\\n` +
-        `Payment: ${newOrder.paymentMethod.toUpperCase()}\\n` +
-        `-------------------------\\n` +
-        `*Customer Details:*\\n` +
-        `Name: ${customer.fullName}\\n` +
-        `Phone: ${customer.phone}\\n` +
-        `Address: ${customer.address}\\n` +
-        (specialInstructions.trim() ? `*Special Kitchen Instructions:* ${specialInstructions.trim()}\\n` : '') +
-        `Coverage: Within 3 KM of Chakwal City\\n`;
+      const message = `🍗 *NEW ORDER - KFC CHAKWAL DELIVERY*\n` +
+        `Order ID: #${newOrder.id}\n` +
+        `-------------------------\n` +
+        `*Items Ordered:*\n${itemsList}\n` +
+        `-------------------------\n` +
+        `Subtotal: ${formatPKR(newOrder.subtotal)}\n` +
+        `Delivery Type: ${deliveryMode === 'pickup' ? 'Self Pickup from Tehsil Chowk' : 'Doorstep Delivery'}\n` +
+        `Delivery Charges: ${formatPKR(newOrder.deliveryFee)}\n` +
+        (newOrder.discount > 0 ? `Discount: -${formatPKR(newOrder.discount)}\n` : '') +
+        (newOrder.loyaltyDiscount ? `Loyalty Points Discount: -${formatPKR(newOrder.loyaltyDiscount)}\n` : '') +
+        (newOrder.vipDiscount ? `VIP Lifetime Discount (${newOrder.vipTierApplied?.toUpperCase()}): -${formatPKR(newOrder.vipDiscount)}\n` : '') +
+        `*Total Bill: ${formatPKR(newOrder.total)} (PKR)*\n` +
+        `Payment: ${newOrder.paymentMethod.toUpperCase()}\n` +
+        `-------------------------\n` +
+        `*Customer Details:*\n` +
+        `Name: ${customer.fullName}\n` +
+        `Phone: ${customer.phone}\n` +
+        `Address: ${customer.address}\n` +
+        (specialInstructions.trim() ? `*Special Kitchen Instructions:* ${specialInstructions.trim()}\n` : '') +
+        `Coverage: Within 3 KM of Chakwal City\n`;
 
       if (isWhatsApp) {
         const encodedMessage = encodeURIComponent(message);
