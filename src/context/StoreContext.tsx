@@ -204,6 +204,7 @@ interface StoreContextType {
   reviews: ProductReview[];
   addReview: (review: Omit<ProductReview, 'id' | 'date'>) => Promise<ProductReview>;
   deleteReview: (reviewId: string) => void;
+  setReviewVisibility: (reviewId: string, visible: boolean) => Promise<void>;
 
   // Customer Account
   currentUser: CustomerUser | null;
@@ -1535,6 +1536,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!auth.currentUser) throw new Error('Please sign in to delete a review.');
     await deleteDoc(doc(db, 'reviews', reviewId));
     setReviews((prev) => prev.filter((review) => review.id !== reviewId));
+  };
+
+  const setReviewVisibility = async (reviewId: string, visible: boolean) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    await setDoc(doc(db, 'reviews', reviewId), { isVisible: visible, moderatedAt: new Date().toISOString() }, { merge: true });
+    setReviews((prev) => prev.map((review) => review.id === reviewId ? { ...review, isVisible: visible } : review));
   };
 
   // Customer User Auth — free Google Sign-In + Email/Password
