@@ -147,30 +147,19 @@ export const Header: React.FC = () => {
               </button>
             </div>
 
-            {/* 2. MIDDLE: Logo & Store Name (Replaced with uploaded emblem logo) */}
+            {/* Centered uploaded logo only */}
             <button
+              type="button"
               onClick={goHome}
-              className="flex-1 min-w-0 mx-1 flex items-center justify-center gap-2 focus:outline-none cursor-pointer overflow-hidden py-1 active:scale-98 transition-transform"
+              className="flex-1 min-w-0 mx-1 flex items-center justify-center cursor-pointer overflow-hidden py-1"
+              aria-label="Go to home"
             >
               <img
-                src="/logo.svg"
+                src={settings.customPreloaderLogoUrl || '/logo.svg'}
                 alt="KFC Chakwal Delivery"
-                className="w-10 h-10 object-contain rounded-full shadow-sm shrink-0 bg-white border border-zinc-200"
-                onError={(e) => {
-                  e.currentTarget.src = '/pwa-192.png';
-                }}
+                className="w-11 h-11 object-contain"
+                onError={(e) => { e.currentTarget.src = '/pwa-192.png'; }}
               />
-              <div className="flex flex-col text-left min-w-0 truncate">
-                <span 
-                  style={{ fontFamily: settings.headingFont || 'Barlow Condensed' }}
-                  className="text-sm sm:text-base font-black uppercase tracking-tight leading-none truncate text-zinc-900"
-                >
-                  {settings.storeName}
-                </span>
-                <span className="text-[8px] text-[#e4002b] font-black uppercase tracking-wider truncate mt-0.5">
-                  Chakwal Delivery · Within 3 KM
-                </span>
-              </div>
             </button>
 
             {/* 3. RIGHT SIDE: Wishlist, Search, Cart icons */}
@@ -318,39 +307,22 @@ export const Header: React.FC = () => {
         {/* ========================================================================= */}
         {/* DESKTOP HEADER (MD & LG SCREENS) */}
         {/* ========================================================================= */}
-        <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="flex items-center justify-between h-20 gap-4">
             
-            {/* Logo and Brand (Replaced with uploaded emblem logo) */}
+            {/* Uploaded logo centered; no store name or extra tagline */}
             <button
+              type="button"
               onClick={goHome}
-              className="flex items-center gap-3.5 group focus:outline-none text-left cursor-pointer shrink-0"
+              className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center cursor-pointer"
+              aria-label="Go to home"
             >
               <img
-                src="/logo.svg"
+                src={settings.customPreloaderLogoUrl || '/logo.svg'}
                 alt="KFC Chakwal Delivery"
-                className="w-12 h-12 object-contain rounded-full shadow-sm shrink-0 bg-white border border-zinc-200 group-hover:scale-105 transition-transform"
-                onError={(e) => {
-                  e.currentTarget.src = '/pwa-192.png';
-                }}
+                className="w-14 h-14 object-contain"
+                onError={(e) => { e.currentTarget.src = '/pwa-192.png'; }}
               />
-
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <span 
-                    style={{ fontFamily: settings.headingFont || 'Barlow Condensed' }}
-                    className="text-2xl font-black uppercase tracking-tight leading-none text-zinc-900"
-                  >
-                    {settings.storeName}
-                  </span>
-                  <span className="bg-[#e4002b] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded tracking-wider shrink-0">
-                    Within 3 KM
-                  </span>
-                </div>
-                <span className="text-[11px] text-zinc-500 font-semibold tracking-tight mt-0.5">
-                  Fresh from Kallar Kahar Motorway · Order by 4 PM for 8 PM Delivery
-                </span>
-              </div>
             </button>
 
             {/* Desktop header keeps the brand and actions compact; search is on its own full-width row below. */}
