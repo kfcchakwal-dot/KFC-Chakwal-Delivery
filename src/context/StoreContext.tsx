@@ -79,7 +79,12 @@ const getFriendlyAuthError = (error: any): string => {
   const code = String(error?.code || '');
   if (code === 'auth/popup-closed-by-user') return 'Google login window band ho gayi. Dobara try karein.';
   if (code === 'auth/popup-blocked') return 'Browser ne popup block kiya. Redirect login dobara try karein.';
-  if (code === 'auth/unauthorized-domain') return 'Firebase Console > Authentication > Settings mein is website ka domain Authorized Domains mein add karein.';
+  if (code === 'auth/unauthorized-domain') return 'Firebase Console > Authentication > Settings > Authorized domains mein current app ka exact domain add karein.';
+  if (code === 'auth/invalid-credential') return 'Google sign-in credential reject hui. Firebase mein Google provider aur Authorized domains check karein.';
+  if (code === 'auth/operation-not-supported-in-this-environment') return 'Is browser environment mein popup login supported nahi. Redirect login use karein.';
+  if (code === 'auth/web-storage-unsupported') return 'Browser storage/cookies block hain. Is site ke liye cookies aur site data allow karke dobara try karein.';
+  if (code === 'auth/blocked') return 'Browser ya network ne sign-in block kiya. Pop-ups aur third-party sign-in cookies allow karein.';
+  if (code === 'auth/credential-already-in-use') return 'Ye sign-in account pehle se doosray account ke sath linked hai.';
   if (code === 'auth/operation-not-allowed') return 'Firebase Console > Authentication > Sign-in method mein Google provider enable karein.';
   if (code === 'auth/network-request-failed') return 'Internet connection check karke dobara try karein.';
   if (code === 'auth/cancelled-popup-request') return 'Google login pehle se open hai. Us window ko complete karein.';
@@ -1618,7 +1623,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       await setDoc(userDocRef, {
         fullName: profile.fullName,
-        phone: data.phone || firebaseUser.phoneNumber || '',
         email: firebaseUser.email || data.email || '',
         address: profile.address,
         defaultAddress: profile.defaultAddress,
@@ -1654,7 +1658,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return { success: true };
     } catch (err: any) {
       console.error('Customer Google sign-in failure:', err);
-      if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-this-environment') {
+      if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported'].includes(err?.code)) {
         try {
           await signInWithRedirect(auth, provider);
           return { success: true };
