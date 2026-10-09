@@ -172,7 +172,6 @@ export const AdminOrdersModal: React.FC = () => {
     `Payment: ${String(order.paymentMethod).toUpperCase()}`,
     `Customer: ${order.customer.fullName || 'Walk-in Customer'}`,
     `Phone: ${order.customer.phone || 'Not provided'}`, 
-    order.customer.email ? `Email: ${order.customer.email}` : '', 
     order.customer.email ? `Email: ${order.customer.email}` : '',
     `Address: ${order.customer.address || 'Pickup / not provided'}`,
     order.customer.area ? `Area: ${order.customer.area}` : '',
@@ -190,11 +189,12 @@ export const AdminOrdersModal: React.FC = () => {
   };
 
   const handleWhatsAppPdf = (order: Order) => {
-    // WhatsApp web links cannot attach a local PDF. Print/save the thermal receipt as PDF,
-    // then attach it manually in the WhatsApp conversation that opens next.
-    handlePrintReceipt(order);
+    // WhatsApp cannot attach a generated local PDF automatically. Open WhatsApp directly
+    // from the click, then open the thermal receipt print dialog so staff can Save as PDF
+    // and attach the saved file manually in that chat.
     const phone = getWhatsAppPhone(order);
-    if (phone) window.setTimeout(() => window.open(`https://wa.me/${phone}?text=${encodeURIComponent('Assalam o Alaikum! KFC Chakwal order #' + order.id + ' ki thermal receipt PDF attached hai.')}`, '_blank', 'noopener,noreferrer'), 800);
+    if (phone) window.open(`https://wa.me/${phone}?text=${encodeURIComponent('Assalam o Alaikum! KFC Chakwal order #' + order.id + ' ki thermal receipt PDF is message ke sath manually attach kar dein.')}`, '_blank', 'noopener,noreferrer');
+    handlePrintReceipt(order);
   };
 
   const applyBulkStatus = async () => {
