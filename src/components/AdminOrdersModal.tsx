@@ -31,6 +31,8 @@ export const AdminOrdersModal: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | Order['status']>('all');
   const [search, setSearch] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState<Order['status']>('kitchen');
 
   if (!isOrdersDashboardOpen) return null;
 
@@ -138,19 +140,57 @@ export const AdminOrdersModal: React.FC = () => {
     }, 1000);
   };
 
-  const handleWhatsAppCustomer = (order: Order) => {
-    const cleanPhone = order.customer.phone.replace(/[^0-9]/g, '');
-    let formattedPhone = cleanPhone;
-    if (cleanPhone.startsWith('0')) {
-      formattedPhone = '92' + cleanPhone.slice(1);
-    }
-    const message = encodeURIComponent(
-      `Assalam o Alaikum ${order.customer.fullName}!\n` +
-      `Aapka KFC Chakwal order #${order.id} receive ho gaya hai.\n` +
-      `Total Bill: ${formatPKR(order.total)} (${order.paymentMethod.toUpperCase()}).\n` +
-      `Hamara rider jald aapke address (${order.customer.area}) par pohnch raha hai. Shukriya!`
-    );
-    window.open(`https://wa.me/${formattedPhone}?text=${message}`, '_blank');
+  const getWhatsAppPhone = (order: Order) => {
+    const cleanPhone = String(order.customer.phone || '').replace(/[^0-9]/g, '');
+    return cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
+  };
+
+  const buildOrderText = (order: Order) => [
+    `Assalam o Alaikum ${order.customer.fullName || 'Customer'}!`,
+    `KFC Chakwal Delivery — Order #${order.id}`,
+    `Status: ${String(order.status).toUpperCase()} | Type: ${order.orderType === 'self_pickup' ? 'TAKEAWAY / PICKUP' : 'DELIVERY'}`,
+    '',
+    'ORDER ITEMS',
+    ...order.items.map((item) => `• ${item.quantity} x ${item.menuItem.name}${item.options?.spiceLevel ? ' (' + item.options.spiceLevel + ')' : ''}${item.options?.drink ? ' · ' + item.options.drink : ''} — ${formatPKR(item.unitPrice * item.quantity)}`),
+    '',
+    `Subtotal: ${formatPKR(order.subtotal)}`,
+    `Discount: -${formatPKR(order.discount || 0)}`,
+    `VIP Discount: -${formatPKR(order.vipDiscount || 0)}`,
+    `Loyalty Discount: -${formatPKR(order.loyaltyDiscount || 0)}`,
+    `Tax (${order.taxPercentage || 0}%): ${formatPKR(order.taxAmount || 0)}`,
+    `Service Charge (${order.serviceChargePercentage || 0}%): ${formatPKR(order.serviceChargeAmount || 0)}`,
+    `Delivery Charges: ${formatPKR(order.deliveryFee || 0)}`,
+    `TOTAL: ${formatPKR(order.total)}`,
+    `Payment: ${String(order.paymentMethod).toUpperCase()}`,
+    `Customer: ${order.customer.fullName || 'Walk-in Customer'}`,
+    `Phone: ${order.customer.phone || 'Not provided'}`,
+    `Address: ${order.customer.address || 'Pickup / not provided'}`,
+    order.customer.area ? `Area: ${order.customer.area}` : '',
+    order.customer.landmark ? `Landmark: ${order.customer.landmark}` : '',
+    order.specialInstructions ? `Order notes: ${order.specialInstructions}` : '',
+    order.customer.notes ? `Customer notes: ${order.customer.notes}` : '',
+    '',
+    'Thank you for ordering with KFC Chakwal Delivery!'
+  ].filter(Boolean).join('\\n');
+
+  const handleWhatsAppText = (order: Order) => {
+    const phone = getWhatsAppPhone(order);
+    if (!phone) { window.alert('Is order ke liye customer phone number saved nahi hai.'); return; }
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(buildOrderText(order))}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleWhatsAppPdf = (order: Order) => {
+    // WhatsApp web links cannot attach a local PDF. Print/save the thermal receipt as PDF,
+    // then attach it manually in the WhatsApp conversation that opens next.
+    handlePrintReceipt(order);
+    const phone = getWhatsAppPhone(order);
+    if (phone) window.setTimeout(() => window.open(`https://wa.me/${phone}?text=${encodeURIComponent('Assalam o Alaikum! KFC Chakwal order #' + order.id + ' ki thermal receipt PDF attach kar dein.')}`, '_blank', 'noopener,noreferrer'), 800);
+  };
+
+  const applyBulkStatus = async () => {
+    if (!selectedOrderIds.length) return;
+    for (const id of [...selectedOrderIds]) await updateOrderStatus(id, bulkStatus);
+    setSelectedOrderIds([]);
   };
 
   return (
@@ -228,6 +268,13 @@ export const AdminOrdersModal: React.FC = () => {
           </div>
         </div>
 
+        <div className="px-4 py-3 bg-[#17171b] border-b border-[#26262d] flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-xs text-zinc-300"><input type="checkbox" checked={filteredOrders.length > 0 && filteredOrders.every((o) => selectedOrderIds.includes(o.id))} onChange={(e) => setSelectedOrderIds(e.target.checked ? Array.from(new Set([...selectedOrderIds, ...filteredOrders.map((o) => o.id)])) : selectedOrderIds.filter((id) => !filteredOrders.some((o) => o.id === id)))} className="accent-red-600" />Select filtered ({filteredOrders.length})</label>
+          <span className="text-xs text-zinc-500">{selectedOrderIds.length} selected</span>
+          <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as Order['status'])} className="rounded-lg border border-[#373744] bg-[#121214] px-2.5 py-2 text-xs text-white"><option value="confirmed">Confirmed / Received</option><option value="kitchen">In Kitchen / Processing</option><option value="dispatched">Dispatched</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select>
+          <button type="button" disabled={!selectedOrderIds.length} onClick={applyBulkStatus} className="rounded-lg bg-[#e4002b] px-3 py-2 text-xs font-bold text-white disabled:opacity-40">Apply status to selected</button>
+        </div>
+
         {/* Orders List */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
           {filteredOrders.length === 0 ? (
@@ -246,6 +293,7 @@ export const AdminOrdersModal: React.FC = () => {
                 key={order.id}
                 className="bg-[#1c1c20] border border-[#2a2a33] hover:border-zinc-700 rounded-2xl p-4 sm:p-5 transition-all shadow-lg space-y-4"
               >
+                <label className="flex items-center gap-2 text-xs text-zinc-400"><input type="checkbox" checked={selectedOrderIds.includes(order.id)} onChange={(e) => setSelectedOrderIds((prev) => e.target.checked ? [...prev, order.id] : prev.filter((id) => id !== order.id))} className="accent-red-600" />Select order</label>
                 {/* Order Top Bar */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#282832] pb-3">
                   <div className="flex items-center gap-3">
@@ -337,11 +385,11 @@ export const AdminOrdersModal: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] text-zinc-500">Quick Actions:</span>
                     <button
-                      onClick={() => handleWhatsAppCustomer(order)}
+                      onClick={() => handleWhatsAppText(order)}
                       className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"
                     >
                       <MessageSquare className="w-3 h-3" />
-                      <span>WhatsApp Customer</span>
+                      <span>Send Text Details</span>
                     </button>
 
                     <a
@@ -353,13 +401,10 @@ export const AdminOrdersModal: React.FC = () => {
                     </a>
                   </div>
 
-                  <button
-                    onClick={() => handlePrintReceipt(order)}
-                    className="bg-[#121214] hover:bg-[#202026] text-zinc-300 hover:text-white border border-[#33333d] text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Print Delivery KOT Slip</span>
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => handleWhatsAppPdf(order)} className="bg-[#121214] hover:bg-[#202026] text-zinc-300 hover:text-white border border-[#33333d] text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"><Printer className="w-3.5 h-3.5 text-amber-400" /><span>Send PDF (Thermal)</span></button>
+                    <button onClick={() => handlePrintReceipt(order)} className="bg-[#121214] hover:bg-[#202026] text-zinc-300 hover:text-white border border-[#33333d] text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"><Printer className="w-3.5 h-3.5 text-amber-400" /><span>Print Delivery KOT Slip</span></button>
+                  </div>
                 </div>
 
               </div>
