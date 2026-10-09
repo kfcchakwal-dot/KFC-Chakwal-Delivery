@@ -1071,7 +1071,7 @@ export const ShopifyAdminApp: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => setIsAddingProduct(true)}
+                    onClick={() => { setNewProdGallery([]); setNewProdAllowSpice(false); setNewProdAllowDrink(false); setNewProdAddons([]); setIsAddingProduct(true); }}
                     className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-red-950/20 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
