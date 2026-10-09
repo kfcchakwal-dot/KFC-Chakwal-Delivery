@@ -119,9 +119,10 @@ export const ProductPage: React.FC = () => {
 
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}/?product=${encodeURIComponent(item.id)}`;
-    const shortDescription = (item.description || 'Fresh KFC meal from KFC Chakwal Delivery.').trim().split(/\s+/).slice(0, 28).join(' ');
+    const descriptionWords = (item.description || 'Fresh KFC meal from KFC Chakwal Delivery.').trim().split(/\s+/);
+    const shortDescription = descriptionWords.slice(0, 28).join(' ') + (descriptionWords.length > 28 ? '...' : '');
     const imageUrl = item.image || '';
-    const shareText = `${item.name}\n${shortDescription}${shortDescription.endsWith('...') ? '' : '...'}\nSelling Price: ${formatPKR(basePrice)}\nOrder: ${shareUrl}${imageUrl ? `\nProduct image: ${imageUrl}` : ''}`;
+    const shareText = `${item.name}\n${shortDescription}\nSelling Price: ${formatPKR(basePrice)}\nOrder: ${shareUrl}${imageUrl ? `\nProduct image: ${imageUrl}` : ''}`;
     if (navigator.share) {
       try {
         if (imageUrl && navigator.canShare && navigator.canShare({ files: [new File([], 'product.jpg', { type: 'image/jpeg' })] })) {
