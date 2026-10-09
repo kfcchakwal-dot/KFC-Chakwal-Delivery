@@ -1564,8 +1564,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         savedAddresses,
         loyaltyPoints: Number(currentUser?.loyaltyPoints || 0),
         createdAt: currentUser?.createdAt || new Date().toISOString(),
-        totalSpent: Number(currentUser?.totalSpent || 0) + Number(savedOrder.total || 0),
-        ordersCount: Number(currentUser?.ordersCount || 0) + 1,
+        totalSpent: Number(currentUser?.totalSpent || 0),
+        ordersCount: Number(currentUser?.ordersCount || 0),
         ...(currentUser?.vipTier ? { vipTier: currentUser.vipTier } : {}),
         ...(currentUser?.vipStatus ? { vipStatus: currentUser.vipStatus } : {}),
       };
