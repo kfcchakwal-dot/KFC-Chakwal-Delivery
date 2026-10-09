@@ -89,6 +89,7 @@ const getFriendlyAuthError = (error: any): string => {
   if (code === 'auth/network-request-failed') return 'Internet connection check karke dobara try karein.';
   if (code === 'auth/cancelled-popup-request') return 'Google login pehle se open hai. Us window ko complete karein.';
   if (code === 'auth/invalid-api-key') return 'Firebase API key invalid hai. Firebase app configuration check karein.';
+  if (code === 'permission-denied' || code === 'firestore/permission-denied') return 'Customer profile save nahi hua. Firebase Console mein isi named Firestore database ke latest firestore.rules publish karein.';
   if (code === 'auth/too-many-requests') return 'Bohat zyada attempts hue. Kuch der baad dobara try karein.';
   if (code === 'auth/account-exists-with-different-credential') return 'Is email ka account kisi doosre sign-in method se hai. Pehle usi method se login karein.';
   return error?.message || 'Sign in nahi ho saka. Firebase Authentication settings check karein.';
@@ -565,11 +566,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             createdAt: data.createdAt || new Date().toISOString(),
           };
           if (!customerDoc.exists()) {
-            await setDoc(customerDocRef, {
-              ...customerProfile,
+            const initialCustomerRecord: Record<string, unknown> = {
+              id: customerProfile.id,
+              fullName: customerProfile.fullName,
               phone: data.phone || firebaseUser.phoneNumber || '',
               email: firebaseUser.email || '',
-            }, { merge: true });
+              address: customerProfile.address,
+              defaultAddress: customerProfile.defaultAddress || '',
+              savedAddresses: customerProfile.savedAddresses || [],
+              loyaltyPoints: customerProfile.loyaltyPoints,
+              totalSpent: customerProfile.totalSpent || 0,
+              ordersCount: customerProfile.ordersCount || 0,
+              createdAt: customerProfile.createdAt,
+            };
+            if (customerProfile.vipTier !== undefined) initialCustomerRecord.vipTier = customerProfile.vipTier;
+            if (customerProfile.vipStatus !== undefined) initialCustomerRecord.vipStatus = customerProfile.vipStatus;
+            await setDoc(customerDocRef, initialCustomerRecord, { merge: true });
           }
           setCurrentUser(customerProfile);
           setIsCustomerAuthModalOpen(false);
