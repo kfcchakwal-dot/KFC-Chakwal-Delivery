@@ -15,7 +15,7 @@ export const PageSectionsRenderer: React.FC<PageSectionsRendererProps> = ({ page
     .filter((sec) => (sec.page === page || sec.page === 'all') && sec.isVisible && sec.id !== 'sec-delivery-guarantee' && !/picked from kallar kahar/i.test([sec.title, sec.subtitle, sec.description, sec.badgeText].filter(Boolean).join(' ')))
     .sort((a, b) => a.order - b.order);
 
-  if (sections.length === 0 && !isAdmin) return null;
+  if (sections.length === 0) return null;
 
   return (
     <div className="space-y-10 my-8">
