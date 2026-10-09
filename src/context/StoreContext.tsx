@@ -489,7 +489,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Apply the administrator-selected brand accent color across supported brand utility classes.
   useEffect(() => {
     document.documentElement.style.setProperty('--brand-primary', settings.primaryColor || '#e4002b');
-  }, [settings.primaryColor]);
+    document.documentElement.style.setProperty('--brand-secondary', settings.secondaryColor || '#c30025');
+  }, [settings.primaryColor, settings.secondaryColor]);
 
   // Monitor Firebase Auth state for Admin and free Google/email Customer login
   useEffect(() => {
