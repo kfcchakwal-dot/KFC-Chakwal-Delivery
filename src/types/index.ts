@@ -355,6 +355,8 @@ export interface CustomerLoyaltyRecord {
   fullName: string;
   phone: string;
   address: string;
+  defaultAddress?: string;
+  savedAddresses?: CustomerAddress[];
   email?: string;
   loyaltyPoints: number;
   vipTier?: VipTierId;
