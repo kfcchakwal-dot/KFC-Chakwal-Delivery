@@ -15,6 +15,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
   const [cart, setCart] = useState<PosLine[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [orderType, setOrderType] = useState<OrderType>('delivery');
   const [payment, setPayment] = useState<'cod' | 'jazzcash' | 'easypaisa' | 'bank_transfer'>('cod');
@@ -67,7 +68,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
         orderType, items, subtotal, markupAmount: 0,
         deliveryFee: orderType === 'delivery' ? Math.max(0, deliveryFee) : 0,
         discount: discountAmount, taxPercentage, taxAmount, serviceChargePercentage, serviceChargeAmount, total,
-        customer: { fullName: customerName.trim() || 'Walk-in Customer', phone: phone.trim(), address: address.trim(), notes: notes.trim() },
+        customer: { fullName: customerName.trim() || 'Walk-in Customer', phone: phone.trim(), email: email.trim(), address: address.trim(), notes: notes.trim() },
         specialInstructions: notes.trim(), paymentMethod: payment, status: 'confirmed',
         source: 'admin-pos', createdBy: auth.currentUser.uid,
       };
@@ -103,7 +104,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
           <div className="relative flex-1">
             <label className="relative block"><Search size={17} className="absolute left-3 top-3 text-zinc-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search product name or category..." autoComplete="off" className="w-full rounded-xl border py-2.5 pl-9 pr-3"/></label>
             {search.trim() && <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-zinc-200 bg-white shadow-xl">
-              {menuItems.filter(item => item.isAvailable !== false && (item.name.toLowerCase().includes(search.trim().toLowerCase()) || String(item.description || '').toLowerCase().includes(search.trim().toLowerCase()) || String(item.categoryId).toLowerCase().includes(search.trim().toLowerCase()))).slice(0,8).map(item=><button type="button" key={item.id} onClick={()=>{setCategory('all');setSearch(item.name);add(item);}} className="flex w-full items-center gap-3 border-b border-zinc-100 px-3 py-2 text-left hover:bg-red-50">
+              {menuItems.filter(item => item.isAvailable !== false && (item.name.toLowerCase().includes(search.trim().toLowerCase()) || String(item.description || '').toLowerCase().includes(search.trim().toLowerCase()) || String(item.categoryId).toLowerCase().includes(search.trim().toLowerCase()))).slice(0,8).map(item=><button type="button" key={item.id} onClick={()=>{setCategory('all');add(item);setSearch('');}} className="flex w-full items-center gap-3 border-b border-zinc-100 px-3 py-2 text-left hover:bg-red-50">
                 {item.image && <img src={item.image} alt="" className="h-9 w-9 rounded-md object-cover"/>}<span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-zinc-900">{item.name}</span><span className="block text-[10px] text-zinc-500">{String(item.categoryId).replace(/-/g,' ')}</span></span><span className="text-xs font-black text-red-600">{formatPKR(Number(calculatePrice(item.baseKfcPrice,item.sellingPrice)||item.baseKfcPrice||0))}</span>
               </button>)}
               {!menuItems.some(item=>item.isAvailable !== false && (item.name.toLowerCase().includes(search.trim().toLowerCase()) || String(item.description || '').toLowerCase().includes(search.trim().toLowerCase()) || String(item.categoryId).toLowerCase().includes(search.trim().toLowerCase()))) && <p className="p-3 text-xs text-zinc-500">No matching products.</p>}
@@ -127,6 +128,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
           <p className="text-xs font-black text-zinc-700">Customer details {orderType === 'delivery' ? '(required for delivery)' : '(optional for takeaway / pickup)'}</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2"><label className="text-xs font-bold">Customer name {orderType === 'delivery' && <span className="text-red-600">*</span>}<input value={customerName} onChange={e=>setCustomerName(e.target.value)} placeholder="Customer name" required={orderType === 'delivery'} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label><label className="text-xs font-bold">Phone {orderType === 'delivery' && <span className="text-red-600">*</span>}<input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="03xx xxxxxxx" inputMode="tel" required={orderType === 'delivery'} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label></div>
           <label className="block text-xs font-bold">Address {orderType === 'delivery' && <span className="text-red-600">*</span>}<input value={address} onChange={e=>setAddress(e.target.value)} placeholder={orderType === 'delivery' ? 'Customer delivery address' : 'Optional pickup note / address'} required={orderType === 'delivery'} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label>
+          <label className="block text-xs font-bold">Email for automatic order updates (optional)<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="customer@example.com" className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label>
          </div>
         <label className="block text-xs font-bold">Kitchen notes<textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="No onion, extra crispy..." rows={2} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label>
         <div className="grid grid-cols-[1fr_auto] gap-2"><label className="text-xs font-bold">Discount<input type="number" min="0" value={discount} onChange={e=>setDiscount(Math.max(0,Number(e.target.value)||0))} className="mt-1 w-full rounded-lg border p-2.5 text-sm"/></label><select value={discountType} onChange={e=>setDiscountType(e.target.value as any)} aria-label="Discount type" className="mt-5 rounded-lg border p-2 text-sm"><option value="fixed">Rs off</option><option value="percent">% off</option></select></div>
