@@ -1352,6 +1352,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     <button type="button" onClick={handleSavePushKey} disabled={isSavingPushKey} className="w-full bg-zinc-100 hover:bg-zinc-200 disabled:opacity-60 border border-zinc-200 text-zinc-800 text-xs font-bold px-3 py-2 rounded-xl">{isSavingPushKey ? 'Saving...' : 'Save Push Key'}</button>
                   </div>
                 </div>
+                <p className="text-[10px] text-zinc-600 -mt-2 mb-2">Har authorized device par is button ko aik martaba dabayein aur browser permission Allow karein. Har device ka token alag save hota hai; enabled devices par order alerts mil sakte hain.</p>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
