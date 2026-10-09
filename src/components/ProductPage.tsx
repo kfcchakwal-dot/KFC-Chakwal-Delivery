@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../context/StoreContext';
 import { MenuItem, MenuItemAddon } from '../types';
 import { MenuItemCard } from './MenuItemCard';
@@ -87,6 +87,8 @@ export const ProductPage: React.FC = () => {
   const [addedAnimation, setAddedAnimation] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
   const [activeImage, setActiveImage] = useState(item.image || '');
+  const productImageAreaRef = useRef<HTMLDivElement>(null);
+  const [flyingImage, setFlyingImage] = useState<{ src: string; left: number; top: number; size: number; targetLeft: number; targetTop: number; phase: boolean } | null>(null);
   useEffect(() => { setActiveImage(item.image || ''); setSelectedAddons([]); }, [item.id, item.image]);
 
   // Review Form state
@@ -240,7 +242,7 @@ export const ProductPage: React.FC = () => {
           
           {/* Left Column: Product Photography & Badges */}
           <div className="lg:col-span-6 space-y-4">
-            <div className={`relative aspect-square rounded-3xl overflow-hidden border shadow-2xl ${
+            <div ref={productImageAreaRef} className={`relative aspect-square rounded-3xl overflow-hidden border shadow-2xl ${
               isDark ? 'bg-[#161619] border-[#292932]' : 'bg-white border-zinc-200'
             }`}>
               {item.image ? (
@@ -270,34 +272,64 @@ export const ProductPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Customizable Badge */}
-              <div className={`absolute ${badgeClasses} z-10 flex gap-2`}>
-                {item.customBadgeText ? (
-                  <span className="bg-[#e4002b] text-white text-xs font-black uppercase px-3 py-1 rounded-full shadow-lg">
-                    {item.customBadgeText}
+              {/* Admin-managed product labels */}
+              <div className={`absolute ${badgeClasses} z-10 flex flex-wrap gap-2`}>
+                {(Array.isArray(item.badges)
+                  ? item.badges
+                  : item.customBadgeText
+                    ? [item.customBadgeText]
+                    : [ ...(item.isPopular ? ['Popular'] : []), ...(item.isSpicy ? ['Spicy'] : []) ]
+                ).filter((label) => String(label || '').trim()).map((label, index) => (
+                  <span key={`${label}-${index}`} className="bg-[#e4002b] text-white text-xs font-black uppercase px-3 py-1 rounded-full shadow-lg">
+                    {label}
                   </span>
-                ) : (
-                  <>
-                    {item.isPopular && (
-                      <span className="bg-[#e4002b] text-white text-xs font-black uppercase px-3 py-1 rounded-full shadow-lg">
-                        Popular in Chakwal
-                      </span>
-                    )}
-                    {item.isSpicy && (
-                      <span className="bg-amber-600 text-white text-xs font-bold uppercase px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
-                        <Flame className="w-3.5 h-3.5" />
-                        Spicy
-                      </span>
-                    )}
-                  </>
-                )}
+                ))}
               </div>
+
+              {flyingImage && (
+                <div
+                  aria-hidden="true"
+                  className="fixed z-[9999] pointer-events-none rounded-xl overflow-hidden shadow-2xl border-2 border-white"
+                  style={{
+                    left: flyingImage.phase ? flyingImage.targetLeft : flyingImage.left,
+                    top: flyingImage.phase ? flyingImage.targetTop : flyingImage.top,
+                    width: flyingImage.phase ? 20 : flyingImage.size,
+                    height: flyingImage.phase ? 20 : flyingImage.size,
+                    opacity: flyingImage.phase ? 0.25 : 1,
+                    transform: flyingImage.phase ? 'rotate(18deg) scale(.65)' : 'rotate(0deg) scale(1)',
+                    transition: 'left 720ms cubic-bezier(.2,.8,.2,1), top 720ms cubic-bezier(.2,.8,.2,1), width 720ms, height 720ms, opacity 720ms, transform 720ms',
+                  }}
+                >
+                  <img src={flyingImage.src} alt="" className="w-full h-full object-contain bg-white" />
+                </div>
+              )}
 
               {/* Wishlist action only; sharing sits with the product details below. */}
               <div className="absolute top-4 right-4 z-10">
                 <button
                   type="button"
-                  onClick={() => toggleWishlist(item.id)}
+                  onClick={() => {
+                    const removing = wishlist.includes(item.id);
+                    if (!removing && item.image && productImageAreaRef.current) {
+                      const imageRect = productImageAreaRef.current.getBoundingClientRect();
+                      const target = Array.from(document.querySelectorAll<HTMLElement>('[data-wishlist-target="true"]')).find((node) => node.getClientRects().length > 0);
+                      const targetRect = target?.getBoundingClientRect();
+                      if (targetRect) {
+                        setFlyingImage({
+                          src: activeImage || item.image,
+                          left: imageRect.left + imageRect.width / 2 - 24,
+                          top: imageRect.top + imageRect.height / 2 - 24,
+                          size: 48,
+                          targetLeft: targetRect.left + targetRect.width / 2 - 10,
+                          targetTop: targetRect.top + targetRect.height / 2 - 10,
+                          phase: false,
+                        });
+                        window.setTimeout(() => setFlyingImage((current) => current ? { ...current, phase: true } : null), 30);
+                        window.setTimeout(() => setFlyingImage(null), 850);
+                      }
+                    }
+                    toggleWishlist(item.id);
+                  }}
                   className={`p-3 rounded-full shadow-lg ${isFavorite ? 'bg-[#e4002b] text-white' : 'bg-white/95 text-zinc-800'}`}
                   title={isFavorite ? 'Remove from Wishlist' : 'Add to Wishlist'}
                   aria-label="Add to wishlist"
