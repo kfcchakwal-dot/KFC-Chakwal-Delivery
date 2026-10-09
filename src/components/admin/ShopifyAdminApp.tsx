@@ -3014,6 +3014,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     {([
                       ['headline', 'Main heading'],
                       ['highlightText', 'Red highlighted heading'],
+                      ['endingText', 'Final heading text'],
                       ['deliveryBadgeText', 'Delivery label'],
                       ['ctaButtonText', 'Explore button text'],
                     ] as const).map(([key, label]) => (
