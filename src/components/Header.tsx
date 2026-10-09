@@ -80,7 +80,7 @@ export const Header: React.FC = () => {
 
   return (
     <>
-      <header className={`sticky top-0 z-40 border-b transition-colors shadow-md w-full overflow-x-hidden ${
+      <header className={`sticky top-0 z-40 border-b transition-colors shadow-md w-full overflow-visible ${
         isDark ? 'bg-[#121214] border-[#27272a] text-white' : 'bg-white border-zinc-200 text-zinc-900 shadow-sm'
       }`}>
         {/* Announcement Strip */}
@@ -376,9 +376,11 @@ export const Header: React.FC = () => {
                 )}
 
                 {/* Desktop Live Instant Search Dropdown */}
-                {matchingItems.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl border shadow-2xl z-50 overflow-hidden divide-y bg-white border-zinc-200 divide-zinc-100">
-                    {matchingItems.map((item) => (
+                {searchQuery.trim().length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 rounded-2xl border shadow-2xl z-[100] overflow-hidden divide-y bg-white border-zinc-200 divide-zinc-100 max-h-[min(70vh,420px)] overflow-y-auto" role="listbox" aria-label="Product search suggestions">
+                    {matchingItems.length === 0 ? (
+                      <div className="p-4 text-sm text-zinc-500">No products found for “{searchQuery.trim()}”.</div>
+                    ) : matchingItems.map((item) => (
                       <div
                         key={item.id}
                         onClick={() => {
