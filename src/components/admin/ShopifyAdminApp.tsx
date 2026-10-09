@@ -318,7 +318,7 @@ export const ShopifyAdminApp: React.FC = () => {
   const [newPolicyContent, setNewPolicyContent] = useState('');
   const [isAddingPolicy, setIsAddingPolicy] = useState(false);
 
-  const handleSavePolicy = () => {
+  const handleSavePolicy = async () => {
     const title = newPolicyTitle.trim();
     const content = newPolicyContent.trim();
     if (!title || !content) {
@@ -326,12 +326,22 @@ export const ShopifyAdminApp: React.FC = () => {
       return;
     }
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    if (editingPolicy) updatePolicy({ ...editingPolicy, title, content, slug: editingPolicy.slug || slug });
-    else addPolicy({ title, content, slug });
-    setEditingPolicy(null);
-    setIsAddingPolicy(false);
-    setNewPolicyTitle('');
-    setNewPolicyContent('');
+    try {
+      const saved = editingPolicy
+        ? await updatePolicy({ ...editingPolicy, title, content, slug: editingPolicy.slug || slug })
+        : await addPolicy({ title, content, slug });
+      if (!saved) {
+        alert('Policy save nahi hui. Admin login aur Firestore Rules check karein, phir dobara try karein.');
+        return;
+      }
+      setEditingPolicy(null);
+      setIsAddingPolicy(false);
+      setNewPolicyTitle('');
+      setNewPolicyContent('');
+      alert(editingPolicy ? 'Policy successfully update ho gayi.' : 'New policy successfully add ho gayi.');
+    } catch (error: any) {
+      alert(error?.message || 'Policy save nahi ho saki.');
+    }
   };
 
   const enableAdminNotifications = async () => {
