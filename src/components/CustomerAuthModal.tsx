@@ -28,6 +28,7 @@ export const CustomerAuthModal: React.FC = () => {
     currentUser,
     signupUser,
     loginUser,
+    updateEmailMarketingConsent,
     resetCustomerPassword,
     signInWithGoogle,
     logoutUser,
@@ -56,6 +57,8 @@ export const CustomerAuthModal: React.FC = () => {
   const [signupError, setSignupError] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [authNotice, setAuthNotice] = useState('');
+  const [marketingPreferenceBusy, setMarketingPreferenceBusy] = useState(false);
+  const [marketingPreferenceNotice, setMarketingPreferenceNotice] = useState('');
 
   // Add Address form
   const [isAddingAddress, setIsAddingAddress] = useState(false);
@@ -458,6 +461,15 @@ export const CustomerAuthModal: React.FC = () => {
                 )}
               </div>
             )}
+
+            <div className={`rounded-xl border p-3 space-y-2 ${isDark ? 'border-zinc-700 bg-zinc-900/60' : 'border-zinc-200 bg-zinc-50'}`}>
+              <label className="flex items-start gap-2 text-xs">
+                <input type="checkbox" checked={currentUser.emailMarketingConsent === true} disabled={marketingPreferenceBusy} onChange={async (e) => { const next = e.target.checked; setMarketingPreferenceBusy(true); setMarketingPreferenceNotice(''); try { await updateEmailMarketingConsent(next); setMarketingPreferenceNotice(next ? 'Email marketing subscription on ho gayi.' : 'Aap email marketing se unsubscribe ho gaye hain.'); } catch (error: any) { setMarketingPreferenceNotice(error?.message || 'Preference save nahi ho saki. Dobara try karein.'); } finally { setMarketingPreferenceBusy(false); } }} className="mt-0.5 h-4 w-4 shrink-0 accent-[#e4002b]" />
+                <span className={isDark ? 'text-zinc-300' : 'text-zinc-700'}><strong>Email offers & promotions</strong><span className="block mt-1">KFC Chakwal Delivery se promotional emails receive karein. Checkbox uncheck karke kabhi bhi unsubscribe kar sakte hain.</span></span>
+              </label>
+              {marketingPreferenceBusy && <p className="text-[11px] text-zinc-500">Saving preference...</p>}
+              {marketingPreferenceNotice && <p role="status" className="text-[11px] text-emerald-600">{marketingPreferenceNotice}</p>}
+            </div>
 
             {/* Logout Button */}
             <div className="pt-2 border-t border-zinc-800/40">
