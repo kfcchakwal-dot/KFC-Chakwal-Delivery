@@ -59,7 +59,6 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (
-      item.customizableOptions?.allowSpiceLevel ||
       item.customizableOptions?.allowDrinkChoice ||
       (item.customizableOptions?.availableAddons && item.customizableOptions.availableAddons.length > 0)
     ) {
