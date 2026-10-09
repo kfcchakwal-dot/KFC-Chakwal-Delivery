@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { VipTierId } from '../../types';
+import { ImageUploadPicker } from '../ImageUploadPicker';
 import { 
   Crown, 
   Check, 
@@ -22,6 +23,7 @@ import {
 export const VipClubManager: React.FC = () => {
   const {
     vipTiers,
+    updateVipTierImage,
     vipRequests,
     approveVipRequest,
     rejectVipRequest,
@@ -154,6 +156,18 @@ export const VipClubManager: React.FC = () => {
               {formatPKR(t.price)} <span className="text-xs text-zinc-400 font-normal">One-Time Fee</span>
             </p>
             <p className="text-xs text-zinc-500 mt-1">{t.description}</p>
+            <div className="mt-3">
+              <ImageUploadPicker
+                label={`${t.name} image`}
+                value={t.imageUrl || ''}
+                onChange={(imageUrl) => {
+                  void updateVipTierImage(t.id, imageUrl).catch((error: any) => alert(error?.message || 'VIP image save nahi hui.'));
+                }}
+                aspectRatio="wide"
+                allowPresets={false}
+                helperText="Image 600 KB se chhoti rakhein taa-ke fast load ho aur save ho sake."
+              />
+            </div>
           </div>
         ))}
       </div>

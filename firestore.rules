@@ -23,6 +23,7 @@ service cloud.firestore {
     match /policies/{id} { allow read: if true; allow write: if admin(); }
     match /discounts/{id} { allow read: if true; allow write: if admin(); }
     match /dailyDeals/{id} { allow read: if true; allow write: if admin(); }
+    match /vipTiers/{id} { allow read: if true; allow write: if admin(); }
 
     match /customers/{uid} {
       allow read: if owner(uid) || admin();
@@ -52,6 +53,7 @@ service cloud.firestore {
       allow read: if admin() || (signedIn() && resource.data.customer.uid == request.auth.uid);
       allow create: if request.resource.data.status == 'confirmed' &&
         (
+          admin() ||
           (!signedIn() && !('uid' in request.resource.data.customer)) ||
           (signedIn() && request.resource.data.customer.uid == request.auth.uid)
         );

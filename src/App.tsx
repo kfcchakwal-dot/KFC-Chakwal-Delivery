@@ -74,6 +74,23 @@ const MainShop: React.FC = () => {
   const [navSelectedCategory, setNavSelectedCategory] = useState<CategoryId | 'all'>('all');
   const initialProductHandled = useRef(false);
   const isDark = themeMode === 'dark';
+  const sectionColorCss = Object.entries(settings.sectionColorSchemes || {}).map(([key, scheme]) => {
+    const selectors: Record<string, string> = {
+      header: 'header',
+      announcement: '[data-color-section="announcement"]',
+      hero: '[data-color-section="hero"]',
+      menu: '#kfc-menu-section',
+      product: '[data-color-section="product"]',
+      cart: '[data-color-section="cart"]',
+      vip: '[data-color-section="vip"]',
+      footer: '[data-color-section="footer"]',
+    };
+    const selector = selectors[key];
+    if (!selector || !scheme) return '';
+    return selector + ' { background-color: ' + scheme.background + ' !important; color: ' + scheme.text + ' !important; border-color: ' + scheme.border + ' !important; }\\n' +
+      selector + ' button[class*="bg-[#e4002b]"], ' + selector + ' .section-color-button { background-color: ' + scheme.button + ' !important; color: ' + scheme.buttonText + ' !important; }\\n' +
+      selector + ' button, ' + selector + ' a { border-color: ' + scheme.border + ' !important; }';
+  }).join('\n');
 
   // Open a product directly when a shared product link is opened.
   useEffect(() => {
@@ -227,6 +244,7 @@ const MainShop: React.FC = () => {
         isDark ? 'bg-[#0e0e11] text-[#f4f4f5]' : 'bg-[#f8f9fa] text-[#1a1a1f]'
       }`}
     >
+      <style>{sectionColorCss}</style>
       {/* Internet Connection Offline Detection & Status Bar */}
       <OfflineNotice />
 
@@ -234,13 +252,13 @@ const MainShop: React.FC = () => {
       <Preloader />
 
       {/* Admin-managed announcement bars sit above the sticky header. */}
-      <AnnouncementBars />
+      <div data-color-section="announcement"><AnnouncementBars /></div>
 
       {/* 100% Customer Facing Header (Mobile Optimized, Zero Overflow) */}
-      <Header />
+      <div data-color-section="header"><Header /></div>
 
       {/* VIEW ROUTING: PRODUCT DETAIL PAGE */}
-      {currentView === 'product' && <ProductPage />}
+      {currentView === 'product' && <div data-color-section="product"><ProductPage /></div>}
 
       {/* VIEW ROUTING: WISHLIST PAGE */}
       {currentView === 'wishlist' && <WishlistPage />}
@@ -248,7 +266,7 @@ const MainShop: React.FC = () => {
       {/* VIEW ROUTING: HOME & CATEGORY COLLECTIONS */}
       {(currentView === 'home' || currentView === 'collection') && (
         <>
-          <HeroBanner />
+          <div data-color-section="hero"><HeroBanner /></div>
 
           {/* Loyalty Points Balance & Quick Redeem Callout Banner */}
           <LoyaltyPointsBanner />
@@ -411,12 +429,12 @@ const MainShop: React.FC = () => {
       )}
 
       {/* 100% Customer Facing Footer */}
-      <Footer />
+      <div data-color-section="footer"><Footer /></div>
 
       {/* Floating Modals and Drawers */}
       <ItemCustomizeModal />
-      <CartDrawer />
-      <CheckoutModal />
+      <div data-color-section="cart"><CartDrawer /></div>
+      <div data-color-section="cart"><CheckoutModal /></div>
       <OrderConfirmationModal />
       <AdminLoginModal />
       {isExitConfirmOpen && (
@@ -437,7 +455,7 @@ const MainShop: React.FC = () => {
       <InstallAppModal />
       <DailyDealsPopupModal />
       <LoyaltyProgramModal />
-      <VipClubModal />
+      <div data-color-section="vip"><VipClubModal /></div>
       <PointsEarnedNotification />
     </div>
   );
