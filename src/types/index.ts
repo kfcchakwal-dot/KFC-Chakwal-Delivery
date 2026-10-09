@@ -185,6 +185,10 @@ export interface StoreSettings {
   showAnnouncement: boolean;
   /** Multiple independently editable announcement bars; legacy single-bar fields remain supported. */
   announcementBars?: AnnouncementBarConfig[];
+  /** Homepage collection navigation visibility/order and scroll-up sticky behaviour. */
+  collectionNavOrder?: string[];
+  collectionNavHidden?: string[];
+  collectionNavStickyOnScrollUp?: boolean;
   adminPin?: string;
   themeMode: ThemeMode;
   primaryColor?: string;
