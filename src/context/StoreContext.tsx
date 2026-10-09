@@ -234,8 +234,8 @@ interface StoreContextType {
 
   // Customer Account
   currentUser: CustomerUser | null;
-  signupUser: (data: { fullName: string; email: string; password: string }) => Promise<{ success: boolean; error?: string }>;
-  loginUser: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signupUser: (data: { fullName: string; email: string; password: string; emailMarketingConsent?: boolean }) => Promise<{ success: boolean; error?: string }>;
+  loginUser: (email: string, password: string, emailMarketingConsent?: boolean) => Promise<{ success: boolean; error?: string }>;
   resetCustomerPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   logoutUser: () => void;
@@ -1789,6 +1789,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...(data.vipStatus !== undefined ? { vipStatus: data.vipStatus } : {}),
       totalSpent: Number(data.totalSpent || 0),
       ordersCount: Number(data.totalOrdersCount || 0),
+      ...(typeof data.emailMarketingConsent === 'boolean' ? { emailMarketingConsent: data.emailMarketingConsent } : {}),
+      ...(data.emailMarketingConsentAt ? { emailMarketingConsentAt: data.emailMarketingConsentAt } : {}),
+      ...(data.emailMarketingConsentSource ? { emailMarketingConsentSource: data.emailMarketingConsentSource } : {}),
       createdAt: data.createdAt || new Date().toISOString(),
     };
     // New Google users need a valid initial customer record; existing users
@@ -1805,6 +1808,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loyaltyPoints: 50,
         totalSpent: 0,
         totalOrdersCount: 0,
+        emailMarketingConsent: false,
         createdAt: profile.createdAt,
         updatedAt: new Date().toISOString(),
       });
@@ -1888,7 +1892,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const signupUser = async (data: { fullName: string; email: string; password: string }): Promise<{ success: boolean; error?: string }> => {
+  const signupUser = async (data: { fullName: string; email: string; password: string; emailMarketingConsent?: boolean }): Promise<{ success: boolean; error?: string }> => {
     try {
       const cleanEmail = data.email.trim().toLowerCase();
       if (!cleanEmail || !cleanEmail.includes('@')) return { success: false, error: 'Apni valid Gmail ID / Email enter karein.' };
@@ -1907,6 +1911,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loyaltyPoints: 50,
         totalSpent: 0,
         totalOrdersCount: 0,
+        emailMarketingConsent: data.emailMarketingConsent === true,
+        ...(data.emailMarketingConsent === true ? { emailMarketingConsentAt: new Date().toISOString(), emailMarketingConsentSource: 'signup' } : {}),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }, { merge: true });
@@ -1924,7 +1930,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const loginUser = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const loginUser = async (email: string, password: string, emailMarketingConsent = false): Promise<{ success: boolean; error?: string }> => {
     try {
       const cleanEmail = email.trim().toLowerCase();
       const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
@@ -1934,6 +1940,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return { success: false, error: 'Pehle apni Gmail par bheji gayi verification email se account verify karein. Zaroorat ho to dobara Sign In karein.' };
       }
       await buildCustomerProfile(cred.user);
+      if (emailMarketingConsent) {
+        const consentAt = new Date().toISOString();
+        await setDoc(doc(db, 'customers', cred.user.uid), { emailMarketingConsent: true, emailMarketingConsentAt: consentAt, emailMarketingConsentSource: 'signin', updatedAt: consentAt }, { merge: true });
+        setCurrentUser((prev) => prev ? { ...prev, emailMarketingConsent: true, emailMarketingConsentAt: consentAt, emailMarketingConsentSource: 'signin' } : prev);
+      }
       setIsCustomerAuthModalOpen(false);
       return { success: true };
     } catch (err: any) {
