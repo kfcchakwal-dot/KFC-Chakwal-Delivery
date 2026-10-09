@@ -278,31 +278,6 @@ interface StoreContextType {
   isDailyDealsPopupOpen: boolean;
   setIsDailyDealsPopupOpen: (open: boolean) => void;
 
-  // Register this authenticated admin device for background push notifications.
-  const registerAdminPushNotifications = async (): Promise<boolean> => {
-    const user = auth.currentUser;
-    if (!user || !isAdmin) throw new Error('Pehle authorized Admin account se login karein.');
-    if (!('serviceWorker' in navigator) || !('Notification' in window)) {
-      throw new Error('Is browser mein PWA push notifications supported nahi hain.');
-    }
-    const supported = await isSupported();
-    if (!supported) throw new Error('Firebase Cloud Messaging is browser/device par supported nahi hai.');
-    const vapidKey = String(settings.messagingVapidKey || (firebaseConfig as any).messagingVapidKey || '').trim();
-    if (!vapidKey) throw new Error('Push setup ka ek step baqi hai: Firebase Console > Project Settings > Cloud Messaging > Web Push certificates se public key copy karke firebase-applet-config.json ke messagingVapidKey mein add karein.');
-    const registration = await navigator.serviceWorker.ready;
-    const messaging = getMessaging(app);
-    const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
-    if (!token) throw new Error('Is device ka push token nahi bana. Browser notifications allow karke dobara try karein.');
-    await setDoc(doc(db, 'adminPushTokens', token), {
-      uid: user.uid,
-      token,
-      active: true,
-      deviceLabel: /Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
-      updatedAt: new Date().toISOString(),
-    }, { merge: true });
-    return true;
-  };
-
   // Custom Domain Integration
   updateCustomDomain: (config: Partial<CustomDomainConfig>) => void;
 
@@ -2042,6 +2017,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Custom Domain Integration
+  // Register this authenticated admin device for background push notifications.
+  const registerAdminPushNotifications = async (): Promise<boolean> => {
+    const user = auth.currentUser;
+    if (!user || !isAdmin) throw new Error('Pehle authorized Admin account se login karein.');
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+      throw new Error('Is browser mein PWA push notifications supported nahi hain.');
+    }
+    const supported = await isSupported();
+    if (!supported) throw new Error('Firebase Cloud Messaging is browser/device par supported nahi hai.');
+    const vapidKey = String(settings.messagingVapidKey || (firebaseConfig as any).messagingVapidKey || '').trim();
+    if (!vapidKey) throw new Error('Push setup ka ek step baqi hai: Firebase Console > Project Settings > Cloud Messaging > Web Push certificates se public key copy karke Admin panel ke VAPID field mein paste karein.');
+    const registration = await navigator.serviceWorker.ready;
+    const messaging = getMessaging(app);
+    const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
+    if (!token) throw new Error('Is device ka push token nahi bana. Browser notifications allow karke dobara try karein.');
+    await setDoc(doc(db, 'adminPushTokens', token), {
+      uid: user.uid,
+      token,
+      active: true,
+      deviceLabel: /Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    return true;
+  };
+
   const updateCustomDomain = (newConfig: Partial<CustomDomainConfig>) => {
     const updated = { ...(settings.customDomain || DEFAULT_CUSTOM_DOMAIN_CONFIG), ...newConfig };
     updateSettings({ customDomain: updated });
