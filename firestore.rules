@@ -70,7 +70,27 @@ service cloud.firestore {
 
     match /reviews/{id} {
       allow read: if true;
-      allow create: if signedIn() && request.resource.data.customerUid == request.auth.uid;
+      // Reviews are intentionally open without phone OTP or customer sign-in.
+      // Keep public writes constrained to the fields and values the storefront uses.
+      allow create: if request.resource.data.keys().hasOnly([
+          'id', 'productId', 'customerName', 'rating', 'comment', 'date', 'customerUid', 'isVisible'
+        ]) &&
+        request.resource.data.productId is string &&
+        request.resource.data.productId.size() > 0 &&
+        request.resource.data.customerName is string &&
+        request.resource.data.customerName.size() > 0 &&
+        request.resource.data.customerName.size() <= 80 &&
+        request.resource.data.rating is int &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5 &&
+        request.resource.data.comment is string &&
+        request.resource.data.comment.size() > 0 &&
+        request.resource.data.comment.size() <= 1000 &&
+        request.resource.data.date is string &&
+        request.resource.data.isVisible == true &&
+        (signedIn()
+          ? request.resource.data.customerUid == request.auth.uid
+          : request.resource.data.customerUid == null);
       allow update, delete: if admin() || (signedIn() && resource.data.customerUid == request.auth.uid);
     }
 
