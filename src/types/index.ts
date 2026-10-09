@@ -177,6 +177,7 @@ export interface StoreSettings {
   adminPin?: string;
   themeMode: ThemeMode;
   primaryColor?: string;
+  secondaryColor?: string;
   headingFont: 'Barlow Condensed' | 'Plus Jakarta Sans' | 'Oswald' | 'Inter' | 'Roboto';
   bodyFont: 'Plus Jakarta Sans' | 'Inter' | 'Roboto' | 'Barlow Condensed';
   descriptionWordLimit: number; // 10 to 300 words (default: 25)
