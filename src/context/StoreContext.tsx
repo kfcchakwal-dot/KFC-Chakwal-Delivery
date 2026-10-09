@@ -48,7 +48,8 @@ import {
   KFC_CATEGORIES,
 } from '../data/kfcMenu';
 import { playNewOrderChime } from '../utils/audioNotification';
-import { auth, db } from '../lib/firebase';
+import { auth, app, db, firebaseConfig } from '../lib/firebase';
+import { getMessaging, getToken, isSupported } from 'firebase/messaging';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -277,6 +278,31 @@ interface StoreContextType {
   isDailyDealsPopupOpen: boolean;
   setIsDailyDealsPopupOpen: (open: boolean) => void;
 
+  // Register this authenticated admin device for background push notifications.
+  const registerAdminPushNotifications = async (): Promise<boolean> => {
+    const user = auth.currentUser;
+    if (!user || !isAdmin) throw new Error('Pehle authorized Admin account se login karein.');
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+      throw new Error('Is browser mein PWA push notifications supported nahi hain.');
+    }
+    const supported = await isSupported();
+    if (!supported) throw new Error('Firebase Cloud Messaging is browser/device par supported nahi hai.');
+    const vapidKey = String((firebaseConfig as any).messagingVapidKey || '').trim();
+    if (!vapidKey) throw new Error('Push setup ka ek step baqi hai: Firebase Console > Project Settings > Cloud Messaging > Web Push certificates se public key copy karke firebase-applet-config.json ke messagingVapidKey mein add karein.');
+    const registration = await navigator.serviceWorker.ready;
+    const messaging = getMessaging(app);
+    const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
+    if (!token) throw new Error('Is device ka push token nahi bana. Browser notifications allow karke dobara try karein.');
+    await setDoc(doc(db, 'adminPushTokens', token), {
+      uid: user.uid,
+      token,
+      active: true,
+      deviceLabel: /Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    return true;
+  };
+
   // Custom Domain Integration
   updateCustomDomain: (config: Partial<CustomDomainConfig>) => void;
 
@@ -326,6 +352,7 @@ interface StoreContextType {
   customerNotificationAllowed: boolean;
   setCustomerNotificationAllowed: (allowed: boolean) => void;
   requestNotificationPermission: () => Promise<boolean>;
+  registerAdminPushNotifications: () => Promise<boolean>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
