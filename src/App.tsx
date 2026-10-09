@@ -69,6 +69,7 @@ const MainShop: React.FC = () => {
   } = useStore();
 
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  const allowExitRef = useRef(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
   const [navSelectedCategory, setNavSelectedCategory] = useState<CategoryId | 'all'>('all');
   const initialProductHandled = useRef(false);
@@ -138,6 +139,7 @@ const MainShop: React.FC = () => {
     }
 
     const handlePopState = () => {
+      if (allowExitRef.current) return;
       if (isDailyDealsPopupOpen) {
         setIsDailyDealsPopupOpen(false);
       } else if (isVipModalOpen) {
@@ -424,7 +426,7 @@ const MainShop: React.FC = () => {
             <p className="mt-2 text-sm text-zinc-600">Kya aap app se exit karna chahte hain?</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <button type="button" onClick={() => setIsExitConfirmOpen(false)} className="rounded-xl border border-zinc-300 px-4 py-3 text-sm font-bold text-zinc-700">Nahi, yahin rahen</button>
-              <button type="button" onClick={() => { setIsExitConfirmOpen(false); window.history.back(); }} className="rounded-xl bg-[#e4002b] px-4 py-3 text-sm font-black text-white">Haan, Exit</button>
+              <button type="button" onClick={() => { allowExitRef.current = true; setIsExitConfirmOpen(false); window.history.back(); }} className="rounded-xl bg-[#e4002b] px-4 py-3 text-sm font-black text-white">Haan, Exit</button>
             </div>
           </div>
         </div>
