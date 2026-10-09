@@ -73,6 +73,8 @@ import { MetaAdsManager } from './MetaAdsManager';
 import { VipClubManager } from './VipClubManager';
 import { OrderEditModal } from './OrderEditModal';
 import { BulkProductEditor } from './BulkProductEditor';
+import { RestaurantPOS } from './RestaurantPOS';
+import { SectionColorManager } from './SectionColorManager';
 import { CategoryId, MenuItem, MenuItemAddon, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
 import { KFC_CATEGORIES } from '../../data/kfcMenu';
 import { auth, db } from '../../lib/firebase';
@@ -81,6 +83,8 @@ import { collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, setDoc
 type SellerTab = 
   | 'dashboard'
   | 'orders'
+  | 'pos'
+  | 'section-colors'
   | 'abandoned'
   | 'products'
   | 'daily-deals'
@@ -965,6 +969,7 @@ export const ShopifyAdminApp: React.FC = () => {
               {[
                 { id: 'dashboard', label: 'Dashboard & Realtime', icon: LayoutDashboard },
                 { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrders > 0 ? pendingOrders : undefined },
+                { id: 'pos', label: 'Restaurant POS & Billing', icon: Receipt },
                 { id: 'abandoned', label: 'Abandoned Checkouts (Manual)', icon: AlertCircle, badge: abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length > 0 ? abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length : undefined },
                 { id: 'products', label: 'Products & Catalog', icon: UtensilsCrossed },
                 { id: 'daily-deals', label: 'Daily 5 Deals (4% OFF)', icon: Flame },
@@ -976,6 +981,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 { id: 'delivery-methods', label: 'Delivery Methods', icon: Truck },
                 { id: 'discounts', label: 'Discounts & Codes', icon: Tag },
                 { id: 'online-store', label: 'Online Store & Theme', icon: Palette },
+                { id: 'section-colors', label: 'Section Color Schemes', icon: Palette },
                 { id: 'reviews', label: 'Reviews & Auto 12-Hr Flow', icon: Star },
                 { id: 'policies', label: 'Store Policies', icon: FileText },
                 { id: 'links', label: 'Share & App Links', icon: Link2 },
@@ -1363,6 +1369,9 @@ export const ShopifyAdminApp: React.FC = () => {
                     <ShoppingBag className="w-5 h-5 text-[#e4002b]" />
                     <span>Customer Orders ({allOrders.length})</span>
                   </h2>
+                  <button type="button" onClick={() => setActiveTab('pos')} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#e4002b] px-4 py-2 text-xs font-black text-white shadow-sm hover:opacity-90">
+                    <Plus className="h-4 w-4" /> Create New Order
+                  </button>
                   <p className="text-xs text-zinc-500 mt-1">
                     Track incoming orders, change statuses, and review delivery addresses.
                   </p>
@@ -2591,6 +2600,20 @@ export const ShopifyAdminApp: React.FC = () => {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: RESTAURANT POS */}
+          {/* ========================================================================= */}
+          {activeTab === 'pos' && (
+            <RestaurantPOS onOrderCreated={() => { void fetchOrders(); }} />
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: SECTION COLOR SCHEMES */}
+          {/* ========================================================================= */}
+          {activeTab === 'section-colors' && (
+            <SectionColorManager />
           )}
 
           {/* ========================================================================= */}
