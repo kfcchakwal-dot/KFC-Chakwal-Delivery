@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { Header } from './components/Header';
 import { HeroBanner } from './components/HeroBanner';
@@ -69,7 +69,24 @@ const MainShop: React.FC = () => {
   } = useStore();
 
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
+  const initialProductHandled = useRef(false);
   const isDark = themeMode === 'dark';
+
+  // Open a product directly when a shared product link is opened.
+  useEffect(() => {
+    if (initialProductHandled.current) return;
+    const productId = new URLSearchParams(window.location.search).get('product');
+    if (!productId) {
+      initialProductHandled.current = true;
+      return;
+    }
+    if (menuItems.length === 0) return;
+    const sharedProduct = menuItems.find((item) => item.id === productId);
+    if (sharedProduct) {
+      viewProduct(sharedProduct);
+      initialProductHandled.current = true;
+    }
+  }, [menuItems, viewProduct]);
 
   // Android Back Gesture & System Back Button Handling: Close top-most modal/subview gracefully
   useEffect(() => {
