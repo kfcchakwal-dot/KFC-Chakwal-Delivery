@@ -416,6 +416,7 @@ export const AdminOrdersModal: React.FC = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    <button onClick={() => handlePrintReceipt(order, defaultPrintFormat)} className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 border border-amber-600/40 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"><Printer className="w-3.5 h-3.5" /><span>Print Default ({defaultPrintFormat.toUpperCase()})</span></button>
                     <button onClick={() => handleWhatsAppPdf(order)} className="bg-[#121214] hover:bg-[#202026] text-zinc-300 hover:text-white border border-[#33333d] text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"><Printer className="w-3.5 h-3.5 text-amber-400" /><span>Send PDF (Thermal)</span></button>
                     <button onClick={() => handlePrintReceipt(order, 'thermal')} className="bg-[#121214] hover:bg-[#202026] text-zinc-300 hover:text-white border border-[#33333d] text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"><Printer className="w-3.5 h-3.5 text-amber-400" /><span>Print Thermal</span></button>
                     <button onClick={() => handlePrintReceipt(order, 'a4')} className="bg-[#121214] hover:bg-[#202026] text-zinc-300 hover:text-white border border-[#33333d] text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer"><Printer className="w-3.5 h-3.5 text-amber-400" /><span>Print A4</span></button>
