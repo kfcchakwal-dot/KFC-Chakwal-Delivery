@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
 import { MenuItem, DailyDealConfig } from '../types';
-import { Sparkles, Flame, ShoppingBag, Clock, Percent } from 'lucide-react';
+import { Sparkles, Flame, Clock, Percent } from 'lucide-react';
 
 // Deterministic daily picker: picks collection, random, or manual products that auto-rotates at 12:00 AM midnight
 function getDailyDealItems(items: MenuItem[], config: DailyDealConfig): MenuItem[] {
