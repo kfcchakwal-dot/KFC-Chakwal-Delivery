@@ -33,7 +33,7 @@ export const FloatingCartBar: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsCartOpen(true)}
-          className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-black uppercase px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-lg shadow-red-950/40"
+          className="buy-button bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-black uppercase px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-lg shadow-red-950/40"
         >
           <span>View Bucket</span>
           <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
