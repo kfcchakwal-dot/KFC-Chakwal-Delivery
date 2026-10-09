@@ -107,6 +107,7 @@ export interface HeroConfig {
   imageUrl: string;
   headline: string;
   highlightText: string;
+  endingText?: string;
   subtext: string;
   ctaButtonText: string;
   deliveryBadgeText: string;
