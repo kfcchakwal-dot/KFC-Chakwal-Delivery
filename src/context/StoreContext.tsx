@@ -2120,7 +2120,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     const supported = await isSupported();
     if (!supported) throw new Error('Firebase Cloud Messaging is browser/device par supported nahi hai.');
-    const vapidKey = String(settings.messagingVapidKey || (firebaseConfig as any).messagingVapidKey || '').trim();
+    let locallySavedVapidKey = '';
+    try {
+      const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+      locallySavedVapidKey = String(savedSettings.messagingVapidKey || '');
+    } catch {}
+    const vapidKey = String(settings.messagingVapidKey || locallySavedVapidKey || (firebaseConfig as any).messagingVapidKey || '').trim();
     if (!vapidKey) throw new Error('Push setup ka ek step baqi hai: Firebase Console > Project Settings > Cloud Messaging > Web Push certificates se public key copy karke Admin panel ke VAPID field mein paste karein.');
     // Register the app's root-scoped service worker explicitly. Waiting only for
     // navigator.serviceWorker.ready can hang forever on devices where it was never registered.

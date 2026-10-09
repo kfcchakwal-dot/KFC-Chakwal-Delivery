@@ -322,6 +322,8 @@ export const ShopifyAdminApp: React.FC = () => {
   const [pointsAdjustmentVal, setPointsAdjustmentVal] = useState<number>(0);
   const [editingCustomerRecord, setEditingCustomerRecord] = useState<any | null>(null);
   const [adminNotificationStatus, setAdminNotificationStatus] = useState<string>('');
+  const [isSavingPushKey, setIsSavingPushKey] = useState(false);
+  const [isEnablingPush, setIsEnablingPush] = useState(false);
   const [reviewRequestRecords, setReviewRequestRecords] = useState<any[]>([]);
   const [adminVapidKey, setAdminVapidKey] = useState<string>(settings.messagingVapidKey || '');
   useEffect(() => { setAdminVapidKey(settings.messagingVapidKey || ''); }, [settings.messagingVapidKey]);
@@ -371,25 +373,66 @@ export const ShopifyAdminApp: React.FC = () => {
     }
   };
 
+  const handleSavePushKey = async () => {
+    const key = adminVapidKey.trim();
+    if (!key) {
+      setAdminNotificationStatus('Pehle Firebase Console se VAPID public key paste karein.');
+      return;
+    }
+    if (key.length < 80 || !/^[A-Za-z0-9_-]+$/.test(key)) {
+      setAdminNotificationStatus('VAPID key ka format durust nahi lag raha. Cloud Messaging se poori Web Push public key copy karein.');
+      return;
+    }
+    setIsSavingPushKey(true);
+    try {
+      const updatedSettings = { ...settings, messagingVapidKey: key };
+      // Save immediately on this device, even if the cloud sync is temporarily unavailable.
+      localStorage.setItem('kfc_chakwal_settings_v5', JSON.stringify(updatedSettings));
+      updateSettings({ messagingVapidKey: key });
+      const synced = await syncStoreToServer({ settings: updatedSettings });
+      setAdminNotificationStatus(synced
+        ? 'VAPID key save ho gayi. Ab Enable This Device Notifications dabayein.'
+        : 'VAPID key is device par save ho gayi, lekin cloud sync nahi hua. Internet/Firebase access check karein.');
+    } catch (error: any) {
+      setAdminNotificationStatus(error?.message || 'VAPID key save nahi ho saki.');
+    } finally {
+      setIsSavingPushKey(false);
+    }
+  };
+
   const enableAdminNotifications = async () => {
     if (!('Notification' in window)) {
       setAdminNotificationStatus('Is browser mein notifications supported nahi hain.');
       return;
     }
+    const key = adminVapidKey.trim() || settings.messagingVapidKey || '';
+    if (!key) {
+      setAdminNotificationStatus('Pehle VAPID public key paste karke Save Push Key dabayein.');
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      setAdminNotificationStatus('Notifications browser mein block hain. Address bar ke site settings mein Notifications = Allow karein.');
+      return;
+    }
+    setIsEnablingPush(true);
     try {
-      const permission = await Notification.requestPermission();
+      // Persist the entered key before token registration, so the latest value is used.
+      const updatedSettings = { ...settings, messagingVapidKey: key };
+      localStorage.setItem('kfc_chakwal_settings_v5', JSON.stringify(updatedSettings));
+      updateSettings({ messagingVapidKey: key });
+      const permission = Notification.permission === 'granted'
+        ? 'granted'
+        : await Notification.requestPermission();
       if (permission !== 'granted') {
         setAdminNotificationStatus('Permission allow nahi hui. Browser/site settings mein notifications allow karein.');
         return;
       }
-      try {
-        await registerAdminPushNotifications();
-        setAdminNotificationStatus('Is device ka push token register ho gaya. Background order alerts ke liye Firebase Functions deploy honi chahiye aur isi Firebase project ki VAPID key use karein.');
-      } catch (pushError: any) {
-        setAdminNotificationStatus(pushError?.message || 'Background push setup incomplete hai. Local notification permission enabled hai.');
-      }
-    } catch {
-      setAdminNotificationStatus('Notification permission request nahi ho saki.');
+      await registerAdminPushNotifications();
+      setAdminNotificationStatus('Notifications is device par enable ho gayi hain. Ab test order se check karein. Background alerts ke liye Firebase Functions bhi deployed honi chahiye.');
+    } catch (pushError: any) {
+      setAdminNotificationStatus(pushError?.message || 'Notifications enable nahi ho sakin. Browser console aur Firebase settings check karein.');
+    } finally {
+      setIsEnablingPush(false);
     }
   };
 
@@ -1306,16 +1349,18 @@ export const ShopifyAdminApp: React.FC = () => {
                     <p className="text-[10px] text-zinc-500 mt-1">Firebase Console → Project settings → Cloud Messaging → Web Push certificates. Ye public key hai, private key nahi.</p>
                   </div>
                   <div className="flex items-end">
-                    <button type="button" onClick={() => { if (!adminVapidKey.trim()) { setAdminNotificationStatus('Pehle Firebase Console se VAPID public key paste karein.'); return; } updateSettings({ messagingVapidKey: adminVapidKey.trim() }); setAdminNotificationStatus('VAPID public key save kar di. Ab Enable This Device Notifications dabayein.'); }} className="w-full bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-800 text-xs font-bold px-3 py-2 rounded-xl">Save Push Key</button>
+                    <button type="button" onClick={handleSavePushKey} disabled={isSavingPushKey} className="w-full bg-zinc-100 hover:bg-zinc-200 disabled:opacity-60 border border-zinc-200 text-zinc-800 text-xs font-bold px-3 py-2 rounded-xl">{isSavingPushKey ? 'Saving...' : 'Save Push Key'}</button>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
+                    type="button"
                     onClick={enableAdminNotifications}
-                    className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"
+                    disabled={isEnablingPush}
+                    className="bg-red-50 disabled:opacity-60 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"
                   >
                     <Bell className="w-3.5 h-3.5" />
-                    <span>Enable This Device Notifications</span>
+                    <span>{isEnablingPush ? 'Enabling...' : 'Enable This Device Notifications'}</span>
                   </button>
                   <button
                     onClick={fetchOrders}
