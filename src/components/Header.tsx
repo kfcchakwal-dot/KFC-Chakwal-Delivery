@@ -59,7 +59,6 @@ export const Header: React.FC = () => {
   const [isDesktopSearchFocused, setIsDesktopSearchFocused] = useState(false);
   const [desktopSuggestionIndex, setDesktopSuggestionIndex] = useState(0);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
-  const [showTopBanner, setShowTopBanner] = useState(true);
 
   const isDark = themeMode === 'dark';
 
