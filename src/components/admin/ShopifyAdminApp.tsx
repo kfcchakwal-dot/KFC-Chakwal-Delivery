@@ -76,7 +76,7 @@ import { BulkProductEditor } from './BulkProductEditor';
 import { CategoryId, MenuItem, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
 import { KFC_CATEGORIES } from '../../data/kfcMenu';
 import { auth, db } from '../../lib/firebase';
-import { collection, deleteDoc, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc } from 'firebase/firestore';
 
 type SellerTab = 
   | 'dashboard'
@@ -325,7 +325,19 @@ export const ShopifyAdminApp: React.FC = () => {
   const [reviewRequestRecords, setReviewRequestRecords] = useState<any[]>([]);
   const [adminVapidKey, setAdminVapidKey] = useState<string>(settings.messagingVapidKey || '');
   useEffect(() => { setAdminVapidKey(settings.messagingVapidKey || ''); }, [settings.messagingVapidKey]);
+
   const [reviewActionNotice, setReviewActionNotice] = useState<string>('');
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const reviewRequestsQuery = query(collection(db, 'reviewRequests'), orderBy('requestedAt', 'desc'));
+    const unsubscribe = onSnapshot(reviewRequestsQuery, (snapshot) => {
+      setReviewRequestRecords(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
+    }, (error) => {
+      console.warn('Review request history could not load:', error);
+    });
+    return () => unsubscribe();
+  }, [isAdmin]);
 
   // Policy Form state
   const [editingPolicy, setEditingPolicy] = useState<StorePolicy | null>(null);
@@ -2617,7 +2629,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 {reviewRequestRecords.length === 0 ? <p className="text-xs text-zinc-500">Abhi koi review request record nahi hai.</p> : reviewRequestRecords.slice(0, 20).map((request) => (
                   <div key={request.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 py-2">
                     <div><div className="text-xs font-bold text-zinc-900">Order #{request.orderId} · {request.customerName}</div><div className="text-[11px] text-zinc-500">{request.phone} · {request.requestedAt ? new Date(request.requestedAt).toLocaleString() : ''}</div></div>
-                    <span className="text-[10px] font-bold rounded-full px-2 py-1 bg-emerald-50 text-emerald-700">{request.status || 'sent'} · WhatsApp</span>
+                    <span className={`text-[10px] font-bold rounded-full px-2 py-1 ${request.status === 'sent' ? 'bg-emerald-50 text-emerald-700' : request.status === 'failed' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>{String(request.status || 'sent').replace(/_/g, ' ')} · WhatsApp</span>
                   </div>
                 ))}
               </div>
