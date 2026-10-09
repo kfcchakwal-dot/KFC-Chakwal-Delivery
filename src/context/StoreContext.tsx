@@ -1521,10 +1521,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ordersCount: Number(data.totalOrdersCount || 0),
       createdAt: data.createdAt || new Date().toISOString(),
     };
+    // Only sync customer-editable profile fields. Loyalty totals and order counts
+    // are server/admin-owned and must never be overwritten by a client login.
     await setDoc(userDocRef, {
-      ...profile,
+      fullName: profile.fullName,
       phone: data.phone || firebaseUser.phoneNumber || '',
       email: firebaseUser.email || data.email || '',
+      address: profile.address,
+      defaultAddress: profile.defaultAddress,
+      savedAddresses: profile.savedAddresses,
       updatedAt: new Date().toISOString(),
     }, { merge: true });
     setCurrentUser(profile);
