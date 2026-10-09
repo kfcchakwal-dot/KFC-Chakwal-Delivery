@@ -1488,9 +1488,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Reviews
   const addReview = async (reviewData: Omit<ProductReview, 'id' | 'date'>): Promise<ProductReview> => {
     const user = auth.currentUser;
-    if (!user) throw new Error('Customer authentication required to submit a review.');
-    const id = `review-${Date.now()}-${user.uid}`;
-    const savedReview = { ...reviewData, id, date: new Date().toISOString(), customerUid: user.uid } as ProductReview;
+    const id = `review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const savedReview = {
+      ...reviewData,
+      id,
+      date: new Date().toISOString(),
+      customerUid: user?.uid || null,
+      isVisible: true,
+    } as ProductReview;
     await setDoc(doc(db, 'reviews', id), savedReview);
     setReviews((prev) => [savedReview, ...prev.filter((review) => review.id !== id)]);
     return savedReview;
