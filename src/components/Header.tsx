@@ -77,8 +77,7 @@ export const Header: React.FC = () => {
     ? menuItems.filter((item) =>
         String(item.name || '').toLocaleLowerCase().includes(normalizedSearch) ||
         String(item.description || '').toLocaleLowerCase().includes(normalizedSearch) ||
-        String(item.categoryId || '').toLocaleLowerCase().includes(normalizedSearch) ||
-        String(item.brand || '').toLocaleLowerCase().includes(normalizedSearch)
+        String(item.categoryId || '').toLocaleLowerCase().includes(normalizedSearch)
       ).slice(0, 8)
     : [];
   const desktopSuggestions = normalizedSearch ? matchingItems : menuItems.slice(0, 5);
