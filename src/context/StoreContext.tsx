@@ -148,7 +148,7 @@ interface StoreContextType {
 
   // Server sync status
   serverSyncStatus: 'synced' | 'syncing' | 'offline';
-  syncStoreToServer: (customPayload?: Record<string, any>) => Promise<void>;
+  syncStoreToServer: (customPayload?: Record<string, any>) => Promise<boolean>;
 
   // Chakwal Delivery Areas
   chakwalAreas: ChakwalArea[];
