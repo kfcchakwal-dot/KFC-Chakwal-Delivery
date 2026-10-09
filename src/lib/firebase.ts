@@ -1,13 +1,20 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, initializeAuth, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase App
 export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Auth
-export const auth = getAuth(app);
+// Explicitly persist customer/admin sessions across app closes and browser restarts.
+// If hot reload has already initialized Auth, reuse that instance.
+export const auth = (() => {
+  try {
+    return initializeAuth(app, { persistence: browserLocalPersistence });
+  } catch {
+    return getAuth(app);
+  }
+})();
 
 // Initialize Firestore with configured database ID
 export const db = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
