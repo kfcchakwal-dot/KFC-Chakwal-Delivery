@@ -2999,6 +2999,46 @@ export const ShopifyAdminApp: React.FC = () => {
                     helperText="Upload custom banner image displayed at the top of the customer store."
                   />
                 </div>
+                <div className="pt-4 border-t border-zinc-100 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-sm text-zinc-900">Home Header Text / Rich Content</h4>
+                      <p className="text-[11px] text-zinc-500">“Crispy. Juicy. Finger Lickin’ Good” section ko yahan se edit ya hide karein.</p>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs font-bold text-zinc-700">
+                      <input type="checkbox" checked={settings.hero?.enabled !== false} onChange={(e) => updateSettings({ hero: { ...(settings.hero || { imageUrl: '', headline: '', highlightText: '', subtext: '', ctaButtonText: '', deliveryBadgeText: '' }), enabled: e.target.checked } })} />
+                      Show section
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    {([
+                      ['headline', 'Main heading'],
+                      ['highlightText', 'Red highlighted heading'],
+                      ['deliveryBadgeText', 'Delivery label'],
+                      ['ctaButtonText', 'Explore button text'],
+                    ] as const).map(([key, label]) => (
+                      <div key={key}>
+                        <label className="block text-zinc-700 font-bold mb-1">{label}</label>
+                        <input
+                          type="text"
+                          value={settings.hero?.[key] || ''}
+                          onChange={(e) => updateSettings({ hero: { ...(settings.hero || { imageUrl: '', headline: '', highlightText: '', subtext: '', ctaButtonText: '', deliveryBadgeText: '' }), [key]: e.target.value } })}
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2"
+                        />
+                      </div>
+                    ))}
+                    <div className="sm:col-span-2">
+                      <label className="block text-zinc-700 font-bold mb-1">Description / Rich Text</label>
+                      <textarea
+                        rows={3}
+                        value={settings.hero?.subtext || ''}
+                        onChange={(e) => updateSettings({ hero: { ...(settings.hero || { imageUrl: '', headline: '', highlightText: '', subtext: '', ctaButtonText: '', deliveryBadgeText: '' }), subtext: e.target.value } })}
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2"
+                        placeholder="Write the text shown under the main heading..."
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Customer Login Popup Content */}
