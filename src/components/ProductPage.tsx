@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Bike,
   Sparkles,
-  ShoppingBag,
   Share2,
 } from 'lucide-react';
 
