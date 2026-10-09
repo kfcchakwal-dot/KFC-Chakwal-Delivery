@@ -66,7 +66,7 @@ export const VipClubModal: React.FC = () => {
 
     const encoded = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/923252777574?text=${encoded}`;
-    window.open(whatsappUrl, '_blank');
+    window.location.assign(whatsappUrl);
   };
 
   return (
@@ -167,6 +167,7 @@ export const VipClubModal: React.FC = () => {
                             ✓
                           </span>
                         )}
+                        {tier.imageUrl && <img src={tier.imageUrl} alt={tier.name} loading="lazy" className="mb-2 h-20 w-full rounded-lg object-contain" />}
                         <span className="text-[11px] font-black uppercase text-[#e4002b] block">
                           Flat {tier.discountPercentage}% OFF
                         </span>
