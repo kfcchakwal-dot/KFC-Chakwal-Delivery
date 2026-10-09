@@ -1620,10 +1620,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fullName: customer.fullName || currentUser.fullName,
         phone: customer.phone || currentUser.phone,
         address: customer.address || currentUser.address,
+        defaultAddress: customer.address || currentUser.defaultAddress || currentUser.address,
+        email: auth.currentUser?.email || currentUser.email,
         savedAddresses: updatedAddresses,
         loyaltyPoints: Math.max(0, (currentUser.loyaltyPoints || 0) - redeemedPoints) + earnedPoints,
+        totalSpent: Number(currentUser.totalSpent || 0) + Number(savedOrder.total || 0),
+        ordersCount: Number(currentUser.ordersCount || 0) + 1,
       };
       setCurrentUser(updatedUser);
+      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
     }
 
     setAllOrders((prev) => [savedOrder, ...prev.filter((order) => order.id !== savedOrder.id)]);
