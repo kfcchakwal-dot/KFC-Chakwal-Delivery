@@ -67,6 +67,7 @@ import {
   setDoc,
   deleteDoc,
   collection,
+  onSnapshot,
   query,
   where,
   orderBy,
@@ -836,18 +837,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   useEffect(() => {
-    const loadReviews = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, 'reviews'));
-        const data = snapshot.docs
-          .map((item) => ({ id: item.id, ...(item.data() as Omit<ProductReview, 'id'>) }))
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setReviews(data);
-      } catch (error) {
-        console.warn('Reviews Firestore read notice:', error);
-      }
-    };
-    void loadReviews();
+    const unsubscribe = onSnapshot(collection(db, 'reviews'), (snapshot) => {
+      const data = snapshot.docs
+        .map((item) => ({ id: item.id, ...(item.data() as Omit<ProductReview, 'id'>) }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setReviews(data);
+    }, (error) => {
+      console.warn('Reviews Firestore read notice:', error);
+    });
+    return () => unsubscribe();
   }, []);
 
   // Orders Fetch & Sound Trigger
