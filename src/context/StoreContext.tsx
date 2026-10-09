@@ -319,6 +319,7 @@ interface StoreContextType {
   // Automated 12-Hour Review Collection Flow
   updateAutoReview: (config: Partial<AutoReviewConfig>) => void;
   sendReviewCollectionWhatsapp: (order: Order) => void;
+  createReviewRequest: (order: Order, reviewUrl: string) => Promise<void>;
 
   // Bulk Marketing Broadcast Center
   marketingCampaigns: MarketingCampaign[];
@@ -2060,6 +2061,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     updateSettings({ autoReview: updated });
   };
 
+  const createReviewRequest = async (order: Order, reviewUrl: string): Promise<void> => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    await setDoc(doc(db, 'reviewRequests', order.id), {
+      orderId: order.id,
+      customerUid: (order.customer as CustomerDetails & { uid?: string }).uid || null,
+      customerName: order.customer.fullName || 'Customer',
+      phone: order.customer.phone || '',
+      reviewUrl,
+      channel: 'whatsapp',
+      status: 'sent',
+      requestedAt: new Date().toISOString(),
+      requestedBy: auth.currentUser.uid,
+    }, { merge: true });
+  };
+
   const sendReviewCollectionWhatsapp = (order: Order) => {
     const cleanPhone = order.customer.phone.replace(/[^0-9]/g, '');
     const intlPhone = cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
@@ -2335,6 +2351,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sendAbandonedRecoveryWhatsapp,
         updateAutoReview,
         sendReviewCollectionWhatsapp,
+        createReviewRequest,
         marketingCampaigns,
         createMarketingBroadcast,
         exportCustomersCSV,
