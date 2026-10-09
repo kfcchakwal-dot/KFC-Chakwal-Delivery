@@ -12,7 +12,7 @@ export const PageSectionsRenderer: React.FC<PageSectionsRendererProps> = ({ page
   const isDark = themeMode === 'dark';
 
   const sections = (settings.customSections || [])
-    .filter((sec) => (sec.page === page || sec.page === 'all') && sec.isVisible)
+    .filter((sec) => (sec.page === page || sec.page === 'all') && sec.isVisible && sec.id !== 'sec-delivery-guarantee' && !/picked from kallar kahar/i.test([sec.title, sec.subtitle, sec.description, sec.badgeText].filter(Boolean).join(' ')))
     .sort((a, b) => a.order - b.order);
 
   if (sections.length === 0 && !isAdmin) return null;
