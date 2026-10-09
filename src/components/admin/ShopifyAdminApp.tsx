@@ -931,7 +931,7 @@ export const ShopifyAdminApp: React.FC = () => {
               </div>
 
               {/* REAL-TIME LIVE ACTIVITY BAR (Visitors, Open Carts, Checking Out) */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
                   <div>
                     <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
