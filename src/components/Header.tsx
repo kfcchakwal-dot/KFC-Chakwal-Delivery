@@ -469,7 +469,7 @@ export const Header: React.FC = () => {
                 type="search"
                 aria-label="Search menu products"
                 role="combobox"
-                aria-expanded={searchQuery.trim().length > 0}
+                aria-expanded={isDesktopSearchFocused || searchQuery.trim().length > 0}
                 aria-controls="desktop-product-search-results"
                 value={searchQuery}
                 onFocus={() => { setIsDesktopSearchFocused(true); setDesktopSuggestionIndex(0); }}
