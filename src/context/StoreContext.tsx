@@ -287,7 +287,7 @@ interface StoreContextType {
     }
     const supported = await isSupported();
     if (!supported) throw new Error('Firebase Cloud Messaging is browser/device par supported nahi hai.');
-    const vapidKey = String((firebaseConfig as any).messagingVapidKey || '').trim();
+    const vapidKey = String(settings.messagingVapidKey || (firebaseConfig as any).messagingVapidKey || '').trim();
     if (!vapidKey) throw new Error('Push setup ka ek step baqi hai: Firebase Console > Project Settings > Cloud Messaging > Web Push certificates se public key copy karke firebase-applet-config.json ke messagingVapidKey mein add karein.');
     const registration = await navigator.serviceWorker.ready;
     const messaging = getMessaging(app);
