@@ -99,6 +99,19 @@ service cloud.firestore {
       allow write: if admin();
     }
 
+    // Admin-owned FCM tokens let the trusted server send new-order push alerts.
+    match /adminPushTokens/{tokenId} {
+      allow read: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create, update: if signedIn() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.token is string &&
+        request.resource.data.token.size() > 0;
+      allow delete: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
+    }
+
+    // Order review-request history is private to authorized admins.
+    match /reviewRequests/{id} { allow read, write: if admin(); }
+
     match /marketingCampaigns/{id} { allow read, write: if admin(); }
     match /abandonedCheckouts/{id} { allow read, write: if admin(); }
     match /notifications/{id} { allow read, write: if admin(); }
