@@ -76,7 +76,7 @@ const MainShop: React.FC = () => {
   const storefrontCategories = useMemo(() => {
     const knownIds = new Set(KFC_CATEGORIES.map((category) => String(category.id)));
     const extraIds = Array.from(new Set(menuItems.map((item) => String(item.categoryId)).filter((id) => id && !knownIds.has(id))));
-    return [...KFC_CATEGORIES, ...extraIds.map((id) => ({ id: id as CategoryId, name: id.replace(/-/g, ' ').replace(/\\b\\w/g, (m) => m.toUpperCase()), subtitle: '' }))];
+    return [...KFC_CATEGORIES, ...extraIds.map((id) => ({ id: id as CategoryId, name: id.replace(/-/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()), subtitle: '' }))];
   }, [menuItems]);
   const sectionColorCss = Object.entries(settings.sectionColorSchemes || {}).map(([key, scheme]) => {
     const selectors: Record<string, string> = {
