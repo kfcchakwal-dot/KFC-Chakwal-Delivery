@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
-import { auth } from '../../lib/firebase';
 import { 
   Globe, 
   CheckCircle2, 
@@ -51,31 +50,10 @@ export const CustomDomainManager: React.FC = () => {
   };
 
   const handleVerifyDNS = async () => {
-    if (!domainConfig.domain) return;
-    setIsVerifying(true);
-    setStatusMessage(null);
-    try {
-      const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
-      if (!token) throw new Error('Admin Firebase session required.');
-      const response = await fetch('/api/admin/verify-domain', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ domain: domainConfig.domain }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'DNS verification failed.');
-      updateCustomDomain({
-        status: data.connected ? 'connected' : 'pending_verification',
-        sslActive: data.sslActive === true,
-        connectedAt: data.verifiedAt || undefined,
-        aRecord: Array.isArray(data.resolvedIps) ? data.resolvedIps.join(', ') : '',
-      });
-      setStatusMessage(data.message || (data.connected ? 'DNS resolve ho raha hai. SSL hosting provider se confirm hoga.' : 'DNS record abhi resolve nahi ho raha.'));
-    } catch (error: any) {
-      setStatusMessage(error?.message || 'DNS verification failed.');
-    } finally {
-      setIsVerifying(false);
-    }
+    setIsVerifying(false);
+    setStatusMessage(
+      'Is Worker deployment mein DNS verification API configured nahi hai. Domain attach karne ke liye Cloudflare Dashboard > Workers & Pages > KFC Worker > Settings > Domains & Routes use karein. Sirf yahan domain save karne se domain ya SSL activate nahi hota.'
+    );
   };
 
   const handleDisconnect = () => {
@@ -102,7 +80,7 @@ export const CustomDomainManager: React.FC = () => {
             <span>Connect Custom Domain (Shopify Style)</span>
           </h2>
           <p className="text-xs text-zinc-500 mt-1">
-            Connect your own branded domain (e.g. <strong className="text-zinc-700">kfcchakwal.com</strong>) directly to your delivery app with automatic SSL security.
+            Apni domain ko Cloudflare Dashboard mein Worker ke saath attach karein. Is panel mein domain save karna akela DNS ya SSL configure nahi karta.
           </p>
         </div>
 
@@ -167,7 +145,7 @@ export const CustomDomainManager: React.FC = () => {
                   {domainConfig.domain}
                 </p>
                 <p className="text-[11px] text-zinc-500">
-                  Status: <strong className="capitalize">{domainConfig.status.replace('_', ' ')}</strong> · SSL: {domainConfig.sslActive ? 'Active (Auto-Renewing Let\'s Encrypt)' : 'Pending'}
+                  Status: <strong className="capitalize">{domainConfig.status.replace('_', ' ')}</strong> · SSL: {domainConfig.sslActive ? 'Reported active' : 'Not verified'}
                 </p>
               </div>
             </div>
@@ -206,7 +184,7 @@ export const CustomDomainManager: React.FC = () => {
         </div>
 
         <p className="text-xs text-zinc-600 leading-relaxed">
-          Log in to your domain provider (GoDaddy, Cloudflare, Namecheap) and add the following 2 DNS records to point your domain to KFC Chakwal Delivery:
+          DNS values hosting provider ke mutabiq hoti hain. Neeche values tabhi add karein jab Cloudflare Worker custom-domain setup exact records provide kare; yeh panel records automatically generate nahi karta.
         </p>
 
         <div className="overflow-x-auto">
@@ -272,7 +250,7 @@ export const CustomDomainManager: React.FC = () => {
         <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
           <Clock className="w-4 h-4 text-amber-600 shrink-0" />
           <span>
-            DNS propagation takes between 5 minutes to 24 hours depending on your registrar. Once records update, SSL certs are automatically generated.
+            DNS propagation aur SSL status Cloudflare Dashboard mein verify karein. Is panel se SSL automatically issue ya verify nahi hota.
           </span>
         </div>
       </div>
