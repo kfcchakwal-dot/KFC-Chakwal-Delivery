@@ -28,6 +28,7 @@ export const CustomerAuthModal: React.FC = () => {
     currentUser,
     signupUser,
     loginUser,
+    updateEmailMarketingConsent,
     resetCustomerPassword,
     signInWithGoogle,
     logoutUser,
@@ -47,6 +48,7 @@ export const CustomerAuthModal: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailMarketingConsent, setEmailMarketingConsent] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -55,6 +57,8 @@ export const CustomerAuthModal: React.FC = () => {
   const [signupError, setSignupError] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [authNotice, setAuthNotice] = useState('');
+  const [marketingPreferenceBusy, setMarketingPreferenceBusy] = useState(false);
+  const [marketingPreferenceNotice, setMarketingPreferenceNotice] = useState('');
 
   // Add Address form
   const [isAddingAddress, setIsAddingAddress] = useState(false);
@@ -71,7 +75,7 @@ export const CustomerAuthModal: React.FC = () => {
     setAuthNotice('');
     setAuthBusy(true);
     try {
-      const result = await signupUser({ fullName, email, password });
+      const result = await signupUser({ fullName, email, password, emailMarketingConsent });
       if (result.error === 'ACCOUNT_CREATED_VERIFY') {
         setAuthNotice(settings.customerAuthCopy?.verificationMessage || 'Aapki Gmail par verification email bheji gayi hai. Inbox/Spam check karke email verify karein, phir Sign In karein.');
         setTab('login');
@@ -93,7 +97,7 @@ export const CustomerAuthModal: React.FC = () => {
     setAuthNotice('');
     setAuthBusy(true);
     try {
-      const result = await loginUser(loginEmail, loginPassword);
+      const result = await loginUser(loginEmail, loginPassword, emailMarketingConsent);
       if (!result.success) setLoginError(result.error || 'Sign In nahi ho saka.');
     } catch (error: any) {
       setLoginError(error?.message || 'Sign In nahi ho saka. Dobara try karein.');
@@ -458,6 +462,15 @@ export const CustomerAuthModal: React.FC = () => {
               </div>
             )}
 
+            <div className={`rounded-xl border p-3 space-y-2 ${isDark ? 'border-zinc-700 bg-zinc-900/60' : 'border-zinc-200 bg-zinc-50'}`}>
+              <label className="flex items-start gap-2 text-xs">
+                <input type="checkbox" checked={currentUser.emailMarketingConsent === true} disabled={marketingPreferenceBusy} onChange={async (e) => { const next = e.target.checked; setMarketingPreferenceBusy(true); setMarketingPreferenceNotice(''); try { await updateEmailMarketingConsent(next); setMarketingPreferenceNotice(next ? 'Email marketing subscription on ho gayi.' : 'Aap email marketing se unsubscribe ho gaye hain.'); } catch (error: any) { setMarketingPreferenceNotice(error?.message || 'Preference save nahi ho saki. Dobara try karein.'); } finally { setMarketingPreferenceBusy(false); } }} className="mt-0.5 h-4 w-4 shrink-0 accent-[#e4002b]" />
+                <span className={isDark ? 'text-zinc-300' : 'text-zinc-700'}><strong>Email offers & promotions</strong><span className="block mt-1">KFC Chakwal Delivery se promotional emails receive karein. Checkbox uncheck karke kabhi bhi unsubscribe kar sakte hain.</span></span>
+              </label>
+              {marketingPreferenceBusy && <p className="text-[11px] text-zinc-500">Saving preference...</p>}
+              {marketingPreferenceNotice && <p role="status" className="text-[11px] text-emerald-600">{marketingPreferenceNotice}</p>}
+            </div>
+
             {/* Logout Button */}
             <div className="pt-2 border-t border-zinc-800/40">
               <button
@@ -552,6 +565,10 @@ export const CustomerAuthModal: React.FC = () => {
                     </button>
                   </div>
                 </div>
+                <label className={`flex items-start gap-2 rounded-xl border p-3 ${isDark ? 'border-zinc-700 bg-zinc-900/60 text-zinc-300' : 'border-zinc-200 bg-zinc-50 text-zinc-700'}`}>
+                  <input type="checkbox" checked={emailMarketingConsent} onChange={(e) => setEmailMarketingConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#e4002b]" />
+                  <span className="leading-relaxed">I agree to receive promotional emails, offers and updates from KFC Chakwal Delivery. I can unsubscribe anytime.</span>
+                </label>
                 <button type="submit" disabled={authBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
                   <span>{authBusy ? 'Please wait...' : (settings.customerAuthCopy?.signInButtonText || 'Sign In')}</span>
                   <ArrowRight className="w-4 h-4" />
@@ -577,6 +594,10 @@ export const CustomerAuthModal: React.FC = () => {
                   </label>
                   <input type="password" required minLength={6} autoComplete="new-password" placeholder="Kam az kam 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} className={`w-full text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#e4002b] border ${isDark ? 'bg-[#121214] border-[#2b2b35] text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'}`} />
                 </div>
+                <label className={`flex items-start gap-2 rounded-xl border p-3 ${isDark ? 'border-zinc-700 bg-zinc-900/60 text-zinc-300' : 'border-zinc-200 bg-zinc-50 text-zinc-700'}`}>
+                  <input type="checkbox" checked={emailMarketingConsent} onChange={(e) => setEmailMarketingConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#e4002b]" />
+                  <span className="leading-relaxed">I agree to receive promotional emails, offers and updates from KFC Chakwal Delivery. I can unsubscribe anytime.</span>
+                </label>
                 <button type="submit" disabled={authBusy} className="w-full bg-[#e4002b] disabled:opacity-60 hover:bg-[#c30025] text-white font-bold py-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
                   <span>{authBusy ? 'Please wait...' : (settings.customerAuthCopy?.createAccountButtonText || 'Account Banayein')}</span>
                   <Sparkles className="w-4 h-4 text-amber-300" />

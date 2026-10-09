@@ -33,7 +33,8 @@ service cloud.firestore {
         request.resource.data.keys().hasOnly([
           'id', 'fullName', 'phone', 'email', 'address', 'defaultAddress',
           'savedAddresses', 'loyaltyPoints', 'totalSpent', 'totalOrdersCount',
-          'ordersCount', 'createdAt', 'updatedAt', 'vipTier', 'vipStatus'
+          'ordersCount', 'createdAt', 'updatedAt', 'vipTier', 'vipStatus',
+          'emailMarketingConsent', 'emailMarketingConsentAt', 'emailMarketingConsentSource'
         ]) &&
         request.resource.data.loyaltyPoints == 50 &&
         request.resource.data.totalSpent == 0 &&
@@ -43,7 +44,8 @@ service cloud.firestore {
       allow update: if admin() || (
         owner(uid) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'fullName', 'phone', 'email', 'address', 'defaultAddress', 'savedAddresses', 'updatedAt'
+          'fullName', 'phone', 'email', 'address', 'defaultAddress', 'savedAddresses', 'updatedAt',
+          'emailMarketingConsent', 'emailMarketingConsentAt', 'emailMarketingConsentSource'
         ])
       );
       allow delete: if admin();
