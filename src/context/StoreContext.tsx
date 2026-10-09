@@ -88,7 +88,8 @@ const getFriendlyAuthError = (error: any): string => {
   if (code === 'auth/blocked') return 'Browser ya network ne sign-in block kiya. Pop-ups aur third-party sign-in cookies allow karein.';
   if (code === 'auth/credential-already-in-use') return 'Ye sign-in account pehle se doosray account ke sath linked hai.';
   if (code === 'auth/operation-not-allowed') return 'Firebase Console > Authentication > Sign-in method mein Google provider enable karein.';
-  if (code === 'auth/network-request-failed') return 'Internet connection check karke dobara try karein.';
+  if (code === 'auth/network-request-failed') return 'Google/Firebase sign-in request network ya browser security se block hui. Internet active ho to redirect se dobara try karein; VPN/ad-blocker ya third-party cookies bhi check karein.';
+  if (code === 'auth/requests-to-this-api-have-been-blocked') return 'Firebase Authentication request block ho rahi hai. Firebase API key restrictions, authorized domains aur browser extensions check karein.';
   if (code === 'auth/cancelled-popup-request') return 'Google login pehle se open hai. Us window ko complete karein.';
   if (code === 'auth/invalid-api-key') return 'Firebase API key invalid hai. Firebase app configuration check karein.';
   if (code === 'permission-denied' || code === 'firestore/permission-denied') return 'Customer profile save nahi hua. Firebase Console mein isi named Firestore database ke latest firestore.rules publish karein.';
@@ -714,13 +715,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return [];
   });
 
-  // Store settings/catalogue sync directly with Firestore for static hosting.
+  // Live Firestore listener avoids repeatedly downloading the full catalogue on a timer.
   useEffect(() => {
-    const loadStoreData = async () => {
+    let active = true;
+    const applyStoreSnapshot = (snapshot: any) => {
+      if (!active || !snapshot.exists()) return;
+      const data: any = snapshot.data() || {};
+      if (data.settings) {
+        setSettings((prev) => ({
+          ...prev, ...data.settings,
+          phone: '+92 325 2777574',
+          whatsappNumber: '+92 325 2777574',
+          deliveryRadiusText: 'Within 3 KM of Chakwal City',
+        }));
+        if (Array.isArray(data.settings.deliveryMethods)) setDeliveryMethods(data.settings.deliveryMethods);
+      }
+      if (Array.isArray(data.menuItems) && data.menuItems.length) setMenuItems(data.menuItems);
+      if (Array.isArray(data.discounts) && data.discounts.length) setDiscounts(data.discounts);
+      if (Array.isArray(data.policies)) setPolicies(data.policies);
+      if (Array.isArray(data.chakwalAreas) && data.chakwalAreas.length) setChakwalAreas(data.chakwalAreas);
+      setServerSyncStatus('synced');
+    };
+
+    const unsubscribe = onSnapshot(doc(db, 'storePublic', 'global'), async (snapshot) => {
       try {
-        let snapshot = await getDoc(doc(db, 'storePublic', 'global'));
         if (!snapshot.exists() && isAdmin) {
-          // Migrate older server-backed settings into the sanitized public document once.
+          // One-time migration for older admin settings; the public listener will receive the new document.
           const legacy = await getDoc(doc(db, 'storeSettings', 'global'));
           if (legacy.exists()) {
             const legacyData: any = legacy.data() || {};
@@ -744,33 +764,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               delete publicData.metaCommerce.conversionsApiToken;
             }
             await setDoc(doc(db, 'storePublic', 'global'), publicData, { merge: true });
-            snapshot = await getDoc(doc(db, 'storePublic', 'global'));
+            return;
           }
         }
-        if (!snapshot.exists()) return;
-        const data: any = snapshot.data() || {};
-        if (data.settings) {
-          setSettings((prev) => ({
-            ...prev, ...data.settings,
-            phone: '+92 325 2777574',
-            whatsappNumber: '+92 325 2777574',
-            deliveryRadiusText: 'Within 3 KM of Chakwal City',
-          }));
-          if (Array.isArray(data.settings.deliveryMethods)) setDeliveryMethods(data.settings.deliveryMethods);
-        }
-        if (Array.isArray(data.menuItems) && data.menuItems.length) setMenuItems(data.menuItems);
-        if (Array.isArray(data.discounts) && data.discounts.length) setDiscounts(data.discounts);
-        if (Array.isArray(data.policies)) setPolicies(data.policies);
-        if (Array.isArray(data.chakwalAreas) && data.chakwalAreas.length) setChakwalAreas(data.chakwalAreas);
-        setServerSyncStatus('synced');
+        applyStoreSnapshot(snapshot);
       } catch (error) {
-        console.warn('Store data Firestore read notice:', error);
-        setServerSyncStatus('offline');
+        console.warn('Store data Firestore sync notice:', error);
+        if (active) setServerSyncStatus('offline');
       }
+    }, (error) => {
+      console.warn('Store data Firestore read notice:', error);
+      if (active) setServerSyncStatus('offline');
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
     };
-    void loadStoreData();
-    const interval = setInterval(() => { void loadStoreData(); }, 12000);
-    return () => clearInterval(interval);
   }, [isAdmin]);
 
   // =========================================================================
@@ -978,7 +988,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     ordersInitializedRef.current = false;
     previousOrderCountRef.current = 0;
     void fetchOrders();
-    const interval = setInterval(() => { void fetchOrders(); }, 3000);
+    const interval = setInterval(() => { void fetchOrders(); }, 15000);
     return () => clearInterval(interval);
   }, [settings.orderNotificationSound, isAdmin]);
 
@@ -1120,7 +1130,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return { success: true };
     } catch (err: any) {
       console.error('Admin Google authentication failure:', err);
-      if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported'].includes(err?.code)) {
+      if ((['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported'].includes(err?.code) || (err?.code === 'auth/network-request-failed' && typeof window !== 'undefined' && window.navigator.onLine))) {
         try {
           await signInWithRedirect(auth, provider);
           return { success: true };
