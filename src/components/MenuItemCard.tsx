@@ -76,9 +76,9 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const shareUrl = `${window.location.origin}/?product=${encodeURIComponent(item.id)}`;
-    const shortDescription = (item.description || 'Fresh KFC meal from KFC Chakwal Delivery.').trim().split(/\\s+/).slice(0, 28).join(' ');
+    const shortDescription = (item.description || 'Fresh KFC meal from KFC Chakwal Delivery.').trim().split(/\s+/).slice(0, 28).join(' ');
     const imageUrl = item.image || '';
-    const shareText = `${item.name}\\n${shortDescription}${shortDescription.endsWith('...') ? '' : '...'}\\nSelling Price: ${formatPKR(effectivePrice)}\\nOrder: ${shareUrl}${imageUrl ? `\\nProduct image: ${imageUrl}` : ''}`;
+    const shareText = `${item.name}\n${shortDescription}${shortDescription.endsWith('...') ? '' : '...'}\nSelling Price: ${formatPKR(effectivePrice)}\nOrder: ${shareUrl}${imageUrl ? `\nProduct image: ${imageUrl}` : ''}`;
     if (navigator.share) {
       try {
         if (imageUrl && navigator.canShare && navigator.canShare({ files: [new File([], 'product.jpg', { type: 'image/jpeg' })] })) {
