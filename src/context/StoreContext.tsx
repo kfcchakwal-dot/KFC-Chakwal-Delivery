@@ -1648,7 +1648,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       fullName: updatedUser.fullName, email: updatedUser.email || '',
       defaultAddress: updatedUser.address, savedAddresses: updatedUser.savedAddresses,
       updatedAt: new Date().toISOString(),
-    }, { merge: true }).catch((error) => console.warn('Saved address sync failed:', error));    })();
+    }, { merge: true }).catch((error) => console.warn('Saved address sync failed:', error));
   };
 
   const deleteSavedAddress = (addressId: string) => {
@@ -1665,7 +1665,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     void setDoc(doc(db, 'customers', currentUser.id), {
       defaultAddress: updatedUser.address, savedAddresses: updatedUser.savedAddresses,
       updatedAt: new Date().toISOString(),
-    }, { merge: true }).catch((error) => console.warn('Address deletion sync failed:', error));    })();
+    }, { merge: true }).catch((error) => console.warn('Address deletion sync failed:', error));
   };
 
   const repeatOrder = (order: Order) => {
