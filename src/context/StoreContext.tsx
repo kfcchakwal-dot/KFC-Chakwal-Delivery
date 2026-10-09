@@ -886,10 +886,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   useEffect(() => {
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 3000);
+    void fetchOrders();
+    const interval = setInterval(() => { void fetchOrders(); }, 3000);
     return () => clearInterval(interval);
-  }, [settings.orderNotificationSound]);
+  }, [settings.orderNotificationSound, isAdmin]);
 
   // Admin-only customer and VIP request loading.
   const fetchCustomers = async () => {
