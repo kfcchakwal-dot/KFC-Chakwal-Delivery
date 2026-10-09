@@ -81,7 +81,7 @@ export const ItemCustomizeModal: React.FC = () => {
             <img
               src={item.image}
               alt={item.name}
-              className="w-full h-full object-cover object-center"
+              className="w-full h-full object-contain object-center bg-zinc-50 p-2"
               referrerPolicy="no-referrer"
               onError={(e) => {
                 e.currentTarget.src = '/src/assets/images/kfc_hero_zinger_combo_1791015805739.jpg';
@@ -284,7 +284,7 @@ export const ItemCustomizeModal: React.FC = () => {
             aria-label="Confirm and add to bucket"
           >
             <span>ADD TO BUCKET</span>
-            <span className="font-sans text-sm font-extrabold tabular-nums bg-black/25 px-2.5 py-1 rounded-lg">
+            <span className="font-sans text-sm font-extrabold tabular-nums">
               {formatPKR(totalPrice)}
             </span>
           </button>

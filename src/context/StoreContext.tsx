@@ -982,19 +982,53 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => clearInterval(interval);
   }, [settings.orderNotificationSound, isAdmin]);
 
-  // Admin-only customer and VIP request loading.
+  // Manual refresh helper retained for the admin UI; the live listener below keeps this current automatically.
   const fetchCustomers = async () => {
     if (!auth.currentUser || !isAdmin) return;
     try {
       const snapshot = await getDocs(collection(db, 'customers'));
-      const data = snapshot.docs.map((item) => { const record = item.data() as Omit<CustomerLoyaltyRecord, 'id'>; return { id: item.id, ...record, address: record.address || record.defaultAddress || '', defaultAddress: record.defaultAddress || record.address || '', savedAddresses: record.savedAddresses || [] }; });
+      const data = snapshot.docs.map((item) => {
+        const record = item.data() as Omit<CustomerLoyaltyRecord, 'id'>;
+        return {
+          id: item.id,
+          ...record,
+          email: record.email || '',
+          phone: record.phone || '',
+          address: record.address || record.defaultAddress || '',
+          defaultAddress: record.defaultAddress || record.address || '',
+          savedAddresses: record.savedAddresses || [],
+        };
+      });
       setCustomerRecords(data);
       localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(data));
     } catch (error) {
-      console.warn('Customers Firestore read notice:', error);
+      console.warn('Customers Firestore refresh notice:', error);
     }
   };
-  useEffect(() => { void fetchCustomers(); }, [isAdmin]);
+
+  // Keep the customer admin list synced live so new Google-account profiles appear without a refresh.
+  useEffect(() => {
+    if (!isAdmin || !auth.currentUser) return;
+    const unsubscribe = onSnapshot(collection(db, 'customers'), (snapshot) => {
+      const data = snapshot.docs.map((item) => {
+        const record = item.data() as Omit<CustomerLoyaltyRecord, 'id'>;
+        return {
+          id: item.id,
+          ...record,
+          email: record.email || '',
+          phone: record.phone || '',
+          address: record.address || record.defaultAddress || '',
+          defaultAddress: record.defaultAddress || record.address || '',
+          savedAddresses: record.savedAddresses || [],
+        };
+      });
+      setCustomerRecords(data);
+      localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(data));
+    }, (error) => {
+      console.warn('Customers Firestore live sync notice:', error);
+    });
+    return () => unsubscribe();
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin || !auth.currentUser) return;
@@ -1526,13 +1560,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const address = String(customer.address || currentUser?.defaultAddress || currentUser?.address || '').trim();
       const fullName = String(customer.fullName || currentUser?.fullName || user.displayName || 'Customer').trim();
       const email = String(user.email || currentUser?.email || '').trim();
-      const existingAddresses = currentUser?.savedAddresses || [];
-      const addressExists = address && existingAddresses.some((saved) => saved.address.trim().toLowerCase() === address.toLowerCase());
+      const customerProfileRef = doc(db, 'customers', user.uid);
+      const existingCustomerProfile = await getDoc(customerProfileRef);
+      const savedProfile: Record<string, any> = existingCustomerProfile.exists() ? existingCustomerProfile.data() : {};
+      const existingAddresses = Array.isArray(savedProfile.savedAddresses)
+        ? savedProfile.savedAddresses as CustomerAddress[]
+        : (currentUser?.savedAddresses || []);
+      const addressExists = address && existingAddresses.some((saved) => String(saved.address || '').trim().toLowerCase() === address.toLowerCase());
       const savedAddresses = address && !addressExists
         ? [...existingAddresses, { id: `addr-${Date.now()}`, label: 'Recent Order', address }]
         : existingAddresses;
-      const customerProfileRef = doc(db, 'customers', user.uid);
-      const existingCustomerProfile = await getDoc(customerProfileRef);
       const profileUpdate = {
         fullName,
         email,
@@ -1903,8 +1940,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
 
     void setDoc(doc(db, 'customers', currentUser.id), {
-      fullName: updatedUser.fullName, email: updatedUser.email || '',
-      defaultAddress: updatedUser.address, savedAddresses: updatedUser.savedAddresses,
+      fullName: updatedUser.fullName,
+      email: updatedUser.email || '',
+      phone: updatedUser.phone || '',
+      address: updatedUser.address,
+      defaultAddress: updatedUser.address,
+      savedAddresses: updatedUser.savedAddresses,
       updatedAt: new Date().toISOString(),
     }, { merge: true }).catch((error) => console.warn('Saved address sync failed:', error));
   };

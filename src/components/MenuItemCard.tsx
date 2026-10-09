@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { MenuItem, BadgePosition } from '../types';
 import { useStore } from '../context/StoreContext';
-import { Heart, SlidersHorizontal, Tag, Share2, Check } from 'lucide-react';
+import { Heart, SlidersHorizontal, Share2, Check } from 'lucide-react';
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -122,12 +122,12 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
       }`}
     >
       {/* Card Top: Image & Badges */}
-      <div ref={imageAreaRef} className="relative aspect-[4/3] sm:aspect-[5/4] w-full bg-white overflow-hidden flex items-center justify-center">
+      <div ref={imageAreaRef} className="relative aspect-square sm:aspect-[4/3] w-full bg-white overflow-hidden flex items-center justify-center">
         {item.image ? (
           <img
             src={item.image}
             alt={item.name}
-            className="w-full h-full object-contain p-2 sm:p-3 object-center transform group-hover:scale-[1.02] transition-transform duration-300"
+            className="w-full h-full object-contain p-1 sm:p-2 object-center transform group-hover:scale-[1.02] transition-transform duration-300"
             loading="lazy"
             referrerPolicy="no-referrer"
             onError={(e) => {
@@ -151,11 +151,6 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
 
         {/* Admin-managed product labels */}
         <div className={`absolute ${positionClasses[badgePosition]} flex flex-wrap gap-1 z-10 pointer-events-none`}>
-          {hasComparePrice && discountPercent > 0 && (
-            <span className="bg-emerald-600 text-white text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-md tracking-wider flex items-center gap-0.5">
-              <Tag className="w-2.5 h-2.5" />SAVE {discountPercent}%
-            </span>
-          )}
           {(Array.isArray(item.badges)
             ? item.badges
             : item.customBadgeText

@@ -576,7 +576,7 @@ export const ProductPage: React.FC = () => {
                 <span className="flex items-center gap-2">
                   {addedAnimation ? 'ADDED TO BUCKET!' : 'ADD TO BUCKET'}
                 </span>
-                <span className="font-sans text-base font-extrabold bg-black/25 px-3 py-1 rounded-xl tabular-nums">
+                <span className="font-sans text-base font-extrabold tabular-nums">
                   {formatPKR(totalPrice)}
                 </span>
               </button>
