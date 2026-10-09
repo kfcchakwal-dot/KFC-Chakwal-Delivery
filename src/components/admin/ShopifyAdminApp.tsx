@@ -53,6 +53,7 @@ import {
   Send,
   UserCheck,
   Printer,
+  Receipt,
   UploadCloud,
   FolderPlus,
   Boxes,
