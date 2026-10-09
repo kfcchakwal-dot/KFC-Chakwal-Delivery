@@ -313,7 +313,7 @@ export const ShopifyAdminApp: React.FC = () => {
   const [newProdBadge, setNewProdBadge] = useState('');
 
   // Orders Filter
-  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'confirmed' | 'kitchen' | 'dispatched' | 'delivered'>('all');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'confirmed' | 'kitchen' | 'dispatched' | 'delivered' | 'cancelled'>('all');
 
   // Delivery Method Form state
   const [editingDeliveryMethod, setEditingDeliveryMethod] = useState<DeliveryMethod | null>(null);
@@ -1419,6 +1419,7 @@ export const ShopifyAdminApp: React.FC = () => {
                   { id: 'kitchen', label: 'Kitchen / Cooking' },
                   { id: 'dispatched', label: 'On Bike Rider' },
                   { id: 'delivered', label: 'Delivered' },
+                  { id: 'cancelled', label: 'Cancelled' },
                 ].map((st) => (
                   <button
                     key={st.id}
@@ -3294,8 +3295,8 @@ export const ShopifyAdminApp: React.FC = () => {
       {/* ========================================================================= */}
       {editingItem && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-xl bg-white border border-zinc-200 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in duration-150">
-            <div className="bg-zinc-50 p-4 border-b border-zinc-200 flex items-center justify-between">
+          <div className="w-full max-w-xl max-h-[calc(100vh-2rem)] bg-white border border-zinc-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in duration-150">
+            <div className="sticky top-0 z-10 bg-zinc-50 p-4 border-b border-zinc-200 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-zinc-900 text-sm uppercase">
                 Edit Product: {editingItem.name}
               </h3>
@@ -3304,7 +3305,7 @@ export const ShopifyAdminApp: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs">
+            <div className="p-6 space-y-4 text-xs overflow-y-auto min-h-0">
               <div>
                 <label className="block text-zinc-700 font-bold mb-1">Product Title</label>
                 <input
