@@ -1519,6 +1519,52 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       discountCode: appliedDiscountCode || null,
       redeemLoyaltyPoints: requestedLoyaltyDiscount > 0,
     }));
+    // Persist delivery contact details against the authenticated Google account before accepting the order.
+    // If this write fails, stop checkout rather than silently losing the customer's phone/address.
+    if (user) {
+      const phone = String(customer.phone || currentUser?.phone || user.phoneNumber || '').trim();
+      const address = String(customer.address || currentUser?.defaultAddress || currentUser?.address || '').trim();
+      const fullName = String(customer.fullName || currentUser?.fullName || user.displayName || 'Customer').trim();
+      const email = String(user.email || currentUser?.email || '').trim();
+      const existingAddresses = currentUser?.savedAddresses || [];
+      const addressExists = address && existingAddresses.some((saved) => saved.address.trim().toLowerCase() === address.toLowerCase());
+      const savedAddresses = address && !addressExists
+        ? [...existingAddresses, { id: `addr-${Date.now()}`, label: 'Recent Order', address }]
+        : existingAddresses;
+      const profileUpdate = {
+        id: user.uid,
+        uid: user.uid,
+        fullName,
+        email,
+        phone,
+        address,
+        defaultAddress: address,
+        savedAddresses,
+        lastOrderId: savedOrder.id,
+        lastOrderAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ...(currentUser?.createdAt ? {} : { createdAt: new Date().toISOString() }),
+      };
+      await setDoc(doc(db, 'customers', user.uid), profileUpdate, { merge: true });
+      const updatedProfile: CustomerUser = {
+        id: user.uid,
+        fullName,
+        email,
+        phone,
+        address,
+        defaultAddress: address,
+        savedAddresses,
+        loyaltyPoints: Number(currentUser?.loyaltyPoints || 0),
+        createdAt: currentUser?.createdAt || new Date().toISOString(),
+        totalSpent: Number(currentUser?.totalSpent || 0) + Number(savedOrder.total || 0),
+        ordersCount: Number(currentUser?.ordersCount || 0) + 1,
+        ...(currentUser?.vipTier ? { vipTier: currentUser.vipTier } : {}),
+        ...(currentUser?.vipStatus ? { vipStatus: currentUser.vipStatus } : {}),
+      };
+      setCurrentUser(updatedProfile);
+      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedProfile));
+    }
+
     await setDoc(doc(db, 'orders', savedOrder.id), firestoreOrder);
 
     // Only update local customer/order state after the server has accepted the order.
