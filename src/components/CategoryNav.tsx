@@ -35,7 +35,7 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
   const categories = useMemo(() => {
     const knownIds = new Set(KFC_CATEGORIES.map((category) => category.id as string));
     const extraIds = Array.from(new Set(menuItems.map((item) => String(item.categoryId)).filter((id) => id && !knownIds.has(id))));
-    const extras = extraIds.map((id) => ({ id: id as CategoryId, name: id.replace(/-/g, ' ').replace(/\\b\\w/g, (m) => m.toUpperCase()), subtitle: '' }));
+    const extras = extraIds.map((id) => ({ id: id as CategoryId, name: id.replace(/-/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()), subtitle: '' }));
     const all = [...KFC_CATEGORIES, ...extras];
     const order = settings.collectionNavOrder || [];
     const hidden = settings.collectionNavHidden || [];
