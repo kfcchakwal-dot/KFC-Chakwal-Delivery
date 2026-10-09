@@ -151,11 +151,6 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
 
         {/* Admin-managed product labels */}
         <div className={`absolute ${positionClasses[badgePosition]} flex flex-wrap gap-1 z-10 pointer-events-none`}>
-          {hasComparePrice && discountPercent > 0 && (
-            <span className="bg-emerald-600 text-white text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-md tracking-wider flex items-center gap-0.5">
-              <Tag className="w-2.5 h-2.5" />SAVE {discountPercent}%
-            </span>
-          )}
           {(Array.isArray(item.badges)
             ? item.badges
             : item.customBadgeText
