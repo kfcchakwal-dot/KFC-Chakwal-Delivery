@@ -871,7 +871,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification('🍗 New KFC Chakwal Order', {
             body: 'New order #' + (data[0]?.id || '') + ' received. Open Seller Center to review it.',
-            icon: '/icon-192.png',
+            icon: '/pwa-192.png',
             tag: 'kfc-new-order-' + (data[0]?.id || ''),
           });
         }
