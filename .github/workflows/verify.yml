@@ -15,5 +15,9 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Dependency security audit
+        run: |
+          npm audit --json > npm-audit.json || true
+          node -e "const a=require('./npm-audit.json'); console.log(JSON.stringify({summary:a.metadata?.vulnerabilities, packages:Object.entries(a.vulnerabilities||{}).map(([name,v])=>({name,severity:v.severity,range:v.range,fixAvailable:v.fixAvailable,via:v.via.map(x=>typeof x==='string'?x:x.title)}))},null,2))"
       - run: npm run lint
       - run: npm run build
