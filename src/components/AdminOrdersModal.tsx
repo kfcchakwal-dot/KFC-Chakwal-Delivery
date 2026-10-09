@@ -60,10 +60,13 @@ export const AdminOrdersModal: React.FC = () => {
   const [defaultPrintFormat, setDefaultPrintFormat] = useState<'thermal' | 'a4'>(() => {
     try { return localStorage.getItem('kfc-admin-default-print-format') === 'a4' ? 'a4' : 'thermal'; } catch { return 'thermal'; }
   });
-  const [rememberPrintFormat, setRememberPrintFormat] = useState(false);
+  const [selectedPrintFormat, setSelectedPrintFormat] = useState<'thermal' | 'a4'>(() => {
+    try { return localStorage.getItem('kfc-admin-default-print-format') === 'a4' ? 'a4' : 'thermal'; } catch { return 'thermal'; }
+  });
 
   const setPrintDefault = (format: 'thermal' | 'a4') => {
     setDefaultPrintFormat(format);
+    setSelectedPrintFormat(format);
     try { localStorage.setItem('kfc-admin-default-print-format', format); } catch { /* browser storage may be disabled */ }
   };
 
@@ -123,15 +126,13 @@ export const AdminOrdersModal: React.FC = () => {
     const doc = iframe.contentWindow?.document;
     if (doc) {
       doc.open(); doc.write(receiptHtml); doc.close();
-      iframe.onload = () => { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); };
-      // Some browsers do not fire load after document.write.
+      // Wait briefly for the generated receipt document to lay out before opening print.
       setTimeout(() => { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); }, 250);
     }
     setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 30000);
   };
 
   const handlePrintReceipt = (order: Order, format: 'thermal' | 'a4' = defaultPrintFormat) => {
-    if (rememberPrintFormat) setPrintDefault(format);
     handlePrintReceipts([order], format);
   };
 
@@ -277,10 +278,10 @@ export const AdminOrdersModal: React.FC = () => {
         </div>
 
         <div className="px-4 py-3 bg-[#17171b] border-b border-[#26262d] flex flex-wrap items-center gap-2">
-          <span className="text-xs text-zinc-400">Default bill:</span>
-          <select value={defaultPrintFormat} onChange={(e) => setPrintDefault(e.target.value as 'thermal' | 'a4')} className="rounded-lg border border-[#373744] bg-[#121214] px-2.5 py-2 text-xs text-white"><option value="thermal">Thermal receipt</option><option value="a4">A4 bill</option></select>
-          <label className="flex items-center gap-1.5 text-xs text-zinc-400"><input type="checkbox" checked={rememberPrintFormat} onChange={(e) => setRememberPrintFormat(e.target.checked)} className="accent-red-600"/> Make chosen format default when printing</label>
-          <button type="button" disabled={!selectedOrderIds.length} onClick={handlePrintSelectedReceipts} className="rounded-lg border border-amber-600/50 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200 disabled:opacity-40"><Printer className="mr-1 inline h-3.5 w-3.5"/>Print selected bills ({selectedOrderIds.length})</button>
+          <span className="text-xs text-zinc-400">Print format:</span>
+          <select value={selectedPrintFormat} onChange={(e) => setSelectedPrintFormat(e.target.value as 'thermal' | 'a4')} className="rounded-lg border border-[#373744] bg-[#121214] px-2.5 py-2 text-xs text-white"><option value="thermal">Thermal receipt</option><option value="a4">A4 bill</option></select>
+          <button type="button" onClick={() => setPrintDefault(selectedPrintFormat)} className="rounded-lg border border-emerald-700/60 bg-emerald-900/20 px-3 py-2 text-xs font-bold text-emerald-300">Make Default ({defaultPrintFormat.toUpperCase()})</button>
+          <button type="button" disabled={!selectedOrderIds.length} onClick={() => { const selected = allOrders.filter((order) => selectedOrderIds.includes(order.id)); if (selected.length) handlePrintReceipts(selected, selectedPrintFormat); }} className="rounded-lg border border-amber-600/50 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200 disabled:opacity-40"><Printer className="mr-1 inline h-3.5 w-3.5"/>Print selected bills ({selectedOrderIds.length})</button>
           <label className="flex items-center gap-2 text-xs text-zinc-300"><input type="checkbox" checked={filteredOrders.length > 0 && filteredOrders.every((o) => selectedOrderIds.includes(o.id))} onChange={(e) => setSelectedOrderIds(e.target.checked ? Array.from(new Set([...selectedOrderIds, ...filteredOrders.map((o) => o.id)])) : selectedOrderIds.filter((id) => !filteredOrders.some((o) => o.id === id)))} className="accent-red-600" />Select filtered ({filteredOrders.length})</label>
           <span className="text-xs text-zinc-500">{selectedOrderIds.length} selected</span>
           <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as Order['status'])} className="rounded-lg border border-[#373744] bg-[#121214] px-2.5 py-2 text-xs text-white"><option value="confirmed">Confirmed / Received</option><option value="kitchen">In Kitchen / Processing</option><option value="dispatched">Dispatched</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select>
