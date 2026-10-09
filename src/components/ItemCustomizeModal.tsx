@@ -19,6 +19,7 @@ export const ItemCustomizeModal: React.FC = () => {
 
   const [quantity, setQuantity] = useState(1);
   const [drink, setDrink] = useState<string>('Pepsi Can (345ml)');
+  const [spiceLevel, setSpiceLevel] = useState<'Hot & Crispy' | 'Original Recipe'>('Original Recipe');
   const [selectedAddons, setSelectedAddons] = useState<MenuItemAddon[]>([]);
   const [specialInstructions, setSpecialInstructions] = useState('');
 
@@ -27,6 +28,7 @@ export const ItemCustomizeModal: React.FC = () => {
     if (item) {
       setQuantity(1);
       setDrink('Pepsi Can (345ml)');
+      setSpiceLevel('Original Recipe');
       setSelectedAddons([]);
       setSpecialInstructions('');
     }
@@ -51,6 +53,7 @@ export const ItemCustomizeModal: React.FC = () => {
     addToCart(
       item,
       {
+        spiceLevel: item.customizableOptions?.allowSpiceLevel ? spiceLevel : undefined,
         drink: item.customizableOptions?.allowDrinkChoice ? drink : undefined,
         addons: selectedAddons,
         specialInstructions: specialInstructions.trim() || undefined,
@@ -118,6 +121,19 @@ export const ItemCustomizeModal: React.FC = () => {
         {/* Modal Scrollable Body */}
         <div className="p-4 sm:p-6 space-y-5 max-h-[60vh] overflow-y-auto">
           
+          {item.customizableOptions?.allowSpiceLevel && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 mb-2">Choose chicken style</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['Original Recipe', 'Hot & Crispy'] as const).map((choice) => (
+                  <button key={choice} type="button" onClick={() => setSpiceLevel(choice)} className={`p-3 rounded-xl border text-xs font-bold ${spiceLevel === choice ? 'border-[#e4002b] bg-red-50 text-zinc-900' : 'border-zinc-200 bg-zinc-50 text-zinc-700'}`}>
+                    {choice}{spiceLevel === choice ? ' ✓' : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Drink Selection with Thumbnails (if allowed) */}
           {item.customizableOptions?.allowDrinkChoice && (
             <div>
@@ -278,7 +294,7 @@ export const ItemCustomizeModal: React.FC = () => {
           <button
             type="button"
             onClick={handleConfirmAddToCart}
-            className="flex-1 min-h-[48px] bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-lg sm:text-xl py-3 px-4 rounded-xl font-bold flex items-center justify-between shadow-xl shadow-red-950/40 cursor-pointer transition-all active:scale-[0.98]"
+            className="buy-button flex-1 min-h-[48px] bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-lg sm:text-xl py-3 px-4 rounded-xl font-bold flex items-center justify-between shadow-xl shadow-red-950/40 cursor-pointer transition-all active:scale-[0.98]"
             aria-label="Confirm and add to bucket"
           >
             <span>ADD TO BUCKET</span>

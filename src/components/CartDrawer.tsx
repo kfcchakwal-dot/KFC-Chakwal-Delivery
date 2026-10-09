@@ -416,7 +416,7 @@ export const CartDrawer: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleProceedToCheckout}
-                    className="bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-lg px-5 py-2.5 rounded-xl font-black flex items-center gap-2 cursor-pointer transition-transform active:scale-95 shadow-md"
+                    className="buy-button bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-lg px-5 py-2.5 rounded-xl font-black flex items-center gap-2 cursor-pointer transition-transform active:scale-95 shadow-md"
                   >
                     <span>Checkout</span>
                     <ArrowRight className="w-4 h-4 stroke-[2.5]" />

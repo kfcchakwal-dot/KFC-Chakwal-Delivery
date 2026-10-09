@@ -73,7 +73,7 @@ import { MetaAdsManager } from './MetaAdsManager';
 import { VipClubManager } from './VipClubManager';
 import { OrderEditModal } from './OrderEditModal';
 import { BulkProductEditor } from './BulkProductEditor';
-import { CategoryId, MenuItem, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
+import { CategoryId, MenuItem, MenuItemAddon, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
 import { KFC_CATEGORIES } from '../../data/kfcMenu';
 import { auth, db } from '../../lib/firebase';
 import { collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc } from 'firebase/firestore';
@@ -274,6 +274,9 @@ export const ShopifyAdminApp: React.FC = () => {
 
   // New product multiple images, inventory, variants
   const [newProdGallery, setNewProdGallery] = useState<string[]>([]);
+  const [newProdAllowSpice, setNewProdAllowSpice] = useState(false);
+  const [newProdAllowDrink, setNewProdAllowDrink] = useState(false);
+  const [newProdAddons, setNewProdAddons] = useState<MenuItemAddon[]>([]);
   const [newProdTrackInventory, setNewProdTrackInventory] = useState(false);
   const [newProdStockQty, setNewProdStockQty] = useState(50);
   const [newProdHasVariants, setNewProdHasVariants] = useState(false);
@@ -604,6 +607,25 @@ export const ShopifyAdminApp: React.FC = () => {
     return order.status === orderStatusFilter;
   });
 
+  const updateEditingCustomization = (patch: Partial<NonNullable<MenuItem['customizableOptions']>>) => {
+    if (!editingItem) return;
+    setEditingItem({ ...editingItem, customizableOptions: { ...editingItem.customizableOptions, ...patch } });
+  };
+  const updateEditingAddon = (index: number, patch: Partial<MenuItemAddon>) => {
+    if (!editingItem) return;
+    const addons = [...(editingItem.customizableOptions?.availableAddons || [])];
+    addons[index] = { ...addons[index], ...patch };
+    updateEditingCustomization({ availableAddons: addons });
+  };
+  const addEditingAddon = () => {
+    if (!editingItem) return;
+    updateEditingCustomization({ availableAddons: [...(editingItem.customizableOptions?.availableAddons || []), { id: `addon-${Date.now()}`, name: '', price: 0 }] });
+  };
+  const removeEditingAddon = (index: number) => {
+    if (!editingItem) return;
+    updateEditingCustomization({ availableAddons: (editingItem.customizableOptions?.availableAddons || []).filter((_, i) => i !== index) });
+  };
+
   // Handle Add Product Submit
   const handleAddProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -618,6 +640,8 @@ export const ShopifyAdminApp: React.FC = () => {
       sellingPrice: newProdSellingPrice ? Number(newProdSellingPrice) : undefined,
       compareAtPrice: newProdComparePrice ? Number(newProdComparePrice) : undefined,
       image: newProdImage.trim(), // Can be empty or URL
+      galleryImages: newProdGallery.filter(Boolean),
+      customizableOptions: { allowSpiceLevel: newProdAllowSpice, allowDrinkChoice: newProdAllowDrink, availableAddons: newProdAddons.filter((addon) => addon.name.trim()) },
       isAvailable: true,
       customBadgeText: newProdBadge.trim() || undefined,
     };
@@ -630,6 +654,9 @@ export const ShopifyAdminApp: React.FC = () => {
     setNewProdComparePrice('');
     setNewProdBadge('');
     setNewProdGallery([]);
+    setNewProdAllowSpice(false);
+    setNewProdAllowDrink(false);
+    setNewProdAddons([]);
     setNewProdTrackInventory(false);
     setNewProdStockQty(50);
     setNewProdHasVariants(false);
@@ -1044,7 +1071,7 @@ export const ShopifyAdminApp: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => setIsAddingProduct(true)}
+                    onClick={() => { setNewProdGallery([]); setNewProdAllowSpice(false); setNewProdAllowDrink(false); setNewProdAddons([]); setIsAddingProduct(true); }}
                     className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-red-950/20 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
@@ -3239,6 +3266,34 @@ export const ShopifyAdminApp: React.FC = () => {
                 helperText="Upload any product photo from your device, or choose from presets."
               />
 
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div><h4 className="font-black text-zinc-900">Additional Product Images</h4><p className="text-[11px] text-zinc-500">Multiple photos for this product.</p></div>
+                  <button type="button" onClick={() => setNewProdGallery((prev) => [...prev, ''])} className="px-3 py-2 rounded-lg text-xs font-bold">+ Add image</button>
+                </div>
+                {newProdGallery.map((url, index) => (
+                  <div key={`edit-gallery-${index}`} className="rounded-xl bg-white border border-zinc-200 p-3 space-y-2">
+                    <div className="flex justify-between items-center"><span className="font-bold text-zinc-700">Gallery image {index + 1}</span><button type="button" onClick={() => setNewProdGallery((prev) => prev.filter((_, i) => i !== index))} className="px-2 py-1 rounded-lg text-xs">Remove</button></div>
+                    <ImageUploadPicker label={`Gallery image ${index + 1}`} value={url} onChange={(next) => setNewProdGallery((prev) => prev.map((value, i) => i === index ? next : value))} aspectRatio="wide" />
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
+                <h4 className="font-black text-zinc-900">Customize Options — This Product</h4>
+                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={Boolean(editingItem.customizableOptions?.allowSpiceLevel)} onChange={(e) => updateEditingCustomization({ allowSpiceLevel: e.target.checked })} />Allow spice / chicken style selection</label>
+                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={Boolean(editingItem.customizableOptions?.allowDrinkChoice)} onChange={(e) => updateEditingCustomization({ allowDrinkChoice: e.target.checked })} />Allow drink selection</label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between"><span className="font-bold text-zinc-800">Add-ons / upgrades</span><button type="button" onClick={addEditingAddon} className="px-3 py-1.5 rounded-lg text-xs font-bold">+ Add item</button></div>
+                  {(editingItem.customizableOptions?.availableAddons || []).map((addon, index) => (
+                    <div key={addon.id} className="grid grid-cols-[1fr_90px_auto] gap-2 items-center">
+                      <input value={addon.name} onChange={(e) => updateEditingAddon(index, { name: e.target.value })} placeholder="Item name" className="min-w-0 border border-zinc-300 rounded-lg px-2 py-2" />
+                      <input type="number" min="0" value={addon.price} onChange={(e) => updateEditingAddon(index, { price: Number(e.target.value) })} aria-label="Add-on price" className="w-full border border-zinc-300 rounded-lg px-2 py-2" />
+                      <button type="button" onClick={() => removeEditingAddon(index)} className="px-2 py-2 rounded-lg text-xs">Remove</button>
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-zinc-500">Yahan set kiye gaye add-ons sirf isi product ke Customize section mein show honge.</p>
+                </div>
+              </div>
               <div>
                 <label className="block text-zinc-700 font-bold mb-1">Product Description</label>
                 <textarea
@@ -3260,7 +3315,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    updateMenuItem(editingItem);
+                    updateMenuItem({ ...editingItem, galleryImages: newProdGallery.filter(Boolean) });
                     setEditingItem(null);
                   }}
                   className="bg-[#e4002b] hover:bg-[#c30025] text-white font-bold px-5 py-2 rounded-xl cursor-pointer"
@@ -3334,6 +3389,34 @@ export const ShopifyAdminApp: React.FC = () => {
                 helperText="Upload any product photo from your device, or choose from presets."
               />
 
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div><h4 className="font-black text-zinc-900">Additional Product Images</h4><p className="text-[11px] text-zinc-500">Upload more product photos.</p></div>
+                  <button type="button" onClick={() => setNewProdGallery((prev) => [...prev, ''])} className="px-3 py-2 rounded-lg text-xs font-bold">+ Add image</button>
+                </div>
+                {newProdGallery.map((url, index) => (
+                  <div key={`new-gallery-${index}`} className="rounded-xl bg-white border border-zinc-200 p-3 space-y-2">
+                    <div className="flex justify-between items-center"><span className="font-bold text-zinc-700">Gallery image {index + 1}</span><button type="button" onClick={() => setNewProdGallery((prev) => prev.filter((_, i) => i !== index))} className="px-2 py-1 rounded-lg text-xs">Remove</button></div>
+                    <ImageUploadPicker label={`Gallery image ${index + 1}`} value={url} onChange={(next) => setNewProdGallery((prev) => prev.map((value, i) => i === index ? next : value))} aspectRatio="wide" />
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
+                <h4 className="font-black text-zinc-900">Customize Options — This Product</h4>
+                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={newProdAllowSpice} onChange={(e) => setNewProdAllowSpice(e.target.checked)} />Allow spice / chicken style selection</label>
+                <label className="flex items-center gap-2 text-zinc-700 font-semibold"><input type="checkbox" checked={newProdAllowDrink} onChange={(e) => setNewProdAllowDrink(e.target.checked)} />Allow drink selection</label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between"><span className="font-bold text-zinc-800">Add-ons / upgrades</span><button type="button" onClick={() => setNewProdAddons((prev) => [...prev, { id: `addon-${Date.now()}`, name: '', price: 0 }])} className="px-3 py-1.5 rounded-lg text-xs font-bold">+ Add item</button></div>
+                  {newProdAddons.map((addon, index) => (
+                    <div key={addon.id} className="grid grid-cols-[1fr_90px_auto] gap-2 items-center">
+                      <input value={addon.name} onChange={(e) => setNewProdAddons((prev) => prev.map((a, i) => i === index ? { ...a, name: e.target.value } : a))} placeholder="Item name" className="min-w-0 border border-zinc-300 rounded-lg px-2 py-2" />
+                      <input type="number" min="0" value={addon.price} onChange={(e) => setNewProdAddons((prev) => prev.map((a, i) => i === index ? { ...a, price: Number(e.target.value) } : a))} aria-label="Add-on price" className="w-full border border-zinc-300 rounded-lg px-2 py-2" />
+                      <button type="button" onClick={() => setNewProdAddons((prev) => prev.filter((_, i) => i !== index))} className="px-2 py-2 rounded-lg text-xs">Remove</button>
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-zinc-500">Sirf yahan add kiye gaye items is product ke Customize section mein nazar aayenge.</p>
+                </div>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-emerald-700 font-bold mb-1">Custom Selling Price (PKR)</label>
