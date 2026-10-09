@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Palette, Check } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 
