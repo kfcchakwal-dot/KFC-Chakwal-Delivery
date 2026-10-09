@@ -71,3 +71,14 @@
 [class~="hover:bg-[#c30025]"]:hover {
   background-color: var(--brand-secondary, #c30025) !important;
 }
+
+/* Storefront-only theme controls; admin portal keeps its own high-contrast palette. */
+[data-store-theme="light"] .bg-white {
+  background-color: var(--store-surface, #ffffff) !important;
+}
+[data-store-theme="light"] .bg-zinc-50 {
+  background-color: var(--store-surface, #f8f9fa) !important;
+}
+[data-store-theme="light"] .text-zinc-900 {
+  color: var(--store-text, #1a1a1f) !important;
+}
