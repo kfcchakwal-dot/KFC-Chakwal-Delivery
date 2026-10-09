@@ -3247,6 +3247,18 @@ export const ShopifyAdminApp: React.FC = () => {
                 helperText="Upload any product photo from your device, or choose from presets."
               />
 
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div><h4 className="font-black text-zinc-900">Additional Product Images</h4><p className="text-[11px] text-zinc-500">Multiple photos for this product.</p></div>
+                  <button type="button" onClick={() => setNewProdGallery((prev) => [...prev, ''])} className="px-3 py-2 rounded-lg text-xs font-bold">+ Add image</button>
+                </div>
+                {newProdGallery.map((url, index) => (
+                  <div key={`edit-gallery-${index}`} className="rounded-xl bg-white border border-zinc-200 p-3 space-y-2">
+                    <div className="flex justify-between items-center"><span className="font-bold text-zinc-700">Gallery image {index + 1}</span><button type="button" onClick={() => setNewProdGallery((prev) => prev.filter((_, i) => i !== index))} className="px-2 py-1 rounded-lg text-xs">Remove</button></div>
+                    <ImageUploadPicker label={`Gallery image ${index + 1}`} value={url} onChange={(next) => setNewProdGallery((prev) => prev.map((value, i) => i === index ? next : value))} aspectRatio="wide" />
+                  </div>
+                ))}
+              </div>
               <div>
                 <label className="block text-zinc-700 font-bold mb-1">Product Description</label>
                 <textarea
@@ -3342,6 +3354,18 @@ export const ShopifyAdminApp: React.FC = () => {
                 helperText="Upload any product photo from your device, or choose from presets."
               />
 
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div><h4 className="font-black text-zinc-900">Additional Product Images</h4><p className="text-[11px] text-zinc-500">Upload more product photos.</p></div>
+                  <button type="button" onClick={() => setNewProdGallery((prev) => [...prev, ''])} className="px-3 py-2 rounded-lg text-xs font-bold">+ Add image</button>
+                </div>
+                {newProdGallery.map((url, index) => (
+                  <div key={`new-gallery-${index}`} className="rounded-xl bg-white border border-zinc-200 p-3 space-y-2">
+                    <div className="flex justify-between items-center"><span className="font-bold text-zinc-700">Gallery image {index + 1}</span><button type="button" onClick={() => setNewProdGallery((prev) => prev.filter((_, i) => i !== index))} className="px-2 py-1 rounded-lg text-xs">Remove</button></div>
+                    <ImageUploadPicker label={`Gallery image ${index + 1}`} value={url} onChange={(next) => setNewProdGallery((prev) => prev.map((value, i) => i === index ? next : value))} aspectRatio="wide" />
+                  </div>
+                ))}
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-emerald-700 font-bold mb-1">Custom Selling Price (PKR)</label>
