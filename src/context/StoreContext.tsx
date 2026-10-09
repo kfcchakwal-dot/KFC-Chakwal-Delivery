@@ -138,9 +138,9 @@ interface StoreContextType {
 
   // Store Policies
   policies: StorePolicy[];
-  updatePolicy: (policy: StorePolicy) => void;
-  addPolicy: (policy: Omit<StorePolicy, 'id'>) => void;
-  deletePolicy: (policyId: string) => void;
+  updatePolicy: (policy: StorePolicy) => Promise<boolean>;
+  addPolicy: (policy: Omit<StorePolicy, 'id'>) => Promise<boolean>;
+  deletePolicy: (policyId: string) => Promise<boolean>;
   isPoliciesModalOpen: boolean;
   setIsPoliciesModalOpen: (open: boolean) => void;
   activePolicySlug: string | null;
@@ -831,9 +831,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       await setDoc(doc(db, 'storePublic', 'global'), { ...publicPayload, updatedAt: new Date().toISOString() }, { merge: true });
       setServerSyncStatus('synced');
+      return true;
     } catch (error) {
       console.warn('Store data Firestore sync notice:', error);
       setServerSyncStatus('offline');
+      return false;
     }
   };
 
@@ -1751,26 +1753,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsPoliciesModalOpen(true);
   };
 
-  const updatePolicy = (policy: StorePolicy) => {
+  const updatePolicy = async (policy: StorePolicy): Promise<boolean> => {
+    const previous = policies;
     const next = policies.map((p) => (p.id === policy.id ? policy : p));
     setPolicies(next);
-    syncStoreToServer({ policies: next });
+    const saved = await syncStoreToServer({ policies: next });
+    if (!saved) setPolicies(previous);
+    return saved;
   };
 
-  const addPolicy = (policy: Omit<StorePolicy, 'id'>) => {
-    const newPol: StorePolicy = {
-      ...policy,
-      id: `pol-${Date.now()}`,
-    };
+  const addPolicy = async (policy: Omit<StorePolicy, 'id'>): Promise<boolean> => {
+    const newPol: StorePolicy = { ...policy, id: `pol-${Date.now()}` };
+    const previous = policies;
     const next = [...policies, newPol];
     setPolicies(next);
-    syncStoreToServer({ policies: next });
+    const saved = await syncStoreToServer({ policies: next });
+    if (!saved) setPolicies(previous);
+    return saved;
   };
 
-  const deletePolicy = (policyId: string) => {
+  const deletePolicy = async (policyId: string): Promise<boolean> => {
+    const previous = policies;
     const next = policies.filter((p) => p.id !== policyId);
     setPolicies(next);
-    syncStoreToServer({ policies: next });
+    const saved = await syncStoreToServer({ policies: next });
+    if (!saved) setPolicies(previous);
+    return saved;
   };
 
   const updateCustomSection = (section: PageSection) => {
