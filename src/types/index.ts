@@ -425,7 +425,7 @@ export interface Order {
   customer: CustomerDetails;
   specialInstructions?: string; // Kitchen notes
   paymentMethod: PaymentMethod;
-  status: 'confirmed' | 'kitchen' | 'dispatched' | 'delivered';
+  status: 'confirmed' | 'kitchen' | 'dispatched' | 'delivered' | 'cancelled';
 }
 
 export interface ProductReview {

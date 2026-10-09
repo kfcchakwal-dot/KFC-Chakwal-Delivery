@@ -22,7 +22,7 @@ export const PoliciesModal: React.FC = () => {
         isDark ? 'bg-[#151518] border-[#292934] text-white' : 'bg-white border-zinc-200 text-zinc-900'
       }`}>
         {/* Header */}
-        <div className="bg-[#e4002b] p-5 text-white flex items-center justify-between">
+        <div className="p-5 text-white flex items-center justify-between" style={{ backgroundColor: settings.sectionColorSchemes?.policies?.background || '#e4002b' }}>
           <div className="flex items-center gap-2.5">
             <FileText className="w-5 h-5" />
             <div>
@@ -44,7 +44,7 @@ export const PoliciesModal: React.FC = () => {
         </div>
 
         {/* Quick Highlights Strip */}
-        <div className="p-4 bg-[#1a1a22] border-b border-zinc-800 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs text-zinc-300">
+        <div className={`p-4 border-b grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs ${isDark ? 'bg-[#1a1a22] border-zinc-800 text-zinc-200' : 'bg-zinc-100 border-zinc-200 text-zinc-800'}`}>
           <div className="flex items-center gap-2 p-2 rounded-xl bg-black/30">
             <Bike className="w-4 h-4 text-[#e4002b] shrink-0" />
             <span>Kallar Kahar ➔ Chakwal</span>
@@ -75,9 +75,9 @@ export const PoliciesModal: React.FC = () => {
               >
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="w-2 h-2 rounded-full bg-[#e4002b]"></span>
-                  <h4 className="font-bold text-sm text-white">{policy.title}</h4>
+                  <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-zinc-900'}`}>{policy.title}</h4>
                 </div>
-                <p className="text-xs text-zinc-300 leading-relaxed pl-4">
+                <p className={`text-xs leading-relaxed pl-4 whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>
                   {policy.content}
                 </p>
               </div>
@@ -85,10 +85,10 @@ export const PoliciesModal: React.FC = () => {
           })}
 
           {/* Help Contact Box */}
-          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs">
+          <div className={`p-4 rounded-2xl border flex items-center justify-between text-xs ${isDark ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200'}`}>
             <div>
-              <p className="font-bold text-white">Have a specific question or custom order?</p>
-              <p className="text-emerald-400 mt-0.5">Contact WhatsApp: +92 325 2777574</p>
+              <p className={`font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>Have a specific question or custom order?</p>
+              <p className={`mt-0.5 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>Contact WhatsApp: +92 325 2777574</p>
             </div>
             <a
               href="https://wa.me/923252777574"
@@ -102,10 +102,10 @@ export const PoliciesModal: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-zinc-800 flex justify-end">
+        <div className={`p-4 border-t flex justify-end ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
           <button
             onClick={() => setIsPoliciesModalOpen(false)}
-            className="text-xs font-bold text-white px-5 py-2 rounded-xl bg-[#e4002b] hover:bg-[#c30025] cursor-pointer"
+            className="text-xs font-bold text-white px-5 py-2 rounded-xl cursor-pointer" style={{ backgroundColor: settings.sectionColorSchemes?.policies?.button || '#e4002b' }}
           >
             I Understand
           </button>

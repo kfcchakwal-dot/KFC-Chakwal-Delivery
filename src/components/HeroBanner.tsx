@@ -25,6 +25,7 @@ export const HeroBanner: React.FC = () => {
   const subtext = settings.hero?.subtext || 'Order your favorite KFC Pakistan Zingers, Krunch Combos, Hot Wings, and Mega Buckets delivered piping hot right to your doorstep anywhere in Chakwal.';
   const ctaText = settings.hero?.ctaButtonText || 'EXPLORE ALL ITEMS';
   const deliveryBadge = settings.hero?.deliveryBadgeText || 'Chakwal Delivery';
+  const showSubtext = (settings.hero as any)?.showSubtext !== false;
 
   return (
     <div className={`relative overflow-hidden border-b transition-colors ${
@@ -77,11 +78,11 @@ export const HeroBanner: React.FC = () => {
                 {headline} <br />
                 <span className="text-[#e4002b]">{highlightText}</span> {settings.hero?.endingText ?? 'GOOD.'}
               </h1>
-              <p className={`text-sm sm:text-base max-w-xl pt-2 font-normal leading-relaxed ${
+              {showSubtext && subtext.trim() && <p className={`text-sm sm:text-base max-w-xl pt-2 font-normal leading-relaxed ${
                 isDark ? 'text-zinc-400' : 'text-zinc-600'
               }`}>
                 {subtext}
-              </p>
+              </p>}
             </div>
 
             {/* Quick Feature Metric Cards */}

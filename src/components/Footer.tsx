@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
-import { MapPin, Phone, Clock, ShieldCheck, Bike, Share2, FileText, Smartphone } from 'lucide-react';
+import { MapPin, Phone, Clock, ShieldCheck, Bike, FileText, Smartphone } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const { settings, themeMode, openPolicyModal } = useStore();
@@ -172,8 +172,8 @@ export const Footer: React.FC = () => {
                   rel="noreferrer"
                   className="bg-[#1877F2] hover:bg-[#166fe5] text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Facebook</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="w-3.5 h-3.5 fill-current"><path d="M13.6 21v-8h2.7l.4-3.1h-3.1V8c0-.9.3-1.5 1.6-1.5h1.7V3.7c-.3 0-1.4-.1-2.6-.1-2.6 0-4.4 1.6-4.4 4.6v1.7H7v3.1h2.9v8z"/></svg>
+                <span>Facebook</span>
                 </a>
               )}
               {settings.socialLinks?.instagram && (
@@ -183,8 +183,8 @@ export const Footer: React.FC = () => {
                   rel="noreferrer"
                   className="bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Instagram</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" className="fill-current stroke-none"/></svg>
+                <span>Instagram</span>
                 </a>
               )}
               {settings.socialLinks?.tiktok && (
@@ -194,8 +194,8 @@ export const Footer: React.FC = () => {
                   rel="noreferrer"
                   className="bg-zinc-800 hover:bg-zinc-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>TikTok</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="w-3.5 h-3.5 fill-current"><path d="M19.6 7.1a6.2 6.2 0 0 1-3.8-1.3v8.1a6.3 6.3 0 1 1-5.4-6.2v3.3a3.1 3.1 0 1 0 2.1 2.9V2.5h3.3a6.2 6.2 0 0 0 3.8 3.2z"/></svg>
+                <span>TikTok</span>
                 </a>
               )}
             </div>
