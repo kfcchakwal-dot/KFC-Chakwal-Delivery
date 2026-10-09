@@ -158,7 +158,7 @@ const MainShop: React.FC = () => {
     const q = searchQuery.toLowerCase();
     return (
       item.name.toLowerCase().includes(q) ||
-      item.description.toLowerCase().includes(q) ||
+      String(item.description || '').toLowerCase().includes(q) ||
       item.categoryId.toLowerCase().includes(q)
     );
   });
