@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { MenuItem, BadgePosition } from '../types';
 import { useStore } from '../context/StoreContext';
-import { Heart, Plus, Flame, SlidersHorizontal, Tag, Share2, Check } from 'lucide-react';
+import { Heart, Plus, SlidersHorizontal, Tag, Share2, Check } from 'lucide-react';
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -16,7 +16,6 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
     wishlist,
     toggleWishlist,
     settings,
-    isAdmin,
     viewProduct,
     themeMode,
   } = useStore();
