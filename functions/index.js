@@ -1,7 +1,7 @@
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onRequest } = require('firebase-functions/v2/https');
 const logger = require('firebase-functions/logger');
@@ -74,6 +74,59 @@ exports.notifyAdminsOnNewOrder = onDocumentCreated(
       failureCount: response.failureCount,
       removedStaleTokens: staleTokens.length,
     });
+  }
+);
+
+async function sendOrderStatusEmail(order, orderId, status) {
+  const email = String(order.customer?.email || order.email || '').trim();
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.ORDER_EMAIL_FROM;
+  if (!email || !apiKey || !from) {
+    logger.info('Customer order email skipped: customer email or Resend configuration missing.', { orderId, status, hasEmail: Boolean(email), hasApiKey: Boolean(apiKey), hasFrom: Boolean(from) });
+    return;
+  }
+  const statusCopy = {
+    confirmed: ['Order received', 'We have received your order and will begin preparing it shortly.'],
+    kitchen: ['Order being prepared', 'Your order is now being prepared in the kitchen.'],
+    dispatched: ['Order dispatched', 'Your order is on the way.'],
+    delivered: ['Order delivered', 'Your order has been marked as delivered. Thank you!'],
+    cancelled: ['Order cancelled', 'Your order has been cancelled. Please contact us if you need help.'],
+  };
+  const [headline, body] = statusCopy[status] || ['Order update', 'Your order status has been updated.'];
+  const itemLines = (Array.isArray(order.items) ? order.items : []).map((item) => '<li>' + escapeHtml(item.quantity || 1) + ' × ' + escapeHtml(item.menuItem?.name || 'Menu item') + ' — Rs. ' + Math.round(Number(item.unitPrice || 0) * Number(item.quantity || 1)).toLocaleString('en-PK') + '</li>').join('');
+  const amountRows = [
+    ['Subtotal', order.subtotal], ['Discount', -Number(order.discount || 0)], ['VIP discount', -Number(order.vipDiscount || 0)],
+    ['Loyalty discount', -Number(order.loyaltyDiscount || 0)], ['Tax', order.taxAmount], ['Service charge', order.serviceChargeAmount],
+    ['Delivery charges', order.deliveryFee], ['Total', order.total],
+  ].filter((row) => row[1] !== undefined && row[1] !== null).map((row) => '<tr><td style="padding:5px 12px 5px 0">' + escapeHtml(row[0]) + '</td><td style="padding:5px 0;text-align:right">Rs. ' + Math.round(Number(row[1] || 0)).toLocaleString('en-PK') + '</td></tr>').join('');
+  const html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#222"><h2 style="color:#e4002b">KFC Chakwal Delivery</h2><h3>' + escapeHtml(headline) + ' — Order #' + escapeHtml(orderId) + '</h3><p>' + escapeHtml(body) + '</p><p><b>Customer:</b> ' + escapeHtml(order.customer?.fullName || 'Customer') + '</p><ul>' + itemLines + '</ul><table style="border-collapse:collapse">' + amountRows + '</table><p>Payment: ' + escapeHtml(String(order.paymentMethod || 'COD').toUpperCase()) + '</p><p>Thank you for ordering with KFC Chakwal Delivery.</p></div>';
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [email], subject: 'KFC Chakwal — ' + headline + ' (#' + orderId + ')', html }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.message || payload.error || 'Resend email delivery failed');
+  logger.info('Customer order status email sent.', { orderId, status, email });
+}
+
+exports.emailCustomerOnOrderCreated = onDocumentCreated(
+  { document: 'orders/{orderId}', database: DATABASE_ID, region: 'us-central1', retry: true },
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+    const order = snapshot.data() || {};
+    await sendOrderStatusEmail(order, String(order.id || event.params.orderId), String(order.status || 'confirmed'));
+  }
+);
+
+exports.emailCustomerOnOrderStatusChanged = onDocumentUpdated(
+  { document: 'orders/{orderId}', database: DATABASE_ID, region: 'us-central1', retry: true },
+  async (event) => {
+    const before = event.data?.before.data() || {};
+    const after = event.data?.after.data() || {};
+    if (!event.data || String(before.status || '') === String(after.status || '')) return;
+    await sendOrderStatusEmail(after, String(after.id || event.params.orderId), String(after.status || 'confirmed'));
   }
 );
 
