@@ -52,3 +52,19 @@
 .safe-pt {
   padding-top: max(0.5rem, env(safe-area-inset-top));
 }
+
+
+/* Admin-configurable brand accent color. These selectors override the
+   app's legacy KFC-red utility classes without changing other theme colors. */
+[class~="bg-[#e4002b]"] {
+  background-color: var(--brand-primary, #e4002b) !important;
+}
+[class~="text-[#e4002b]"] {
+  color: var(--brand-primary, #e4002b) !important;
+}
+[class~="border-[#e4002b]"] {
+  border-color: var(--brand-primary, #e4002b) !important;
+}
+[class~="hover:bg-[#c30025]"]:hover {
+  background-color: var(--brand-primary, #e4002b) !important;
+}
