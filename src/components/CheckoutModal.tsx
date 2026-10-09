@@ -45,6 +45,7 @@ export const CheckoutModal: React.FC = () => {
 
   const [fullName, setFullName] = useState(currentUser?.fullName || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [email, setEmail] = useState(currentUser?.email || '');
   
   // Delivery Mode: 'doorstep' or 'pickup'
   const [deliveryMode, setDeliveryMode] = useState<'doorstep' | 'pickup'>('doorstep');
@@ -66,8 +67,9 @@ export const CheckoutModal: React.FC = () => {
     if (currentUser) {
       if (!fullName) setFullName(currentUser.fullName);
       if (!phone) setPhone(currentUser.phone);
+      if (!email && currentUser.email) setEmail(currentUser.email);
     }
-  }, [currentUser]);
+  }, [currentUser, email, fullName, phone]);
 
   if (!isCheckoutOpen) return null;
 
@@ -126,6 +128,7 @@ export const CheckoutModal: React.FC = () => {
     const customer: CustomerDetails = {
       fullName: fullName.trim(),
       phone: phone.trim(),
+      email: email.trim(),
       address: finalAddress,
     };
 
@@ -256,6 +259,13 @@ export const CheckoutModal: React.FC = () => {
                 className="w-full text-xs font-mono font-bold rounded-xl px-3.5 py-2.5 border border-zinc-300 bg-white text-black focus:outline-none focus:border-[#e4002b]"
                 required
               />
+            </div>
+
+            {/* Optional email for automated order status updates */}
+            <div>
+              <label className="block text-xs font-bold text-black mb-1">Email Address (Optional — order status updates)</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" className="w-full text-xs rounded-xl px-3.5 py-2.5 border border-zinc-300 bg-white text-black focus:outline-none focus:border-[#e4002b]" />
+              <p className="mt-1 text-[10px] text-zinc-500">Agar email dein to order receive, processing, dispatched aur delivered updates email par bheji ja sakti hain.</p>
             </div>
 
             {/* Delivery Method Selection Toggle: Doorstep vs Self Pickup */}
