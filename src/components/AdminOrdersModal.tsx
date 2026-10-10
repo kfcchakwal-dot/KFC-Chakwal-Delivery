@@ -146,34 +146,36 @@ export const AdminOrdersModal: React.FC = () => {
     return cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
   };
 
+  // WhatsApp text-only order summary. Deliberately exclude product image URLs and file paths.
   const buildOrderText = (order: Order) => [
-    `Assalam o Alaikum ${order.customer.fullName || 'Customer'}!`,
-    `KFC Chakwal Delivery — Order #${order.id}`,
-    `Status: ${String(order.status).toUpperCase()} | Type: ${order.orderType === 'self_pickup' ? 'TAKEAWAY / PICKUP' : 'DELIVERY'}`,
+    `Assalam-o-Alaikum ${order.customer.fullName || 'Customer'}!`,
+    'KFC Chakwal Delivery',
+    `Order #${order.id}`,
+    `Status: ${String(order.status).toUpperCase()}`,
     '',
-    'ORDER ITEMS',
-    ...order.items.map((item) => `• ${item.quantity} x ${item.menuItem.name}${item.options?.spiceLevel ? ' (' + item.options.spiceLevel + ')' : ''}${item.options?.drink ? ' · ' + item.options.drink : ''}${item.options?.addons?.length ? ' + ' + item.options.addons.map((addon) => addon.name).join(', ') : ''} — ${formatPKR(item.unitPrice * item.quantity)}`),
+    'Order Details:',
+    ...order.items.map((item) => `${item.quantity}x ${item.menuItem.name}${item.options?.spiceLevel ? ' (' + item.options.spiceLevel + ')' : ''}${item.options?.drink ? ' · ' + item.options.drink : ''}${item.options?.addons?.length ? ' + ' + item.options.addons.map((addon) => addon.name).join(', ') : ''} — ${formatPKR(item.unitPrice * item.quantity)}`),
     '',
     `Subtotal: ${formatPKR(order.subtotal)}`,
     `Discount: -${formatPKR(order.discount || 0)}`,
     `VIP Discount: -${formatPKR(order.vipDiscount || 0)}`,
     `Loyalty Discount: -${formatPKR(order.loyaltyDiscount || 0)}`,
-    `Tax (${order.taxPercentage || 0}%): ${formatPKR(order.taxAmount || 0)}`,
-    `Service Charge (${order.serviceChargePercentage || 0}%): ${formatPKR(order.serviceChargeAmount || 0)}`,
+    `Tax: ${formatPKR(order.taxAmount || 0)}`,
+    `Service Charge: ${formatPKR(order.serviceChargeAmount || 0)}`,
     `Delivery Charges: ${formatPKR(order.deliveryFee || 0)}`,
-    `TOTAL: ${formatPKR(order.total)}`,
+    `Total Bill: ${formatPKR(order.total)}`,
     `Payment: ${String(order.paymentMethod).toUpperCase()}`,
-    `Customer: ${order.customer.fullName || 'Walk-in Customer'}`,
-    `Phone: ${order.customer.phone || 'Not provided'}`, 
-    order.customer.email ? `Email: ${order.customer.email}` : '',
-    `Address: ${order.customer.address || 'Pickup / not provided'}`,
+    '',
+    `Customer: ${order.customer.fullName || 'Customer'}`,
+    `Phone: ${order.customer.phone || 'Not provided'}`,
+    `Order Type: ${order.orderType === 'self_pickup' ? 'Pickup' : 'Delivery'}`,
+    order.customer.address ? `Address: ${order.customer.address}` : '',
     order.customer.area ? `Area: ${order.customer.area}` : '',
     order.customer.landmark ? `Landmark: ${order.customer.landmark}` : '',
-    order.specialInstructions ? `Order notes: ${order.specialInstructions}` : '',
-    order.customer.notes ? `Customer notes: ${order.customer.notes}` : '',
+    order.specialInstructions ? `Order Notes: ${order.specialInstructions}` : '',
     '',
     'Thank you for ordering with KFC Chakwal Delivery!'
-  ].filter(Boolean).join('\n');
+  ].filter(Boolean).join('\\n');
 
   const handleWhatsAppText = (order: Order) => {
     const phone = getWhatsAppPhone(order);
