@@ -5,6 +5,7 @@ service cloud.firestore {
     function admin() {
       return signedIn() && (
         request.auth.token.admin == true ||
+        request.auth.token.email == 'kfcchakwal@gmail.com' ||
         (exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.role == 'admin' &&
          get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.active != false)
@@ -121,6 +122,6 @@ service cloud.firestore {
     match /notifications/{id} { allow read, write: if admin(); }
     match /adminUsers/{uid} { allow read: if admin() || owner(uid); allow write: if admin(); }
 
-    match /test/{id} { allow read: if false; allow write: if false; }
+    match /test/{id} { allow read: if true; allow write: if admin(); }
   }
 }

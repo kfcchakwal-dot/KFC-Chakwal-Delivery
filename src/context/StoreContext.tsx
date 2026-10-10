@@ -544,7 +544,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       let isAuthorizedAdmin = false;
       try {
         const tokenResult = await firebaseUser.getIdTokenResult();
-        isAuthorizedAdmin = tokenResult.claims.admin === true;
+        const isSuperAdminEmail = firebaseUser.email?.toLowerCase() === 'kfcchakwal@gmail.com';
+        isAuthorizedAdmin = isSuperAdminEmail || tokenResult.claims.admin === true;
         if (!isAuthorizedAdmin) {
           const adminDoc = await getDoc(doc(db, 'adminUsers', firebaseUser.uid));
           isAuthorizedAdmin =
@@ -1133,7 +1134,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const user = cred.user;
       const tokenResult = await user.getIdTokenResult();
       const adminDoc = await getDoc(doc(db, 'adminUsers', user.uid));
-      const isAuthorizedAdmin = tokenResult.claims.admin === true || (
+      const isSuperAdminEmail = user.email?.toLowerCase() === 'kfcchakwal@gmail.com';
+      const isAuthorizedAdmin = isSuperAdminEmail || tokenResult.claims.admin === true || (
         adminDoc.exists() &&
         adminDoc.data()?.role === 'admin' &&
         adminDoc.data()?.active !== false
@@ -1143,6 +1145,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         await signOut(auth);
         setIsAdmin(false);
         return { success: false, error: 'Ye Gmail Admin access ke liye authorize nahi hai.' };
+      }
+
+      if (isSuperAdminEmail && (!adminDoc.exists() || !adminDoc.data()?.role)) {
+        await setDoc(doc(db, 'adminUsers', user.uid), {
+          uid: user.uid,
+          email: 'kfcchakwal@gmail.com',
+          name: user.displayName || 'KFC Chakwal Super Admin',
+          role: 'admin',
+          active: true,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true }).catch((err) => console.warn('Failed to ensure adminUsers doc:', err));
       }
 
       setIsAdmin(true);
