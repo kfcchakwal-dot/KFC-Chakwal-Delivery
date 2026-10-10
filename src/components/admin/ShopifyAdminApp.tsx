@@ -69,7 +69,8 @@ import { DiscountsManager } from './DiscountsManager';
 import { PageSectionsBuilder } from '../PageSectionsBuilder';
 import { CsvProductImporter } from '../CsvProductImporter';
 import { ImageUploadPicker } from '../ImageUploadPicker';
-import { CustomDomainManager } from './CustomDomainManager';
+import { OrderPrintModal } from './OrderPrintModal';
+import { ORDER_STATUS_CONFIG, generateWhatsAppOrderMessage, getWhatsAppUrl } from '../../utils/orderInvoice';
 import { MetaAdsManager } from './MetaAdsManager';
 import { VipClubManager } from './VipClubManager';
 import { OrderEditModal } from './OrderEditModal';
@@ -93,7 +94,6 @@ type SellerTab =
   | 'vip-club'
   | 'marketing'
   | 'meta'
-  | 'domains'
   | 'delivery-methods'
   | 'discounts'
   | 'online-store'
@@ -324,8 +324,14 @@ export const ShopifyAdminApp: React.FC = () => {
   const [newProdImage, setNewProdImage] = useState('/src/assets/images/kfc_krunch_burger_1791015834419.jpg');
   const [newProdBadge, setNewProdBadge] = useState('');
 
-  // Orders Filter
+  // Orders Filter & Bulk Selection & Print
   const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'confirmed' | 'kitchen' | 'dispatched' | 'delivered' | 'cancelled'>('all');
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState<Order['status']>('kitchen');
+  const [isUpdatingBulkStatus, setIsUpdatingBulkStatus] = useState(false);
+  const [bulkFeedback, setBulkFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [ordersToPrint, setOrdersToPrint] = useState<Order[]>([]);
 
   // Delivery Method Form state
   const [editingDeliveryMethod, setEditingDeliveryMethod] = useState<DeliveryMethod | null>(null);
@@ -623,6 +629,76 @@ export const ShopifyAdminApp: React.FC = () => {
     if (orderStatusFilter === 'all') return true;
     return order.status === orderStatusFilter;
   });
+
+  const handleToggleSelectOrder = (orderId: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+    );
+  };
+
+  const handleSelectAllOrders = () => {
+    if (selectedOrderIds.length === filteredOrders.length && filteredOrders.length > 0) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(filteredOrders.map((o) => o.id));
+    }
+  };
+
+  const handleDeselectAllOrders = () => {
+    setSelectedOrderIds([]);
+  };
+
+  const handleBulkStatusUpdate = async (targetStatus?: Order['status']) => {
+    const statusToApply = targetStatus || bulkStatus;
+    if (selectedOrderIds.length === 0) {
+      setBulkFeedback({ type: 'error', message: 'Please select at least one order to update.' });
+      return;
+    }
+    setIsUpdatingBulkStatus(true);
+    setBulkFeedback(null);
+    try {
+      const idsToUpdate = [...selectedOrderIds];
+      let successCount = 0;
+      for (const id of idsToUpdate) {
+        try {
+          await updateOrderStatus(id, statusToApply);
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to update order #${id}:`, err);
+        }
+      }
+      await fetchOrders();
+      setSelectedOrderIds([]);
+      const statusLabel = ORDER_STATUS_CONFIG[statusToApply]?.label || statusToApply;
+      setBulkFeedback({
+        type: 'success',
+        message: `Successfully updated ${successCount} order(s) to "${statusLabel}".`,
+      });
+      setTimeout(() => setBulkFeedback(null), 5000);
+    } catch (error: any) {
+      setBulkFeedback({
+        type: 'error',
+        message: error?.message || 'Bulk status update failed. Please retry.',
+      });
+    } finally {
+      setIsUpdatingBulkStatus(false);
+    }
+  };
+
+  const handleOpenSinglePrint = (order: Order) => {
+    setOrdersToPrint([order]);
+    setIsPrintModalOpen(true);
+  };
+
+  const handleOpenBulkPrint = () => {
+    const selected = allOrders.filter((o) => selectedOrderIds.includes(o.id));
+    if (selected.length === 0) {
+      setBulkFeedback({ type: 'error', message: 'Please select orders first to print bills.' });
+      return;
+    }
+    setOrdersToPrint(selected);
+    setIsPrintModalOpen(true);
+  };
 
   const updateEditingCustomization = (patch: Partial<NonNullable<MenuItem['customizableOptions']>>) => {
     if (!editingItem) return;
@@ -991,7 +1067,6 @@ export const ShopifyAdminApp: React.FC = () => {
                 { id: 'vip-club', label: "Colonel's VIP Club", icon: Crown },
                 { id: 'marketing', label: 'WhatsApp Marketing', icon: Send },
                 { id: 'meta', label: 'Meta Ads & Catalog', icon: Share2 },
-                { id: 'domains', label: 'Connect Custom Domain', icon: Globe },
                 { id: 'delivery-methods', label: 'Delivery Methods', icon: Truck },
                 { id: 'discounts', label: 'Discounts & Codes', icon: Tag },
                 { id: 'online-store', label: 'Online Store & Theme', icon: Palette },
@@ -1424,28 +1499,140 @@ export const ShopifyAdminApp: React.FC = () => {
               </div>
 
               {/* Status Filter Tabs */}
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'all', label: 'All Orders' },
-                  { id: 'confirmed', label: 'Confirmed' },
-                  { id: 'kitchen', label: 'Kitchen / Cooking' },
-                  { id: 'dispatched', label: 'On Bike Rider' },
-                  { id: 'delivered', label: 'Delivered' },
-                  { id: 'cancelled', label: 'Cancelled' },
-                ].map((st) => (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'all', label: 'All Orders', count: allOrders.length },
+                    { id: 'confirmed', label: 'Confirmed', count: allOrders.filter((o) => o.status === 'confirmed').length },
+                    { id: 'kitchen', label: 'Kitchen / Preparing', count: allOrders.filter((o) => o.status === 'kitchen').length },
+                    { id: 'dispatched', label: 'On Bike Rider', count: allOrders.filter((o) => o.status === 'dispatched').length },
+                    { id: 'delivered', label: 'Delivered', count: allOrders.filter((o) => o.status === 'delivered').length },
+                    { id: 'cancelled', label: 'Cancelled', count: allOrders.filter((o) => o.status === 'cancelled').length },
+                  ].map((st) => (
+                    <button
+                      key={st.id}
+                      onClick={() => setOrderStatusFilter(st.id as any)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                        orderStatusFilter === st.id
+                          ? 'bg-[#e4002b] text-white border-[#e4002b] shadow-xs'
+                          : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                      }`}
+                    >
+                      <span>{st.label}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                        orderStatusFilter === st.id ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-600'
+                      }`}>
+                        {st.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Quick Selection Toggle */}
+                <div className="flex items-center gap-2">
                   <button
-                    key={st.id}
-                    onClick={() => setOrderStatusFilter(st.id as any)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition ${
-                      orderStatusFilter === st.id
-                        ? 'bg-[#e4002b] text-white border-[#e4002b]'
-                        : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
-                    }`}
+                    type="button"
+                    onClick={handleSelectAllOrders}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition cursor-pointer shadow-xs"
                   >
-                    {st.label}
+                    {selectedOrderIds.length === filteredOrders.length && filteredOrders.length > 0 ? (
+                      <>
+                        <CheckSquare className="w-3.5 h-3.5 text-[#e4002b]" />
+                        <span>Deselect All</span>
+                      </>
+                    ) : (
+                      <>
+                        <Square className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Select All ({filteredOrders.length})</span>
+                      </>
+                    )}
                   </button>
-                ))}
+                </div>
               </div>
+
+              {/* Bulk Action Bar (Visible when orders are selected) */}
+              {selectedOrderIds.length > 0 && (
+                <div className="bg-zinc-900 text-white p-4 rounded-2xl shadow-xl border border-zinc-800 flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 rounded-lg bg-[#e4002b] text-white flex items-center justify-center text-xs font-black">
+                      {selectedOrderIds.length}
+                    </span>
+                    <div>
+                      <div className="text-xs font-black uppercase tracking-wider text-zinc-200">
+                        {selectedOrderIds.length} Order{selectedOrderIds.length > 1 ? 's' : ''} Selected
+                      </div>
+                      <div className="text-[11px] text-zinc-400">
+                        Apply bulk status or generate combined bills
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Status Dropdown */}
+                    <div className="flex items-center gap-1.5 bg-zinc-800 rounded-xl px-2 py-1 border border-zinc-700">
+                      <span className="text-[11px] text-zinc-400 font-bold pl-1">Status:</span>
+                      <select
+                        value={bulkStatus}
+                        onChange={(e) => setBulkStatus(e.target.value as Order['status'])}
+                        className="bg-transparent text-white text-xs font-bold border-0 focus:ring-0 cursor-pointer pr-4"
+                      >
+                        <option value="kitchen" className="bg-zinc-900 text-white">🍳 Kitchen / Preparing</option>
+                        <option value="dispatched" className="bg-zinc-900 text-white">🏍️ On Bike / Out for Delivery</option>
+                        <option value="delivered" className="bg-zinc-900 text-white">✅ Delivered</option>
+                        <option value="confirmed" className="bg-zinc-900 text-white">🕒 Confirmed / Received</option>
+                        <option value="cancelled" className="bg-zinc-900 text-white">❌ Cancelled</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => void handleBulkStatusUpdate()}
+                        disabled={isUpdatingBulkStatus}
+                        className="px-3 py-1 rounded-lg bg-white text-zinc-900 text-xs font-black hover:bg-zinc-200 transition disabled:opacity-50 cursor-pointer shadow-xs"
+                      >
+                        {isUpdatingBulkStatus ? 'Updating...' : 'Update Status'}
+                      </button>
+                    </div>
+
+                    {/* Print Selected Bills */}
+                    <button
+                      type="button"
+                      onClick={handleOpenBulkPrint}
+                      className="px-3.5 py-2 rounded-xl bg-[#e4002b] hover:bg-red-700 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md cursor-pointer"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Print Selected Bills ({selectedOrderIds.length})</span>
+                    </button>
+
+                    {/* Deselect All */}
+                    <button
+                      type="button"
+                      onClick={handleDeselectAllOrders}
+                      className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold transition cursor-pointer"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Bulk Action Feedback Message */}
+              {bulkFeedback && (
+                <div
+                  className={`p-3.5 rounded-2xl text-xs font-bold flex items-center justify-between gap-2 border ${
+                    bulkFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                      : 'bg-red-50 text-red-800 border-red-300'
+                  }`}
+                >
+                  <span>{bulkFeedback.message}</span>
+                  <button
+                    type="button"
+                    onClick={() => setBulkFeedback(null)}
+                    className="text-xs font-bold underline opacity-80 hover:opacity-100"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
 
               {/* Orders List */}
               <div className="space-y-4">
@@ -1455,129 +1642,265 @@ export const ShopifyAdminApp: React.FC = () => {
                     <p className="font-bold text-zinc-800 text-sm">No orders found in this filter</p>
                   </div>
                 ) : (
-                  filteredOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="bg-white border border-zinc-200 p-5 rounded-2xl space-y-4 shadow-sm"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-sm text-[#e4002b]">#{order.id}</span>
-                            <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                              order.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' :
-                              order.status === 'dispatched' ? 'bg-blue-100 text-blue-800' :
-                              order.status === 'kitchen' ? 'bg-amber-100 text-amber-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {order.status}
-                            </span>
-                            <span className="text-xs text-zinc-400 font-mono">
-                              {new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
+                  filteredOrders.map((order) => {
+                    const isSelected = selectedOrderIds.includes(order.id);
+                    const statusConfig = ORDER_STATUS_CONFIG[order.status] || {
+                      label: order.status,
+                      icon: '•',
+                      badgeBg: 'bg-zinc-100',
+                      badgeText: 'text-zinc-800',
+                      badgeBorder: 'border-zinc-200',
+                      cardBorder: 'border-l-zinc-400',
+                    };
+
+                    return (
+                      <div
+                        key={order.id}
+                        className={`bg-white border rounded-2xl p-5 space-y-4 shadow-xs transition border-l-4 ${
+                          statusConfig.cardBorder
+                        } ${
+                          isSelected
+                            ? 'border-[#e4002b] ring-2 ring-red-500/20 bg-red-50/10'
+                            : 'border-zinc-200'
+                        }`}
+                      >
+                        {/* Header: Checkbox, Order ID, Color Status Badge, Date */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+                          <div className="flex items-start sm:items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectOrder(order.id)}
+                              className="mt-1 sm:mt-0 w-4 h-4 rounded text-[#e4002b] focus:ring-[#e4002b] accent-[#e4002b] cursor-pointer"
+                              title="Select order for bulk actions"
+                            />
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-mono font-black text-sm text-[#e4002b]">#{order.id}</span>
+                                
+                                {/* Color-Coded Order Status Badge */}
+                                <span
+                                  className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${statusConfig.badgeBg} ${statusConfig.badgeText} ${statusConfig.badgeBorder}`}
+                                >
+                                  <span>{statusConfig.icon}</span>
+                                  <span>{statusConfig.label}</span>
+                                </span>
+
+                                <span className="text-xs text-zinc-400 font-mono">
+                                  {order.date ? new Date(order.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Recent'}
+                                </span>
+                              </div>
+
+                              <p className="text-xs text-zinc-700 font-bold mt-1">
+                                Customer: {order.customer.fullName} · <span className="font-mono text-zinc-900">{order.customer.phone}</span>
+                              </p>
+                              {order.customer.phone && (
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                  <a
+                                    className="inline-flex rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-700 transition"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    href={`https://wa.me/${String(order.customer.phone).replace(/[^0-9]/g, '').replace(/^0/, '92')}`}
+                                  >
+                                    WhatsApp Chat
+                                  </a>
+                                  {order.customer.area && (
+                                    <span className="text-[11px] text-zinc-500 font-medium">
+                                      Area: {order.customer.area}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              <p className="text-xs text-zinc-500 mt-1">
+                                📍 Delivery Address: {order.customer.address}
+                                {order.customer.landmark ? ` (Near ${order.customer.landmark})` : ''}
+                              </p>
+                              {order.customer.notes && (
+                                <p className="text-xs text-amber-700 font-medium">
+                                  ℹ️ Delivery Note: {order.customer.notes}
+                                </p>
+                              )}
+                              {order.specialInstructions && (
+                                <p className="text-xs text-purple-700 font-medium">
+                                  🍳 Kitchen Note: {order.specialInstructions}
+                                </p>
+                              )}
+                            </div>
                           </div>
 
-                          <p className="text-xs text-zinc-700 font-bold mt-1">
-                            Customer: {order.customer.fullName} · <span className="font-mono text-zinc-900">{order.customer.phone}</span>
-                          </p>
-                          {order.customer.phone && <a className="mt-2 inline-flex rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white" target="_blank" rel="noreferrer" href={`https://wa.me/${String(order.customer.phone).replace(/[^0-9]/g, '').replace(/^0/, '92')}`}>WhatsApp Customer</a>}
-                          <p className="text-xs text-zinc-500">
-                            Delivery Address (Within 3 KM): {order.customer.address}
-                          </p>
+                          {/* Order Action Buttons: Edit, Status Highlight Buttons */}
+                          <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-center">
+                            <button
+                              type="button"
+                              onClick={() => setEditingOrder(order)}
+                              className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 flex items-center gap-1 shadow-xs"
+                              title="Edit items, customer, or totals"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-[#e4002b]" />
+                              <span>Edit</span>
+                            </button>
+
+                            {/* Color-Coded Status Change Buttons with Active Highlight */}
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await updateOrderStatus(order.id, 'kitchen');
+                                await fetchOrders();
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                                order.status === 'kitchen'
+                                  ? 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-600/30'
+                                  : 'border border-purple-200 text-purple-700 hover:bg-purple-50'
+                              }`}
+                            >
+                              {order.status === 'kitchen' && <Check className="w-3 h-3 stroke-[3]" />}
+                              <span>Kitchen</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await updateOrderStatus(order.id, 'dispatched');
+                                await fetchOrders();
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                                order.status === 'dispatched'
+                                  ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-600/30'
+                                  : 'border border-blue-200 text-blue-700 hover:bg-blue-50'
+                              }`}
+                            >
+                              {order.status === 'dispatched' && <Check className="w-3 h-3 stroke-[3]" />}
+                              <span>On Bike</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await updateOrderStatus(order.id, 'delivered');
+                                await fetchOrders();
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                                order.status === 'delivered'
+                                  ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-600/30'
+                                  : 'border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                              }`}
+                            >
+                              {order.status === 'delivered' && <Check className="w-3 h-3 stroke-[3]" />}
+                              <span>Delivered</span>
+                            </button>
+
+                            {order.status !== 'confirmed' && order.status !== 'cancelled' && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  await updateOrderStatus(order.id, 'confirmed');
+                                  await fetchOrders();
+                                }}
+                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border border-amber-200 text-amber-700 hover:bg-amber-50"
+                                title="Reset to Confirmed"
+                              >
+                                Confirmed
+                              </button>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Status Change Buttons & Order Edit */}
-                        <div className="flex flex-wrap items-center gap-2">
+                        {/* Items Ordered */}
+                        <div className="space-y-1.5 text-xs text-zinc-700 bg-zinc-50/70 rounded-xl p-3 border border-zinc-100">
+                          {order.items.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-start gap-2">
+                              <div className="min-w-0">
+                                <span className="font-bold text-zinc-900">{item.quantity}x</span> {item.menuItem.name}
+                                {item.options?.spiceLevel && (
+                                  <span className="text-zinc-500 text-[11px] block">
+                                    • Recipe: {item.options.spiceLevel}
+                                  </span>
+                                )}
+                                {item.options?.drink && (
+                                  <span className="text-zinc-500 text-[11px] block">
+                                    • Drink: {item.options.drink}
+                                  </span>
+                                )}
+                                {item.options?.addons && item.options.addons.length > 0 && (
+                                  <span className="text-zinc-500 text-[11px] block">
+                                    • Add-ons: {item.options.addons.map((a) => `${a.name}${a.price > 0 ? ` (+${formatPKR(a.price)})` : ''}`).join(', ')}
+                                  </span>
+                                )}
+                                {item.options?.specialInstructions && (
+                                  <span className="text-zinc-500 text-[11px] block italic">
+                                    • Note: {item.options.specialInstructions}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-mono text-zinc-900 font-bold shrink-0">
+                                {formatPKR(item.unitPrice * item.quantity)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Total and Fees */}
+                        <div className="border-t border-zinc-100 pt-3 flex flex-wrap justify-between items-center text-xs gap-2">
+                          <div className="text-zinc-500 space-x-2">
+                            <span>Payment: <strong className="text-zinc-800 uppercase">{order.paymentMethod}</strong></span>
+                            <span>·</span>
+                            <span>Delivery Fee: {formatPKR(order.deliveryFee || 0)}</span>
+                            {order.discount ? (
+                              <>
+                                <span>·</span>
+                                <span className="text-emerald-700 font-bold">Discount: -{formatPKR(order.discount)}</span>
+                              </>
+                            ) : null}
+                          </div>
+                          <span className="text-base font-black text-emerald-600 font-mono">
+                            Total: {formatPKR(order.total)}
+                          </span>
+                        </div>
+
+                        {/* Bottom Actions Toolbar: WhatsApp, Generate/Print Bill, Cancel */}
+                        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-zinc-100">
+                          {/* Complete WhatsApp Order Message Button */}
+                          {order.customer.phone && (
+                            <a
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-2xs"
+                              href={getWhatsAppUrl(order.customer.phone, generateWhatsAppOrderMessage(order, settings))}
+                            >
+                              <Send className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Send order details on WhatsApp</span>
+                            </a>
+                          )}
+
+                          {/* Individual Order Billing / Print Bill Button */}
                           <button
                             type="button"
-                            onClick={() => setEditingOrder(order)}
-                            className="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 flex items-center gap-1.5 shadow-xs"
+                            onClick={() => handleOpenSinglePrint(order)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100 transition shadow-2xs cursor-pointer"
                           >
-                            <Edit3 className="w-3.5 h-3.5 text-[#e4002b]" />
-                            <span>Edit Order</span>
+                            <Printer className="w-3.5 h-3.5 text-zinc-600" />
+                            <span>Generate Bill / Print Bill</span>
                           </button>
 
-                          <button
-                            onClick={() => updateOrderStatus(order.id, 'kitchen')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                              order.status === 'kitchen' ? 'bg-amber-500 text-white' : 'border border-amber-300 text-amber-600 hover:bg-amber-50'
-                            }`}
-                          >
-                            Kitchen
-                          </button>
-
-                          <button
-                            onClick={() => updateOrderStatus(order.id, 'dispatched')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                              order.status === 'dispatched' ? 'bg-blue-600 text-white' : 'border border-blue-300 text-blue-600 hover:bg-blue-50'
-                            }`}
-                          >
-                            On Bike
-                          </button>
-
-                          <button
-                            onClick={() => updateOrderStatus(order.id, 'delivered')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                              order.status === 'delivered' ? 'bg-emerald-600 text-white' : 'border border-emerald-300 text-emerald-600 hover:bg-emerald-50'
-                            }`}
-                          >
-                            Delivered
-                          </button>
+                          {/* Cancel Order Button */}
+                          {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (window.confirm(`Order #${order.id} cancel karna hai?`)) {
+                                  await updateOrderStatus(order.id, 'cancelled' as any);
+                                  await fetchOrders();
+                                }
+                              }}
+                              className="inline-flex rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 transition"
+                            >
+                              Cancel Order
+                            </button>
+                          )}
                         </div>
                       </div>
-
-                      {/* Items Ordered */}
-                      <div className="space-y-1.5 text-xs text-zinc-700">
-                        {order.items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center">
-                            <span>
-                              <strong>{item.quantity}x</strong> {item.menuItem.name}
-                              {item.options.addons && item.options.addons.length > 0 && (
-                                <span className="text-zinc-500 text-[11px] block">
-                                  + {item.options.addons.map((a) => a.name).join(', ')}
-                                </span>
-                              )}
-                            </span>
-                            <span className="font-mono text-zinc-900 font-bold">{formatPKR(item.unitPrice * item.quantity)}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Total */}
-                      <div className="border-t border-zinc-100 pt-3 flex flex-wrap justify-between items-center text-xs gap-2">
-                        <div className="text-zinc-500">
-                          Payment: <strong className="text-zinc-800 uppercase">{order.paymentMethod}</strong> · Delivery Fee: {formatPKR(order.deliveryFee)}
-                        </div>
-                        <span className="text-base font-black text-emerald-600 font-mono">
-                          Total: {formatPKR(order.total)}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {order.customer.phone && (
-                          <a
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800"
-                            href={`https://wa.me/${String(order.customer.phone).replace(/[^0-9]/g, '').replace(/^0/, '92')}?text=${encodeURIComponent([
-                              `Assalam-o-Alaikum ${order.customer.fullName?.trim() || 'Customer'}!`,
-                              '',
-                              `* KFC Chakwal Delivery — Order #${order.id}`,
-                              '',
-                              'Order Details:',
-                              ...order.items.map((item) => `${item.quantity}x ${item.menuItem.name} — Rs. ${Math.round(item.unitPrice * item.quantity).toLocaleString('en-PK')}`),
-                              '',
-                              `Total Bill: Rs. ${Math.round(order.total).toLocaleString('en-PK')}`,
-                              '',
-                              'Thank you for ordering!',
-                            ].join('\n'))}`}
-                          >
-                            Send order details on WhatsApp
-                          </a>
-                        )}
-                        {order.status !== 'delivered' && order.status !== 'cancelled' && <button type="button" onClick={() => { if (window.confirm(`Order #${order.id} cancel karna hai?`)) void updateOrderStatus(order.id, 'cancelled' as any); }} className="inline-flex rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">Cancel Order</button>}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -2678,13 +3001,6 @@ export const ShopifyAdminApp: React.FC = () => {
           {/* ========================================================================= */}
           {activeTab === 'meta' && (
             <MetaAdsManager />
-          )}
-
-          {/* ========================================================================= */}
-          {/* TAB: CUSTOM DOMAIN */}
-          {/* ========================================================================= */}
-          {activeTab === 'domains' && (
-            <CustomDomainManager />
           )}
 
           {/* ========================================================================= */}
@@ -3954,6 +4270,14 @@ export const ShopifyAdminApp: React.FC = () => {
           onClose={() => setEditingOrder(null)}
         />
       )}
+
+      {/* Order Billing & Receipt Printing Modal (58mm, 80mm, A4) */}
+      <OrderPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        orders={ordersToPrint}
+        storeSettings={settings}
+      />
 
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Order } from '../types';
+import { generateWhatsAppOrderMessage } from '../utils/orderInvoice';
 import {
   X,
   ShoppingBag,
@@ -146,19 +147,8 @@ export const AdminOrdersModal: React.FC = () => {
     return cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
   };
 
-  // WhatsApp text-only order summary. Deliberately exclude product image URLs and file paths.
-  const buildOrderText = (order: Order) => [
-    `Assalam-o-Alaikum ${order.customer.fullName?.trim() || 'Customer'}!`,
-    '',
-    `* KFC Chakwal Delivery — Order #${order.id}`,
-    '',
-    'Order Details:',
-    ...order.items.map((item) => `${item.quantity}x ${item.menuItem.name} — Rs. ${Math.round(item.unitPrice * item.quantity).toLocaleString('en-PK')}`),
-    '',
-    `Total Bill: Rs. ${Math.round(order.total).toLocaleString('en-PK')}`,
-    '',
-    'Thank you for ordering!',
-  ].join('\n');
+  // WhatsApp text-only order summary. Clean, professional, itemized with options & add-ons, no image URLs or file paths.
+  const buildOrderText = (order: Order) => generateWhatsAppOrderMessage(order, settings);
 
   const handleWhatsAppText = (order: Order) => {
     const phone = getWhatsAppPhone(order);

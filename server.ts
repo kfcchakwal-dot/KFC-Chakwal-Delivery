@@ -1,7 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fs from 'fs';
-import dns from 'dns/promises';
 import { createServer as createViteServer } from 'vite';
 import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type Auth } from 'firebase-admin/auth';
@@ -930,66 +929,6 @@ app.post('/api/reviews', async (req, res) => {
   } catch (err: any) {
     console.error('Error creating review:', err);
     return res.status(500).json({ error: 'Failed to submit review' });
-  }
-});
-
-// POST /api/admin/verify-domain (Real DNS Verification using Node.js dns resolver)
-app.post('/api/admin/verify-domain', verifyAdminAuth, async (req, res) => {
-  const { domain } = req.body;
-  if (!domain || typeof domain !== 'string') {
-    return res.status(400).json({ error: 'Domain name is required' });
-  }
-
-  const cleanDomain = domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-
-  try {
-    const addresses = await dns.resolve4(cleanDomain).catch(() => []);
-    const cnameRecords = await dns.resolveCname(cleanDomain).catch(() => []);
-    let txtRecords: string[] = [];
-    try {
-      const rawTxt = await dns.resolveTxt(cleanDomain);
-      txtRecords = rawTxt.flat();
-    } catch {}
-
-    const dnsResolved = addresses.length > 0 || cnameRecords.length > 0;
-    const expectedTarget = String(process.env.CUSTOM_DOMAIN_CNAME_TARGET || '').trim().toLowerCase().replace(/\.$/, '');
-    const connected = Boolean(
-      expectedTarget &&
-      cnameRecords.some((record) => record.toLowerCase().replace(/\.$/, '') === expectedTarget)
-    );
-
-    let message = '';
-    if (!dnsResolved) {
-      message = `DNS verification failed. No A/CNAME record found for "${cleanDomain}".`;
-    } else if (!expectedTarget) {
-      message = `DNS resolves for "${cleanDomain}", but the hosting target is not configured on the server yet. SSL is not being claimed.`;
-    } else if (!connected) {
-      message = `DNS resolves, but "${cleanDomain}" is not pointing to the configured hosting target yet.`;
-    } else {
-      message = `DNS target verified for "${cleanDomain}". SSL status will only be reported active by the actual hosting platform.`;
-    }
-
-    res.json({
-      domain: cleanDomain,
-      resolvedIps: addresses,
-      cnameRecords,
-      txtRecords,
-      dnsResolved,
-      connected,
-      sslActive: false,
-      verifiedAt: connected ? new Date().toISOString() : null,
-      message,
-    });
-  } catch (err: any) {
-    res.json({
-      domain: cleanDomain,
-      resolvedIps: [],
-      cnameRecords: [],
-      connected: false,
-      sslActive: false,
-      error: err.code || err.message,
-      message: `DNS lookup failed for "${cleanDomain}". Ensure domain is registered and nameservers are active.`
-    });
   }
 });
 
