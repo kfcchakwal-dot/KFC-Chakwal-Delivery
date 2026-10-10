@@ -363,11 +363,20 @@ const MARKETING_KEY = 'kfc_chakwal_marketing_v5';
 const CATEGORIES_KEY = 'kfc_chakwal_categories_v5';
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Detect Seller mode from URL (e.g. ?app=seller, /seller, /admin, ?admin=portal)
+  // Detect Seller mode from URL (e.g. /seller, /admin, ?app=seller, ?admin=portal)
   const [isSellerMode, setIsSellerMode] = useState<boolean>(() => {
     try {
       const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
-      return pathname === '/seller' || pathname === '/admin';
+      const search = new URLSearchParams(window.location.search);
+      return (
+        pathname === '/seller' ||
+        pathname === '/admin' ||
+        search.get('app') === 'seller' ||
+        search.get('app') === 'admin' ||
+        search.get('admin') === 'portal' ||
+        search.get('admin') === 'true' ||
+        search.has('admin')
+      );
     } catch {
       return false;
     }
@@ -514,6 +523,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Admin / Seller Auth
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleUrlChange = () => {
+      try {
+        const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+        const search = new URLSearchParams(window.location.search);
+        const isSeller =
+          pathname === '/seller' ||
+          pathname === '/admin' ||
+          search.get('app') === 'seller' ||
+          search.get('app') === 'admin' ||
+          search.get('admin') === 'portal' ||
+          search.get('admin') === 'true' ||
+          search.has('admin');
+        setIsSellerMode(isSeller);
+      } catch {}
+    };
+    window.addEventListener('popstate', handleUrlChange);
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, []);
 
   // Apply the administrator-selected brand accent color across supported brand utility classes.
   useEffect(() => {
