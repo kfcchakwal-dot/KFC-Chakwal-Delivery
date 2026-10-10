@@ -29,7 +29,7 @@ try {
   console.warn('Firebase background messaging could not initialize:', error);
 }
 
-const CACHE_NAME = 'kfc-chakwal-v8';
+const CACHE_NAME = 'kfc-chakwal-v10';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -43,12 +43,13 @@ const PRECACHE_URLS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return Promise.allSettled(
         PRECACHE_URLS.map((url) => cache.add(url).catch(() => {}))
       );
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
@@ -91,23 +92,36 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML/navigation is network-first so Chrome always sees the latest
-  // manifest/app metadata after a deployment. Fall back to cached shell offline.
-  if (event.request.mode === 'navigate') {
+  // Network-first for HTML, JS scripts, TypeScript modules, CSS, and dynamic assets.
+  // This guarantees that code updates (like WhatsApp message format fixes) take effect immediately.
+  const isCodeOrMarkup =
+    event.request.mode === 'navigate' ||
+    url.pathname.endsWith('.html') ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.mjs') ||
+    url.pathname.endsWith('.ts') ||
+    url.pathname.endsWith('.tsx') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.includes('/src/') ||
+    url.pathname.includes('/assets/') ||
+    url.pathname.includes('/@');
+
+  if (isCodeOrMarkup) {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200 && response.type === 'basic') {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy)).catch(() => {});
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
           }
-          return response;
+          return networkResponse;
         })
-        .catch(() => caches.match('/index.html'))
+        .catch(() => caches.match(event.request).then((cached) => cached || (event.request.mode === 'navigate' ? caches.match('/index.html') : null)))
     );
     return;
   }
 
+  // Static assets (images, icons, fonts) can be served cache-first with network fallback
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const networkRequest = fetch(event.request).then((networkResponse) => {

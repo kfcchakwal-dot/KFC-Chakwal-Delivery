@@ -148,34 +148,17 @@ export const AdminOrdersModal: React.FC = () => {
 
   // WhatsApp text-only order summary. Deliberately exclude product image URLs and file paths.
   const buildOrderText = (order: Order) => [
-    `Assalam-o-Alaikum ${order.customer.fullName || 'Customer'}!`,
-    'KFC Chakwal Delivery',
-    `Order #${order.id}`,
-    `Status: ${String(order.status).toUpperCase()}`,
+    `Assalam-o-Alaikum ${order.customer.fullName?.trim() || 'Customer'}!`,
+    '',
+    `* KFC Chakwal Delivery — Order #${order.id}`,
     '',
     'Order Details:',
-    ...order.items.map((item) => `${item.quantity}x ${item.menuItem.name}${item.options?.spiceLevel ? ' (' + item.options.spiceLevel + ')' : ''}${item.options?.drink ? ' · ' + item.options.drink : ''}${item.options?.addons?.length ? ' + ' + item.options.addons.map((addon) => addon.name).join(', ') : ''} — ${formatPKR(item.unitPrice * item.quantity)}`),
+    ...order.items.map((item) => `${item.quantity}x ${item.menuItem.name} — Rs. ${Math.round(item.unitPrice * item.quantity).toLocaleString('en-PK')}`),
     '',
-    `Subtotal: ${formatPKR(order.subtotal)}`,
-    `Discount: -${formatPKR(order.discount || 0)}`,
-    `VIP Discount: -${formatPKR(order.vipDiscount || 0)}`,
-    `Loyalty Discount: -${formatPKR(order.loyaltyDiscount || 0)}`,
-    `Tax: ${formatPKR(order.taxAmount || 0)}`,
-    `Service Charge: ${formatPKR(order.serviceChargeAmount || 0)}`,
-    `Delivery Charges: ${formatPKR(order.deliveryFee || 0)}`,
-    `Total Bill: ${formatPKR(order.total)}`,
-    `Payment: ${String(order.paymentMethod).toUpperCase()}`,
+    `Total Bill: Rs. ${Math.round(order.total).toLocaleString('en-PK')}`,
     '',
-    `Customer: ${order.customer.fullName || 'Customer'}`,
-    `Phone: ${order.customer.phone || 'Not provided'}`,
-    `Order Type: ${order.orderType === 'self_pickup' ? 'Pickup' : 'Delivery'}`,
-    order.customer.address ? `Address: ${order.customer.address}` : '',
-    order.customer.area ? `Area: ${order.customer.area}` : '',
-    order.customer.landmark ? `Landmark: ${order.customer.landmark}` : '',
-    order.specialInstructions ? `Order Notes: ${order.specialInstructions}` : '',
-    '',
-    'Thank you for ordering with KFC Chakwal Delivery!'
-  ].filter(Boolean).join('\n');
+    'Thank you for ordering!',
+  ].join('\n');
 
   const handleWhatsAppText = (order: Order) => {
     const phone = getWhatsAppPhone(order);

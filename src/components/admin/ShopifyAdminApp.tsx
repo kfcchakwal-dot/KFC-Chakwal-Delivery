@@ -173,6 +173,18 @@ export const ShopifyAdminApp: React.FC = () => {
   const [productCategoryFilter, setProductCategoryFilter] = useState<CategoryId | 'all'>('all');
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && 'caches' in window) {
+      caches.keys().then((keys) => {
+        keys.forEach((key) => {
+          if (key !== 'kfc-chakwal-v10') {
+            caches.delete(key);
+          }
+        });
+      }).catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
     if (!isAdmin) return;
     let active = true;
     getDocs(collection(db, 'reviewRequests')).then((snapshot) => {

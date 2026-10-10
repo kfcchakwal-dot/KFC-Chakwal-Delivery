@@ -35,9 +35,20 @@
       });
       if ('serviceWorker' in navigator) {
         var registerSW = function() {
-          navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(err) {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
+            if (reg) reg.update();
+          }).catch(function(err) {
             console.warn('SW register error:', err);
           });
+          if ('caches' in window) {
+            caches.keys().then(function(keys) {
+              keys.forEach(function(key) {
+                if (key !== 'kfc-chakwal-v10') {
+                  caches.delete(key);
+                }
+              });
+            }).catch(function() {});
+          }
         };
         if (document.readyState === 'complete' || document.readyState === 'interactive') {
           registerSW();
