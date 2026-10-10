@@ -175,7 +175,7 @@ export const AdminOrdersModal: React.FC = () => {
     order.specialInstructions ? `Order Notes: ${order.specialInstructions}` : '',
     '',
     'Thank you for ordering with KFC Chakwal Delivery!'
-  ].filter(Boolean).join('\\n');
+  ].filter(Boolean).join('\n');
 
   const handleWhatsAppText = (order: Order) => {
     const phone = getWhatsAppPhone(order);
