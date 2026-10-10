@@ -23,6 +23,7 @@ import {
   ShieldCheck, 
   RefreshCw, 
   Eye, 
+  EyeOff,
   Sliders, 
   Sparkles, 
   Phone, 
@@ -63,7 +64,8 @@ import {
   Mail,
   CheckSquare,
   Square,
-  Edit3
+  Edit3,
+  DownloadCloud
 } from 'lucide-react';
 import { DiscountsManager } from './DiscountsManager';
 import { PageSectionsBuilder } from '../PageSectionsBuilder';
@@ -115,6 +117,10 @@ export const ShopifyAdminApp: React.FC = () => {
     updateSettings,
     menuItems,
     updateMenuItem,
+    updateProductStatus,
+    bulkUpdateProductStatus,
+    bulkDeleteMenuItems,
+    importProductsFromSourceSite,
     addMenuItem,
     deleteMenuItem,
     toggleItemAvailability,
@@ -171,6 +177,11 @@ export const ShopifyAdminApp: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState<CategoryId | 'all'>('all');
+  const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'active' | 'draft'>('all');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [isImportingProducts, setIsImportingProducts] = useState(false);
+  const [productActionFeedback, setProductActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isApplyingBulkProductAction, setIsApplyingBulkProductAction] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'caches' in window) {
@@ -622,8 +633,149 @@ export const ShopifyAdminApp: React.FC = () => {
   const filteredProducts = menuItems.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(productSearch.toLowerCase());
     const matchesCat = productCategoryFilter === 'all' || item.categoryId === productCategoryFilter;
-    return matchesSearch && matchesCat;
+    const matchesStatus =
+      productStatusFilter === 'all' ||
+      (productStatusFilter === 'active' && item.status !== 'draft') ||
+      (productStatusFilter === 'draft' && item.status === 'draft');
+    return matchesSearch && matchesCat && matchesStatus;
   });
+
+  const handleToggleSelectProduct = (productId: string) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
+    );
+  };
+
+  const handleSelectAllProducts = () => {
+    if (selectedProductIds.length === filteredProducts.length && filteredProducts.length > 0) {
+      setSelectedProductIds([]);
+    } else {
+      setSelectedProductIds(filteredProducts.map((p) => p.id));
+    }
+  };
+
+  const handleDeselectAllProducts = () => {
+    setSelectedProductIds([]);
+  };
+
+  const handleBulkSetProductStatus = async (status: 'active' | 'draft') => {
+    if (selectedProductIds.length === 0) return;
+    setIsApplyingBulkProductAction(true);
+    setProductActionFeedback(null);
+    try {
+      const res = await bulkUpdateProductStatus(selectedProductIds, status);
+      if (res.success) {
+        setProductActionFeedback({
+          type: 'success',
+          message: `Successfully set ${res.updatedCount} products to ${status === 'active' ? 'Active' : 'Draft'}.`,
+        });
+        setSelectedProductIds([]);
+      } else {
+        setProductActionFeedback({
+          type: 'error',
+          message: `Failed to update ${res.failedIds.length} products: ${res.failedIds.join(', ')}`,
+        });
+      }
+    } catch (err: any) {
+      setProductActionFeedback({
+        type: 'error',
+        message: err.message || 'Bulk product update failed',
+      });
+    } finally {
+      setIsApplyingBulkProductAction(false);
+    }
+  };
+
+  const handleBulkDeleteProducts = async () => {
+    if (selectedProductIds.length === 0) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete ${selectedProductIds.length} selected products? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setIsApplyingBulkProductAction(true);
+    setProductActionFeedback(null);
+    try {
+      const res = await bulkDeleteMenuItems(selectedProductIds);
+      if (res.success) {
+        setProductActionFeedback({
+          type: 'success',
+          message: `Successfully deleted ${res.deletedCount} products.`,
+        });
+        setSelectedProductIds([]);
+      } else {
+        setProductActionFeedback({
+          type: 'error',
+          message: `Failed to delete products: ${res.failedIds.join(', ')}`,
+        });
+      }
+    } catch (err: any) {
+      setProductActionFeedback({
+        type: 'error',
+        message: err.message || 'Bulk product deletion failed',
+      });
+    } finally {
+      setIsApplyingBulkProductAction(false);
+    }
+  };
+
+  const handleImportSourceProducts = async () => {
+    const confirmed = window.confirm(
+      'Import all products from https://kfcchk.kintrends.com/?\\n\\nThis will import Product Title, Description, Price, and Images while preserving all existing collections, variants, and settings. Duplicate products will not be created.'
+    );
+    if (!confirmed) return;
+
+    setIsImportingProducts(true);
+    setProductActionFeedback(null);
+    try {
+      const res = await importProductsFromSourceSite();
+      if (res.success) {
+        setProductActionFeedback({
+          type: 'success',
+          message: `Successfully imported products from kfcchk.kintrends.com! Processed ${res.stats.totalProcessed} products (${res.stats.updatedCount} updated, ${res.stats.newCount} new, 0 duplicates, ${res.stats.failedCount} failed).`,
+        });
+      } else {
+        setProductActionFeedback({
+          type: 'error',
+          message: `Import failed: ${res.stats.failedProducts.join(', ')}`,
+        });
+      }
+    } catch (err: any) {
+      setProductActionFeedback({
+        type: 'error',
+        message: err.message || 'Failed to import products from source website',
+      });
+    } finally {
+      setIsImportingProducts(false);
+    }
+  };
+
+  const handleIndividualProductStatus = async (item: MenuItem, newStatus: 'active' | 'draft' | 'delete') => {
+    if (newStatus === 'delete') {
+      const confirmed = window.confirm(`Are you sure you want to permanently delete "${item.name}"?`);
+      if (confirmed) {
+        deleteMenuItem(item.id);
+        setProductActionFeedback({
+          type: 'success',
+          message: `Deleted "${item.name}".`,
+        });
+      }
+      return;
+    }
+
+    try {
+      await updateProductStatus(item.id, newStatus);
+      setProductActionFeedback({
+        type: 'success',
+        message: `Set "${item.name}" to ${newStatus === 'active' ? 'Active' : 'Draft'}.`,
+      });
+    } catch (err: any) {
+      setProductActionFeedback({
+        type: 'error',
+        message: `Failed to update status for "${item.name}": ${err.message}`,
+      });
+    }
+  };
 
   const filteredOrders = allOrders.filter((order) => {
     if (orderStatusFilter === 'all') return true;
@@ -2050,6 +2202,15 @@ export const ShopifyAdminApp: React.FC = () => {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <button
+                    onClick={handleImportSourceProducts}
+                    disabled={isImportingProducts}
+                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 transition"
+                    title="Import All Products from https://kfcchk.kintrends.com/"
+                  >
+                    <DownloadCloud className={`w-4 h-4 ${isImportingProducts ? 'animate-bounce text-amber-200' : 'text-emerald-100'}`} />
+                    <span>{isImportingProducts ? 'Importing Products...' : 'Import from Source (kfcchk)'}</span>
+                  </button>
+                  <button
                     onClick={() => setIsAddingProduct(true)}
                     className="bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-md cursor-pointer active:scale-95"
                   >
@@ -2105,15 +2266,42 @@ export const ShopifyAdminApp: React.FC = () => {
               {/* SUBTAB 1: ALL PRODUCTS CATALOG */}
               {productSubTab === 'catalog' && (
                 <div className="space-y-4">
-                  {/* Search & Category Filter */}
-                  <div className="flex flex-col sm:flex-row gap-3 bg-white p-3 rounded-2xl border border-zinc-200">
+                  {/* Operation Feedback Notice */}
+                  {productActionFeedback && (
+                    <div
+                      className={`p-3.5 rounded-xl border flex items-center justify-between text-xs font-medium animate-fadeIn ${
+                        productActionFeedback.type === 'success'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                          : 'bg-red-50 border-red-200 text-red-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {productActionFeedback.type === 'success' ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                        )}
+                        <span>{productActionFeedback.message}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setProductActionFeedback(null)}
+                        className="text-zinc-400 hover:text-zinc-600 p-1 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Search & Filters */}
+                  <div className="flex flex-col md:flex-row gap-3 bg-white p-3 rounded-2xl border border-zinc-200">
                     <div className="relative flex-1">
                       <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
                       <input
                         type="text"
                         value={productSearch}
                         onChange={(e) => setProductSearch(e.target.value)}
-                        placeholder="Search by product name..."
+                        placeholder="Search products by name or keyword..."
                         className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-[#e4002b]"
                       />
                     </div>
@@ -2128,19 +2316,134 @@ export const ShopifyAdminApp: React.FC = () => {
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
+
+                    <select
+                      value={productStatusFilter}
+                      onChange={(e) => setProductStatusFilter(e.target.value as any)}
+                      className="bg-zinc-50 border border-zinc-200 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:border-[#e4002b]"
+                    >
+                      <option value="all">All Statuses ({menuItems.length})</option>
+                      <option value="active">Active Only ({menuItems.filter((i) => i.status !== 'draft').length})</option>
+                      <option value="draft">Draft Only ({menuItems.filter((i) => i.status === 'draft').length})</option>
+                    </select>
+                  </div>
+
+                  {/* Bulk Product Selection and Actions Bar */}
+                  <div className="bg-white p-3 rounded-2xl border border-zinc-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllProducts}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 font-bold transition cursor-pointer"
+                      >
+                        {selectedProductIds.length === filteredProducts.length && filteredProducts.length > 0 ? (
+                          <CheckSquare className="w-3.5 h-3.5 text-[#e4002b]" />
+                        ) : (
+                          <Square className="w-3.5 h-3.5 text-zinc-400" />
+                        )}
+                        <span>
+                          {selectedProductIds.length === filteredProducts.length && filteredProducts.length > 0
+                            ? 'Deselect All'
+                            : `Select All (${filteredProducts.length})`}
+                        </span>
+                      </button>
+
+                      {selectedProductIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleDeselectAllProducts}
+                          className="px-2.5 py-1.5 text-zinc-500 hover:text-zinc-700 text-xs font-bold cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+
+                      <span className="text-zinc-500 font-medium">
+                        <strong className={selectedProductIds.length > 0 ? 'text-[#e4002b]' : 'text-zinc-900'}>
+                          {selectedProductIds.length}
+                        </strong>{' '}
+                        of {filteredProducts.length} products selected
+                      </span>
+                    </div>
+
+                    {selectedProductIds.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          disabled={isApplyingBulkProductAction}
+                          onClick={() => handleBulkSetProductStatus('active')}
+                          className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1 cursor-pointer"
+                          title="Set selected products to Active (visible to customers)"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Set to Active ({selectedProductIds.length})</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isApplyingBulkProductAction}
+                          onClick={() => handleBulkSetProductStatus('draft')}
+                          className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1 cursor-pointer"
+                          title="Set selected products to Draft (hidden from customers)"
+                        >
+                          <EyeOff className="w-3.5 h-3.5" />
+                          <span>Set to Draft ({selectedProductIds.length})</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isApplyingBulkProductAction}
+                          onClick={handleBulkDeleteProducts}
+                          className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1 cursor-pointer"
+                          title="Permanently delete selected products"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete Selected ({selectedProductIds.length})</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Products Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredProducts.map((item) => {
                       const effective = calculatePrice(item.baseKfcPrice, item.sellingPrice);
-                      const isCustom = item.sellingPrice !== undefined && item.sellingPrice > 0;
+                      const isSelected = selectedProductIds.includes(item.id);
+                      const isDraft = item.status === 'draft';
 
                       return (
                         <div
                           key={item.id}
-                          className="bg-white border border-zinc-200 rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition"
+                          className={`bg-white border rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition relative ${
+                            isSelected
+                              ? 'border-[#e4002b] ring-2 ring-red-100 bg-red-50/10'
+                              : 'border-zinc-200'
+                          }`}
                         >
+                          {/* Top Header of Card: Selection Checkbox + Status Pill */}
+                          <div className="flex items-center justify-between pb-1 border-b border-zinc-100">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleSelectProduct(item.id)}
+                                className="w-4 h-4 rounded text-[#e4002b] focus:ring-[#e4002b] border-zinc-300 cursor-pointer"
+                              />
+                              <span className="text-[11px] font-bold text-zinc-500">Select</span>
+                            </label>
+
+                            <span
+                              className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                                isDraft
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${isDraft ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                              <span>{isDraft ? 'Draft (Hidden)' : 'Active (Live)'}</span>
+                            </span>
+                          </div>
+
                           <div className="flex gap-3">
                             <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-zinc-100 shrink-0 border border-zinc-200">
                               {item.image ? (
@@ -2181,36 +2484,60 @@ export const ShopifyAdminApp: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Card Actions */}
-                          <div className="border-t border-zinc-100 pt-3 flex items-center justify-between gap-2">
-                            <button
-                              onClick={() => toggleItemAvailability(item.id)}
-                              className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                                item.isAvailable
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-zinc-100 text-zinc-500'
-                              }`}
-                            >
-                              {item.isAvailable ? 'In Stock' : 'Out of Stock'}
-                            </button>
-
+                          {/* Card Actions: Status Control Selector + Edit All + In Stock Toggle */}
+                          <div className="border-t border-zinc-100 pt-3 flex flex-col gap-2">
+                            {/* Individual Status Control: Active, Draft, Delete */}
                             <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => setEditingItem(item)}
-                                className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                              <span className="text-[10px] font-bold text-zinc-400 uppercase shrink-0">Status:</span>
+                              <select
+                                value={isDraft ? 'draft' : 'active'}
+                                onChange={(e) => handleIndividualProductStatus(item, e.target.value as any)}
+                                className={`w-full text-xs font-bold px-2 py-1.5 rounded-lg border cursor-pointer focus:outline-none transition ${
+                                  isDraft
+                                    ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                    : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                }`}
                               >
-                                <ImageIcon className="w-3.5 h-3.5" />
-                                <span>Edit All</span>
+                                <option value="active">Active (Visible)</option>
+                                <option value="draft">Draft (Hidden)</option>
+                                <option value="delete">Delete Product...</option>
+                              </select>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => toggleItemAvailability(item.id)}
+                                className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                                  item.isAvailable
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-zinc-100 text-zinc-500'
+                                }`}
+                              >
+                                {item.isAvailable ? 'In Stock' : 'Out of Stock'}
                               </button>
 
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Delete ${item.name}?`)) deleteMenuItem(item.id);
-                                }}
-                                className="text-red-500 hover:text-red-700 p-1.5 cursor-pointer"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingItem(item)}
+                                  className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                                >
+                                  <ImageIcon className="w-3.5 h-3.5" />
+                                  <span>Edit All</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(`Delete ${item.name}?`)) deleteMenuItem(item.id);
+                                  }}
+                                  title="Delete product"
+                                  className="text-red-500 hover:text-red-700 p-1.5 cursor-pointer rounded-lg hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>

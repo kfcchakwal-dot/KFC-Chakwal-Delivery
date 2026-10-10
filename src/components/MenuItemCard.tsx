@@ -24,6 +24,8 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
   const imageAreaRef = useRef<HTMLDivElement>(null);
   const [flyingImage, setFlyingImage] = useState<{ src: string; left: number; top: number; size: number; targetLeft: number; targetTop: number; phase: boolean } | null>(null);
 
+  if (item.status === 'draft') return null;
+
   const isDark = themeMode === 'dark';
   const isFavorite = wishlist.includes(item.id);
   const effectivePrice = getItemEffectivePrice(item);

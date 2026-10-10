@@ -75,7 +75,7 @@ const MainShop: React.FC = () => {
   const isDark = themeMode === 'dark';
   const storefrontCategories = useMemo(() => {
     const knownIds = new Set(KFC_CATEGORIES.map((category) => String(category.id)));
-    const extraIds = Array.from(new Set(menuItems.map((item) => String(item.categoryId)).filter((id) => id && !knownIds.has(id))));
+    const extraIds = Array.from(new Set(menuItems.filter((item) => item.status !== 'draft').map((item) => String(item.categoryId)).filter((id) => id && !knownIds.has(id))));
     return [...KFC_CATEGORIES, ...extraIds.map((id) => ({ id: id as CategoryId, name: id.replace(/-/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()), subtitle: '' }))];
   }, [menuItems]);
   const sectionColorCss = Object.entries(settings.sectionColorSchemes || {}).map(([key, scheme]) => {
@@ -107,6 +107,10 @@ const MainShop: React.FC = () => {
     if (menuItems.length === 0) return;
     const sharedProduct = menuItems.find((item) => item.id === productId);
     if (sharedProduct) {
+      if (sharedProduct.status === 'draft') {
+        initialProductHandled.current = true;
+        return;
+      }
       viewProduct(sharedProduct);
       initialProductHandled.current = true;
     }
@@ -226,8 +230,9 @@ const MainShop: React.FC = () => {
     );
   }
 
-  // Filter items based on search query
+  // Filter items based on search query (Draft products are strictly hidden from customers)
   const searchedItems = menuItems.filter((item) => {
+    if (item.status === 'draft') return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (

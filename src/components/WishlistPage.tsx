@@ -6,7 +6,7 @@ import { Heart, ArrowLeft, ShoppingBag, UtensilsCrossed } from 'lucide-react';
 export const WishlistPage: React.FC = () => {
   const { wishlist, menuItems, goHome, themeMode } = useStore();
 
-  const favoriteItems = menuItems.filter((item) => wishlist.includes(item.id));
+  const favoriteItems = menuItems.filter((item) => wishlist.includes(item.id) && item.status !== 'draft');
   const isDark = themeMode === 'dark';
 
   return (

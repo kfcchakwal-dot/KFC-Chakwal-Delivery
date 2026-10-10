@@ -6,6 +6,8 @@ import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin
 import { getAuth, type Auth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { syncShopifyProductsToFirestore, getShopifyProducts, getShopifyConfigStatus } from './server/shopify';
+import { fetchAllSourceProducts, mergeSourceProducts } from './src/utils/productImporter';
+import { INITIAL_KFC_ITEMS } from './src/data/kfcMenu';
 
 // Load Firebase configuration
 const firebaseConfigPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
@@ -223,6 +225,46 @@ app.post('/api/store-data', verifyAdminAuth, async (req, res) => {
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update store data' });
+  }
+});
+
+// POST /api/admin/import-source-products (Import all products from https://kfcchk.kintrends.com/)
+app.post('/api/admin/import-source-products', verifyAdminAuth, async (_req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const sourceProducts = await fetchAllSourceProducts('https://kfcchk.kintrends.com');
+    const settingsDoc = await firestoreDb.collection('storeSettings').doc('global').get();
+    const currentSettings: any = settingsDoc.exists ? settingsDoc.data() || {} : {};
+    const existingMenu = Array.isArray(currentSettings.menuItems) && currentSettings.menuItems.length > 0
+      ? currentSettings.menuItems
+      : INITIAL_KFC_ITEMS;
+
+    const { updatedMenu, stats } = mergeSourceProducts(sourceProducts, existingMenu);
+
+    const batch = firestoreDb.batch();
+    const settingsRef = firestoreDb.collection('storeSettings').doc('global');
+    const publicRef = firestoreDb.collection('storePublic').doc('global');
+    const productsCol = firestoreDb.collection('products');
+
+    const timestamp = new Date().toISOString();
+    batch.set(settingsRef, { menuItems: updatedMenu, lastUpdated: timestamp }, { merge: true });
+    batch.set(publicRef, { menuItems: updatedMenu, updatedAt: timestamp }, { merge: true });
+
+    for (const prod of updatedMenu) {
+      if (!prod?.id || !prod?.name) continue;
+      batch.set(productsCol.doc(String(prod.id)), { ...prod, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    }
+
+    await batch.commit();
+
+    return res.json({
+      success: true,
+      stats,
+      totalCount: updatedMenu.length,
+    });
+  } catch (err: any) {
+    console.error('Import source products error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to import products from source website' });
   }
 });
 

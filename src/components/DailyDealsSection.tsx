@@ -5,20 +5,21 @@ import { Sparkles, Flame, Clock, Percent } from 'lucide-react';
 
 // Deterministic daily picker: picks collection, random, or manual products that auto-rotates at 12:00 AM midnight
 function getDailyDealItems(items: MenuItem[], config: DailyDealConfig): MenuItem[] {
+  const activeItems = items.filter((it) => it.status !== 'draft');
   const count = 6;
 
   // 1. Manual Selection Mode
   if (config.selectionMode === 'manual' && config.selectedProductIds && config.selectedProductIds.length > 0) {
-    const selected = items.filter((it) => config.selectedProductIds!.includes(it.id));
+    const selected = activeItems.filter((it) => config.selectedProductIds!.includes(it.id));
     if (selected.length > 0) {
       const selectedIds = new Set(selected.map((item) => item.id));
-      const fillRemaining = items.filter((item) => !selectedIds.has(item.id));
+      const fillRemaining = activeItems.filter((item) => !selectedIds.has(item.id));
       return [...selected, ...fillRemaining].slice(0, count);
     }
   }
 
   // 2. Collection Selection Mode
-  let pool = items;
+  let pool = activeItems;
   if (config.selectionMode === 'collection' && config.collectionCategory && config.collectionCategory !== 'all') {
     const collectionItems = items.filter((it) => it.categoryId === config.collectionCategory);
     if (collectionItems.length > 0) {

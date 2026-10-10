@@ -48,6 +48,7 @@ import {
   KFC_CATEGORIES,
 } from '../data/kfcMenu';
 import { playNewOrderChime } from '../utils/audioNotification';
+import { fetchAllSourceProducts, mergeSourceProducts, type ImportStats } from '../utils/productImporter';
 import { auth, app, db, firebaseConfig } from '../lib/firebase';
 import { getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging';
 import {
@@ -117,6 +118,10 @@ interface StoreContextType {
   // Menu Catalog (Fully editable)
   menuItems: MenuItem[];
   updateMenuItem: (item: MenuItem) => void;
+  updateProductStatus: (itemId: string, status: 'active' | 'draft') => Promise<void>;
+  bulkUpdateProductStatus: (itemIds: string[], status: 'active' | 'draft') => Promise<{ success: boolean; updatedCount: number; failedIds: string[] }>;
+  bulkDeleteMenuItems: (itemIds: string[]) => Promise<{ success: boolean; deletedCount: number; failedIds: string[] }>;
+  importProductsFromSourceSite: () => Promise<{ success: boolean; stats: ImportStats }>;
   addMenuItem: (item: MenuItem) => void;
   bulkImportProducts: (newProducts: MenuItem[]) => void;
   deleteMenuItem: (itemId: string) => void;
@@ -1301,7 +1306,109 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       item.id === updatedItem.id ? updatedItem : item
     );
     setMenuItems(nextMenu);
+    if (updatedItem.status === 'draft') {
+      setCart((prev) => prev.filter((item) => item.menuItem.id !== updatedItem.id));
+    }
     syncStoreToServer({ menuItems: nextMenu });
+  };
+
+  const updateProductStatus = async (itemId: string, status: 'active' | 'draft') => {
+    const nextMenu = menuItems.map((item) =>
+      item.id === itemId ? { ...item, status } : item
+    );
+    setMenuItems(nextMenu);
+    if (status === 'draft') {
+      setCart((prev) => prev.filter((item) => item.menuItem.id !== itemId));
+    }
+    await syncStoreToServer({ menuItems: nextMenu });
+  };
+
+  const bulkUpdateProductStatus = async (
+    itemIds: string[],
+    status: 'active' | 'draft'
+  ): Promise<{ success: boolean; updatedCount: number; failedIds: string[] }> => {
+    try {
+      const idSet = new Set(itemIds);
+      const nextMenu = menuItems.map((item) =>
+        idSet.has(item.id) ? { ...item, status } : item
+      );
+      setMenuItems(nextMenu);
+      if (status === 'draft') {
+        setCart((prev) => prev.filter((item) => !idSet.has(item.menuItem.id)));
+      }
+      await syncStoreToServer({ menuItems: nextMenu });
+      return { success: true, updatedCount: itemIds.length, failedIds: [] };
+    } catch (err) {
+      console.error('Failed bulk update product status:', err);
+      return { success: false, updatedCount: 0, failedIds: itemIds };
+    }
+  };
+
+  const bulkDeleteMenuItems = async (
+    itemIds: string[]
+  ): Promise<{ success: boolean; deletedCount: number; failedIds: string[] }> => {
+    try {
+      const idSet = new Set(itemIds);
+      const nextMenu = menuItems.filter((item) => !idSet.has(item.id));
+      setMenuItems(nextMenu);
+      setCart((prev) => prev.filter((item) => !idSet.has(item.menuItem.id)));
+      setWishlist((prev) => prev.filter((id) => !idSet.has(id)));
+      if (selectedProduct && idSet.has(selectedProduct.id)) {
+        setSelectedProduct(null);
+        setCurrentView('home');
+      }
+      await syncStoreToServer({ menuItems: nextMenu });
+      return { success: true, deletedCount: itemIds.length, failedIds: [] };
+    } catch (err) {
+      console.error('Failed bulk delete menu items:', err);
+      return { success: false, deletedCount: 0, failedIds: itemIds };
+    }
+  };
+
+  const importProductsFromSourceSite = async (): Promise<{ success: boolean; stats: ImportStats }> => {
+    try {
+      const headers = await getAuthHeaders();
+      if (headers.Authorization) {
+        try {
+          const resp = await fetch('/api/admin/import-source-products', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...headers,
+            },
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.success && data.stats) {
+              const sourceProducts = await fetchAllSourceProducts('https://kfcchk.kintrends.com');
+              const { updatedMenu } = mergeSourceProducts(sourceProducts, menuItems);
+              setMenuItems(updatedMenu);
+              return { success: true, stats: data.stats };
+            }
+          }
+        } catch (serverErr) {
+          console.warn('Server endpoint notice, using direct client sync:', serverErr);
+        }
+      }
+
+      const sourceProducts = await fetchAllSourceProducts('https://kfcchk.kintrends.com');
+      const { updatedMenu, stats } = mergeSourceProducts(sourceProducts, menuItems);
+      setMenuItems(updatedMenu);
+      await syncStoreToServer({ menuItems: updatedMenu });
+      return { success: true, stats };
+    } catch (err: any) {
+      console.error('Failed to import products from source:', err);
+      return {
+        success: false,
+        stats: {
+          totalProcessed: 0,
+          updatedCount: 0,
+          newCount: 0,
+          failedCount: 1,
+          failedProducts: [err?.message || 'Failed to connect to source website or parse catalogue'],
+        },
+      };
+    }
   };
 
   const addMenuItem = (newItem: MenuItem) => {
@@ -1329,6 +1436,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const nextMenu = menuItems.filter((item) => item.id !== itemId);
     setMenuItems(nextMenu);
     setCart((prev) => prev.filter((item) => item.menuItem.id !== itemId));
+    setWishlist((prev) => prev.filter((id) => id !== itemId));
+    if (selectedProduct?.id === itemId) {
+      setSelectedProduct(null);
+      setCurrentView('home');
+    }
     syncStoreToServer({ menuItems: nextMenu });
   };
 
@@ -1505,6 +1617,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Cart operations
   const addToCart = (item: MenuItem, options?: CartItemOption, quantity: number = 1) => {
+    // Draft products are hidden from customers and cannot be ordered
+    if (item.status === 'draft') {
+      return;
+    }
+
     const effectiveUnitPrice = getItemEffectivePrice(item);
     const addonsTotal = options?.addons?.reduce((sum, a) => sum + a.price, 0) || 0;
     const finalUnitPrice = effectiveUnitPrice + addonsTotal;
@@ -1771,6 +1888,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Product View
   const viewProduct = (item: MenuItem) => {
+    if (!isAdmin && item.status === 'draft') {
+      return;
+    }
     setSelectedProduct(item);
     setCurrentView('product');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2531,6 +2651,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         bulkImportProducts,
         menuItems,
         updateMenuItem,
+        updateProductStatus,
+        bulkUpdateProductStatus,
+        bulkDeleteMenuItems,
+        importProductsFromSourceSite,
         addMenuItem,
         deleteMenuItem,
         toggleItemAvailability,

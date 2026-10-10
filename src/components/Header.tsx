@@ -72,14 +72,15 @@ export const Header: React.FC = () => {
 
   // Live instant search matches. Keep this safe for imported catalogue rows with missing fields.
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+  const activeItems = menuItems.filter((item) => item.status !== 'draft');
   const matchingItems = normalizedSearch
-    ? menuItems.filter((item) =>
+    ? activeItems.filter((item) =>
         String(item.name || '').toLocaleLowerCase().includes(normalizedSearch) ||
         String(item.description || '').toLocaleLowerCase().includes(normalizedSearch) ||
         String(item.categoryId || '').toLocaleLowerCase().includes(normalizedSearch)
       ).slice(0, 8)
     : [];
-  const desktopSuggestions = normalizedSearch ? matchingItems : menuItems.slice(0, 5);
+  const desktopSuggestions = normalizedSearch ? matchingItems : activeItems.slice(0, 5);
 
   return (
     <>

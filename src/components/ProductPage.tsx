@@ -72,6 +72,26 @@ export const ProductPage: React.FC = () => {
 
   if (!item) return null;
 
+  if (item.status === 'draft') {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-20 text-center">
+        <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+          <ShieldCheck className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-zinc-900 mb-2">Item Currently Unavailable</h2>
+        <p className="text-sm text-zinc-500 mb-6">
+          This product is currently in draft and is not available for ordering.
+        </p>
+        <button
+          onClick={goHome}
+          className="bg-[#e4002b] hover:bg-[#c30025] text-white px-6 py-2.5 rounded-xl font-bold text-sm cursor-pointer shadow-md"
+        >
+          Return to Menu
+        </button>
+      </div>
+    );
+  }
+
   const isFavorite = wishlist.includes(item.id);
   const basePrice = getItemEffectivePrice(item);
   const hasComparePrice = Boolean(item.compareAtPrice && item.compareAtPrice > basePrice);

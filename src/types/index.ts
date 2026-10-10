@@ -45,6 +45,7 @@ export interface MenuItem {
   isSpicy?: boolean;
   isPopular?: boolean;
   isAvailable: boolean;
+  status?: 'active' | 'draft'; // Individual product status: 'active' (visible) or 'draft' (hidden from customers)
   trackInventory?: boolean; // Flexible inventory toggle: track or un-tracked
   stockQuantity?: number; // Quantity in stock
   lowStockThreshold?: number;

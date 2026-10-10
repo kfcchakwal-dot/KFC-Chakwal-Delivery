@@ -49,8 +49,9 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
   }, [menuItems, settings.collectionNavOrder, settings.collectionNavHidden]);
 
   const getCategoryCount = (id: CategoryId | 'all') => {
-    if (id === 'all') return menuItems.length;
-    return menuItems.filter((item) => item.categoryId === id).length;
+    const active = menuItems.filter((item) => item.status !== 'draft');
+    if (id === 'all') return active.length;
+    return active.filter((item) => item.categoryId === id).length;
   };
 
   return (
