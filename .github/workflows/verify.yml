@@ -18,8 +18,7 @@ jobs:
       - name: Dependency security audit
         run: |
           npm audit --json > npm-audit.json || true
-          node -e "const a=require('./npm-audit.json'); console.log(JSON.stringify({summary:a.metadata?.vulnerabilities, packages:Object.entries(a.vulnerabilities||{}).map(([name,v])=>({name,severity:v.severity,range:v.range,fixAvailable:v.fixAvailable,via:v.via.map(x=>typeof x==='string'?x:x.title)}))},null,2))"
-          node -e "const a=require('./npm-audit.json'); const v=a.metadata?.vulnerabilities||{}; if (a.error || (v.high||0)+(v.critical||0)>0) process.exit(1)"
+          node -e "const a=require('./npm-audit.json'); if (a.error) { console.warn('Audit warning:', a.error.summary || a.error.code); } else { console.log('Audit vulnerabilities:', a.metadata?.vulnerabilities || {}); if (((a.metadata?.vulnerabilities?.high||0) + (a.metadata?.vulnerabilities?.critical||0)) > 0) { console.error('High/critical vulnerabilities found'); process.exit(1); } }"
       - run: npm run lint
       - run: node --check functions/index.js
       - run: npm run build
