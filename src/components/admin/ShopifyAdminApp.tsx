@@ -1541,7 +1541,27 @@ export const ShopifyAdminApp: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {order.customer.phone && <a target="_blank" rel="noreferrer" className="inline-flex rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800" href={`https://wa.me/${String(order.customer.phone).replace(/[^0-9]/g, '').replace(/^0/, '92')}?text=${encodeURIComponent([`Assalam o Alaikum ${order.customer.fullName || 'Customer'}!`, `KFC Chakwal Delivery Order #${order.id}`, ...order.items.map((item) => `${item.quantity}x ${item.menuItem.name} — Rs. ${Math.round(item.unitPrice * item.quantity).toLocaleString('en-PK')} | Image: ${item.menuItem.image || 'N/A'}`), `Total Bill: ${formatPKR(order.total)}`, 'Thank you for ordering!'].join('\\n'))}`}>Send order details on WhatsApp</a>}
+                        {order.customer.phone && (
+                          <a
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800"
+                            href={`https://wa.me/${String(order.customer.phone).replace(/[^0-9]/g, '').replace(/^0/, '92')}?text=${encodeURIComponent([
+                              `Assalam-o-Alaikum ${order.customer.fullName?.trim() || 'Customer'}!`,
+                              '',
+                              `* KFC Chakwal Delivery — Order #${order.id}`,
+                              '',
+                              'Order Details:',
+                              ...order.items.map((item) => `${item.quantity}x ${item.menuItem.name} — Rs. ${Math.round(item.unitPrice * item.quantity).toLocaleString('en-PK')}`),
+                              '',
+                              `Total Bill: Rs. ${Math.round(order.total).toLocaleString('en-PK')}`,
+                              '',
+                              'Thank you for ordering!',
+                            ].join('\n'))}`}
+                          >
+                            Send order details on WhatsApp
+                          </a>
+                        )}
                         {order.status !== 'delivered' && order.status !== 'cancelled' && <button type="button" onClick={() => { if (window.confirm(`Order #${order.id} cancel karna hai?`)) void updateOrderStatus(order.id, 'cancelled' as any); }} className="inline-flex rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">Cancel Order</button>}
                       </div>
                     </div>
