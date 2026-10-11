@@ -220,8 +220,8 @@ interface StoreContextType {
   setActiveCategory: (cat: CategoryId) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  currentView: 'home' | 'product' | 'wishlist' | 'collection';
-  setCurrentView: (view: 'home' | 'product' | 'wishlist' | 'collection') => void;
+  currentView: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews';
+  setCurrentView: (view: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews') => void;
   selectedProduct: MenuItem | null;
   viewProduct: (item: MenuItem) => void;
   goHome: () => void;
@@ -506,7 +506,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedItemForCustomization, setSelectedItemForCustomization] = useState<MenuItem | null>(null);
 
   // Navigation
-  const [currentView, setCurrentView] = useState<'home' | 'product' | 'wishlist' | 'collection'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'product' | 'wishlist' | 'collection' | 'reviews'>(() => {
+    try { return new URLSearchParams(window.location.search).get('view') === 'reviews' ? 'reviews' : 'home'; } catch { return 'home'; }
+  });
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
 
   // Reviews
