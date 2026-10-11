@@ -2600,14 +2600,14 @@ export const ShopifyAdminApp: React.FC = () => {
                           <span>Set to Draft ({selectedProductIds.length})</span>
                         </button>
 
-                        <button type="button" disabled={isApplyingBulkProductAction || settings.skuBarcodeConfig?.enabled === false} onClick={async () => {
+                        <button type="button" disabled={isApplyingBulkProductAction || settings.skuBarcodeConfig?.enabled === false || (settings.skuBarcodeConfig?.autoGenerateSku === false && settings.skuBarcodeConfig?.autoGenerateBarcode === false)} onClick={async () => {
                           setIsApplyingBulkProductAction(true);
                           let count = 0;
                           try {
                             for (const id of selectedProductIds) {
                               const item = menuItems.find((product) => product.id === id);
                               if (!item) continue;
-                              await updateMenuItem({ ...item, sku: item.sku || `KFC-${item.id.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`, barcode: item.barcode || `92325${String(item.id).replace(/\D/g, '').slice(-8).padStart(8, '0')}` });
+                              await updateMenuItem({ ...item, sku: item.sku || (settings.skuBarcodeConfig?.autoGenerateSku === false ? '' : `KFC-${item.id.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`), barcode: item.barcode || (settings.skuBarcodeConfig?.autoGenerateBarcode === false ? '' : `92325${String(item.id).replace(/\D/g, '').slice(-8).padStart(8, '0')}`) });
                               count += 1;
                             }
                             setProductActionFeedback({ type: 'success', message: `SKU/barcode ${count} selected products ke liye generate/save ho gaye.` });
@@ -3952,7 +3952,11 @@ export const ShopifyAdminApp: React.FC = () => {
                 ] as const).map(([key,label,fallback]) => <label key={key} className="block text-xs font-bold text-zinc-700">{label}<textarea rows={3} value={settings.whatsappTemplates?.[key] ?? fallback} onChange={(event) => updateSettings({ whatsappTemplates: { orderDetails: settings.whatsappTemplates?.orderDetails ?? 'Assalam-o-Alaikum {name}! Order #{orderId}. Items: {items}. Total: {total}. Received: {received}. Balance: {balance}.', reviewRequest: settings.whatsappTemplates?.reviewRequest ?? 'Assalam o Alaikum {name}! Order #{orderId} ke liye shukriya. Apna review yahan share karein: {reviewUrl}', abandonedRecovery: settings.whatsappTemplates?.abandonedRecovery ?? 'Assalam o Alaikum {name}! Aap ka cart ready hai: {items}. Total: {total}.', vipPass: settings.whatsappTemplates?.vipPass ?? 'Assalam o Alaikum {name}! Aap ka VIP pass {orderId} ke liye request hai. Total: {total}.', orderStatus: settings.whatsappTemplates?.orderStatus ?? 'Assalam o Alaikum {name}! Aap ke order #{orderId} ka update: {status}. Balance: {balance}.', [key]: event.target.value } })} className="mt-1 w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs font-normal"/></label>)}
                 <div><h3 className="font-bold text-sm text-zinc-900">SKU & Barcode Settings</h3><p className="mt-1 text-[11px] text-zinc-500">Enable/disable SKU and barcode fields and bulk generation.</p></div>
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>Enable SKU / Barcode features</span><input type="checkbox" checked={settings.skuBarcodeConfig?.enabled !== false} onChange={(event) => updateSettings({ skuBarcodeConfig: { enabled: event.target.checked, autoGenerateSku: settings.skuBarcodeConfig?.autoGenerateSku !== false, autoGenerateBarcode: settings.skuBarcodeConfig?.autoGenerateBarcode !== false } })} className="h-4 w-4 accent-red-600" /></label>
-                <p className="text-[11px] text-zinc-500">Manual SKU/barcode edit fields Products cards mein hain. Bulk generator sirf missing values generate karta hai.</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>Auto-generate SKU</span><input type="checkbox" checked={settings.skuBarcodeConfig?.autoGenerateSku !== false} onChange={(event) => updateSettings({ skuBarcodeConfig: { enabled: settings.skuBarcodeConfig?.enabled !== false, autoGenerateSku: event.target.checked, autoGenerateBarcode: settings.skuBarcodeConfig?.autoGenerateBarcode !== false } })} className="h-4 w-4 accent-red-600"/></label>
+                  <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>Auto-generate barcode</span><input type="checkbox" checked={settings.skuBarcodeConfig?.autoGenerateBarcode !== false} onChange={(event) => updateSettings({ skuBarcodeConfig: { enabled: settings.skuBarcodeConfig?.enabled !== false, autoGenerateSku: settings.skuBarcodeConfig?.autoGenerateSku !== false, autoGenerateBarcode: event.target.checked } })} className="h-4 w-4 accent-red-600"/></label>
+                </div>
+                <p className="text-[11px] text-zinc-500">Manual SKU/barcode edit fields Products cards mein hain. Bulk generator sirf missing enabled values generate karta hai.</p>
               </div>
 
               {/* Reviews widget placement and visibility */}
