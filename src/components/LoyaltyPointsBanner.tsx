@@ -3,7 +3,7 @@ import { useStore } from '../context/StoreContext';
 import { Coins, Sparkles, ArrowRight, Gift, UserPlus } from 'lucide-react';
 
 export const LoyaltyPointsBanner: React.FC = () => {
-  const { currentUser, setIsCustomerAuthModalOpen, goHome, setIsLoyaltyModalOpen } = useStore();
+  const { currentUser, setIsCustomerAuthModalOpen, goHome, setIsLoyaltyModalOpen, settings } = useStore();
 
   const handleRedeemNow = () => {
     // Scrolls to or navigates directly to Menu
@@ -61,11 +61,11 @@ export const LoyaltyPointsBanner: React.FC = () => {
                       {currentUser.loyaltyPoints || 0} Points Available
                     </h3>
                     <span className="text-xs text-yellow-200 font-bold font-mono">
-                      (= Rs. {Math.floor((currentUser.loyaltyPoints || 0) / 2)} Discount)
+                      (= Rs. {Math.floor((currentUser.loyaltyPoints || 0) / Math.max(1, Number(settings.loyaltyConfig?.pointsPerRupee ?? 2)))} Discount)
                     </span>
                   </div>
                   <p className="text-[11px] text-white/90">
-                    Har 2 points par Rs. 1 discount milega. Checkout par points redeem karein.
+                    Har {Math.max(1, Number(settings.loyaltyConfig?.pointsPerRupee ?? 2))} points par Rs. 1 discount milega. Checkout par points redeem karein.
                   </p>
                 </>
               ) : (
