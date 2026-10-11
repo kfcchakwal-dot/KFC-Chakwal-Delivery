@@ -683,8 +683,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             createdAt: String(cached?.createdAt || new Date().toISOString()),
             ...(cached?.vipTier !== undefined ? { vipTier: cached.vipTier } : {}),
             ...(cached?.vipStatus !== undefined ? { vipStatus: cached.vipStatus } : {}),
-          ...(cached?.vipPaidAmount !== undefined ? { vipPaidAmount: cached.vipPaidAmount } : {}),
-          ...(cached?.vipExpiresAt !== undefined ? { vipExpiresAt: cached.vipExpiresAt } : {}),
             ...(cached?.vipPaidAmount !== undefined ? { vipPaidAmount: cached.vipPaidAmount } : {}),
             ...(cached?.vipExpiresAt !== undefined ? { vipExpiresAt: cached.vipExpiresAt } : {}),
           };
@@ -1820,12 +1818,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       productSnapshots.forEach((snapshot, index) => {
         const [productId, quantity] = stockEntries[index];
         const cartProduct = cart.find((item) => item.menuItem.id === productId)?.menuItem;
-        if (!snapshot.exists()) throw new Error(`Inventory record missing for ${cartProduct?.name || productId}. Please contact the store.`);
-        const data = snapshot.data();
-        if (data.trackInventory === true) {
+        const data = snapshot.exists() ? snapshot.data() : (cartProduct as any);
+        if (data?.trackInventory === true) {
           const available = Math.max(0, Number(data.stockQuantity || 0));
           if (available < quantity) throw new Error(`${cartProduct?.name || 'Product'} ka stock sirf ${available} available hai.`);
-          transaction.update(productRefs[index], { stockQuantity: available - quantity, updatedAt: new Date().toISOString() });
+          if (snapshot.exists()) transaction.update(productRefs[index], { stockQuantity: available - quantity, updatedAt: new Date().toISOString() });
+          else transaction.set(productRefs[index], { ...cartProduct, stockQuantity: available - quantity, updatedAt: new Date().toISOString() }, { merge: true });
         }
       });
       transaction.set(doc(db, 'orders', savedOrder.id), firestoreOrder);
