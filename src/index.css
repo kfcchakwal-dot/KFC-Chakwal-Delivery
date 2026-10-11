@@ -155,3 +155,16 @@ button.buy-button[class~="text-white"]:focus-visible {
 [aria-current="page"], button[aria-pressed="true"] {
   outline-offset: 2px;
 }
+
+
+/* Make selected admin tabs/buttons unmistakable and consistent across sections. */
+button[aria-pressed="true"],
+button[aria-current="page"] {
+  background-color: #e4002b !important;
+  border-color: #e4002b !important;
+  color: #fff !important;
+}
+button[aria-pressed="true"] svg,
+button[aria-current="page"] svg {
+  color: #fff !important;
+}
