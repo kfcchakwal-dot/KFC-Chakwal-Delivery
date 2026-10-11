@@ -86,7 +86,7 @@ const MainShop: React.FC = () => {
   const isDark = themeMode === 'dark';
   const storefrontCategories = useMemo(() => {
     const knownIds = new Set(KFC_CATEGORIES.map((category) => String(category.id)));
-    const extraIds = Array.from(new Set(menuItems.filter((item) => item.status !== 'draft').map((item) => String(item.categoryId)).filter((id) => id && !knownIds.has(id))));
+    const extraIds = Array.from(new Set(menuItems.filter((item) => item.status !== 'draft').flatMap((item) => [String(item.categoryId), ...(item.categoryIds || []).map(String)]).filter((id) => id && !knownIds.has(id))));
     return [...KFC_CATEGORIES, ...extraIds.map((id) => ({ id: id as CategoryId, name: id.replace(/-/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()), subtitle: '' }))];
   }, [menuItems]);
   const sectionColorCss = Object.entries(settings.sectionColorSchemes || {}).map(([key, scheme]) => {
@@ -469,7 +469,7 @@ const MainShop: React.FC = () => {
                     <div className="space-y-10 sm:space-y-12">
                       {storefrontCategories.map((category) => {
                         const categoryItems = searchedItems.filter(
-                          (item) => item.categoryId === category.id
+                          (item) => item.categoryId === category.id || (item.categoryIds || []).includes(category.id)
                         );
                         if (categoryItems.length === 0) return null;
 
@@ -536,7 +536,7 @@ const MainShop: React.FC = () => {
                       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
                         {searchedItems
                           .filter((item) =>
-                            selectedCategory === 'all' ? true : item.categoryId === selectedCategory
+                            selectedCategory === 'all' ? true : item.categoryId === selectedCategory || (item.categoryIds || []).includes(selectedCategory as CategoryId)
                           )
                           .map((item) => (
                             <MenuItemCard key={item.id} item={item} />
