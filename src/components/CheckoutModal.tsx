@@ -146,7 +146,21 @@ export const CheckoutModal: React.FC = () => {
         )
         .join('\n');
 
-      const message = `🍗 *NEW ORDER - KFC CHAKWAL DELIVERY*\n` +
+      const customTemplate = String(settings.whatsappTemplates?.orderDetails || '').trim();
+      const message = customTemplate
+        ? customTemplate.replace(/\{([a-zA-Z]+)\}/g, (_match, key: string) => ({
+            name: customer.fullName,
+            orderId: newOrder.id,
+            total: formatPKR(newOrder.total),
+            received: formatPKR(newOrder.paymentReceived || 0),
+            balance: formatPKR(Math.max(0, newOrder.total - (newOrder.paymentReceived || 0))),
+            items: itemsList,
+            phone: customer.phone,
+            address: customer.address,
+            storeName: settings.storeName || 'KFC Chakwal Delivery',
+            status: newOrder.status,
+          } as Record<string, string>)[key] ?? _match)
+        : `🍗 *NEW ORDER - KFC CHAKWAL DELIVERY*\n` +
         `Order ID: #${newOrder.id}\n` +
         `-------------------------\n` +
         `*Items Ordered:*\n${itemsList}\n` +
