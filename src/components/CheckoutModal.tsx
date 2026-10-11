@@ -528,7 +528,7 @@ export const CheckoutModal: React.FC = () => {
                 <div className="flex justify-between text-amber-700 font-bold">
                   <span className="flex items-center gap-1">
                     <Award className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Loyalty Points Redeemed</span>
+                    <span>Loyalty Discount (2 points = Rs 1)</span>
                   </span>
                   <span className="tabular-nums font-mono">
                     -{formatPKR(loyaltyDiscountAmount)}
