@@ -102,7 +102,7 @@ export function generateWhatsAppOrderMessage(
       })
     : 'Just now';
 
-  const templateSource = order.status !== 'confirmed' && order.status !== 'pending' ? storeSettings?.whatsappTemplates?.orderStatus : storeSettings?.whatsappTemplates?.orderDetails;
+  const templateSource = order.status !== 'confirmed' ? storeSettings?.whatsappTemplates?.orderStatus : storeSettings?.whatsappTemplates?.orderDetails;
   const customTemplate = String(templateSource || '').trim();
   if (customTemplate) {
     const itemsSummary = order.items.map((item) => `${item.quantity}x ${item.menuItem.name}`).join(', ');
