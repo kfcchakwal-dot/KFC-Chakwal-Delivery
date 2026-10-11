@@ -373,7 +373,7 @@ const MainShop: React.FC = () => {
       <CustomerNotificationToggle variant="banner" />
 
       {/* VIEW ROUTING: PRODUCT DETAIL PAGE */}
-      {currentView === 'product' && <div data-color-section="product"><ProductPage /></div>}
+      {currentView === 'product' && <><div data-color-section="product"><ProductPage /></div><PageSectionsRenderer page="product" /></>}
 
       {/* VIEW ROUTING: WISHLIST PAGE */}
       {currentView === 'wishlist' && <WishlistPage />}
