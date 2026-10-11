@@ -190,6 +190,8 @@ export const ShopifyAdminApp: React.FC = () => {
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState<CategoryId | 'all'>('all');
   const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'active' | 'draft'>('all');
+  const [productSortFilter, setProductSortFilter] = useState<'newest' | 'oldest' | 'price-low' | 'price-high' | 'name'>('newest');
+  const [bulkCategoryTarget, setBulkCategoryTarget] = useState<string>('');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isImportingProducts, setIsImportingProducts] = useState(false);
   const [productActionFeedback, setProductActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -667,12 +669,38 @@ export const ShopifyAdminApp: React.FC = () => {
   const filteredProducts = menuItems.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(productSearch.toLowerCase());
     const matchesCat = productCategoryFilter === 'all' || item.categoryId === productCategoryFilter;
-    const matchesStatus =
-      productStatusFilter === 'all' ||
-      (productStatusFilter === 'active' && item.status !== 'draft') ||
-      (productStatusFilter === 'draft' && item.status === 'draft');
+    const matchesStatus = productStatusFilter === 'all' || (productStatusFilter === 'active' && item.status !== 'draft') || (productStatusFilter === 'draft' && item.status === 'draft');
     return matchesSearch && matchesCat && matchesStatus;
+  }).sort((left, right) => {
+    if (productSortFilter === 'price-low') return calculatePrice(left.baseKfcPrice, left.sellingPrice) - calculatePrice(right.baseKfcPrice, right.sellingPrice);
+    if (productSortFilter === 'price-high') return calculatePrice(right.baseKfcPrice, right.sellingPrice) - calculatePrice(left.baseKfcPrice, left.sellingPrice);
+    if (productSortFilter === 'name') return left.name.localeCompare(right.name);
+    const leftDate = Date.parse(String((left as any).createdAt || (left as any).createdOn || (left as any).updatedAt || '')) || 0;
+    const rightDate = Date.parse(String((right as any).createdAt || (right as any).createdOn || (right as any).updatedAt || '')) || 0;
+    return productSortFilter === 'oldest' ? leftDate - rightDate : rightDate - leftDate;
   });
+
+  const handleBulkChangeCategory = async () => {
+    if (!selectedProductIds.length || !bulkCategoryTarget) return;
+    setIsApplyingBulkProductAction(true);
+    setProductActionFeedback(null);
+    let succeeded = 0;
+    const failed: string[] = [];
+    try {
+      for (const id of selectedProductIds) {
+        const item = menuItems.find((candidate) => candidate.id === id);
+        if (!item) { failed.push(id); continue; }
+        try {
+          await updateMenuItem({ ...item, categoryId: bulkCategoryTarget as CategoryId });
+          succeeded += 1;
+        } catch { failed.push(id); }
+      }
+      setProductActionFeedback({ type: failed.length ? 'error' : 'success', message: `${succeeded} products category mein move hue.${failed.length ? ` Failed: ${failed.join(', ')}` : ''}` });
+      if (!failed.length) setSelectedProductIds([]);
+    } catch (error: any) {
+      setProductActionFeedback({ type: 'error', message: error?.message || 'Bulk category update fail hui.' });
+    } finally { setIsApplyingBulkProductAction(false); }
+  };
 
   const handleToggleSelectProduct = (productId: string) => {
     setSelectedProductIds((prev) =>
@@ -2496,6 +2524,9 @@ export const ShopifyAdminApp: React.FC = () => {
                       <option value="active">Active Only ({menuItems.filter((i) => i.status !== 'draft').length})</option>
                       <option value="draft">Draft Only ({menuItems.filter((i) => i.status === 'draft').length})</option>
                     </select>
+                    <select aria-label="Sort products" value={productSortFilter} onChange={(e) => setProductSortFilter(e.target.value as any)} className="bg-zinc-50 border border-zinc-200 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:border-[#e4002b]">
+                      <option value="newest">Newest added</option><option value="oldest">Oldest added</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name A–Z</option>
+                    </select>
                   </div>
 
                   {/* Bulk Product Selection and Actions Bar */}
@@ -2538,6 +2569,10 @@ export const ShopifyAdminApp: React.FC = () => {
 
                     {selectedProductIds.length > 0 && (
                       <div className="flex items-center gap-2 flex-wrap">
+                        <select aria-label="Choose category for selected products" value={bulkCategoryTarget} onChange={(event) => setBulkCategoryTarget(event.target.value)} className="max-w-44 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs font-bold">
+                          <option value="">Move to category…</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                        </select>
+                        <button type="button" disabled={isApplyingBulkProductAction || !bulkCategoryTarget} onClick={() => void handleBulkChangeCategory()} className="rounded-lg bg-indigo-600 px-3 py-1.5 font-bold text-white disabled:opacity-40">Move selected</button>
                         <button
                           type="button"
                           disabled={isApplyingBulkProductAction}
@@ -3866,6 +3901,17 @@ export const ShopifyAdminApp: React.FC = () => {
                 <p className="text-xs text-zinc-500 mt-1">
                   Upload your preloader logo, app icon URL, WhatsApp contact, and social links.
                 </p>
+              </div>
+
+              {/* Reviews widget placement and visibility */}
+              <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <div><h3 className="font-bold text-sm text-zinc-900">Customer Reviews Widgets</h3><p className="mt-1 text-[11px] text-zinc-500">Reviews widget ko ON/OFF karein aur choose karein k kin pages par show ho.</p></div>
+                {([
+                  ['enabled', 'Enable review widgets'],
+                  ['showOnHome', 'Show reviews widget on homepage'],
+                  ['showOnProductPages', 'Show reviews on product pages'],
+                  ['showOnReviewsPage', 'Enable dedicated reviews page'],
+                ] as const).map(([key, label]) => <label key={key} className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>{label}</span><input type="checkbox" checked={settings.reviewWidgetConfig?.[key] !== false} onChange={(event) => updateSettings({ reviewWidgetConfig: { enabled: settings.reviewWidgetConfig?.enabled !== false, showOnHome: settings.reviewWidgetConfig?.showOnHome !== false, showOnProductPages: settings.reviewWidgetConfig?.showOnProductPages !== false, showOnReviewsPage: settings.reviewWidgetConfig?.showOnReviewsPage !== false, [key]: event.target.checked } })} className="h-4 w-4 accent-red-600" /></label>)}
               </div>
 
               {/* Homepage collection navigation controls */}
