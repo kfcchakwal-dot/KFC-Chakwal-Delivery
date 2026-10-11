@@ -625,7 +625,7 @@ export const ProductPage: React.FC = () => {
         })()}
 
         {/* CUSTOMER REVIEWS & RATINGS SECTION */}
-        <div className={`mt-16 p-6 sm:p-8 rounded-3xl border space-y-6 ${
+        {(settings.reviewWidgetConfig?.enabled !== false && settings.reviewWidgetConfig?.showOnProductPages !== false) && <div className={`mt-16 p-6 sm:p-8 rounded-3xl border space-y-6 ${
           isDark ? 'bg-[#141417] border-[#26262e]' : 'bg-white border-zinc-200'
         }`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5 border-zinc-700/30">
@@ -762,7 +762,7 @@ export const ProductPage: React.FC = () => {
             <p className="text-[11px] text-zinc-500">Phone OTP ya sign-in ki zaroorat nahi. Please apna genuine review share karein.</p>
           </form>
 
-        </div>
+        </div>}
 
       </div>
     </div>
