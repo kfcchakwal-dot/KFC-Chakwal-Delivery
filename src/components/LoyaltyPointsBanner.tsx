@@ -3,7 +3,7 @@ import { useStore } from '../context/StoreContext';
 import { Coins, Sparkles, ArrowRight, Gift, UserPlus } from 'lucide-react';
 
 export const LoyaltyPointsBanner: React.FC = () => {
-  const { currentUser, setIsCustomerAuthModalOpen, goHome, setIsLoyaltyModalOpen, settings } = useStore();
+  const { currentUser, setIsCustomerAuthModalOpen, goHome, setCurrentView, settings } = useStore();
 
   const handleRedeemNow = () => {
     // Scrolls to or navigates directly to Menu
@@ -20,7 +20,7 @@ export const LoyaltyPointsBanner: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 my-4 cursor-pointer" role="button" tabIndex={0} onClick={() => setIsLoyaltyModalOpen(true)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setIsLoyaltyModalOpen(true); }} aria-label="Open rewards program details">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 my-4 cursor-pointer" role="button" tabIndex={0} onClick={() => setCurrentView('rewards')} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setCurrentView('rewards'); }} aria-label="Open rewards program details">
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-amber-500 via-amber-600 to-red-600 p-4 sm:p-5 text-white shadow-xl border border-amber-300/30">
         
         {/* Background decorative coin drops / sparkles effect */}
