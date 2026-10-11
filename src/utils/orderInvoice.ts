@@ -115,6 +115,7 @@ export function generateWhatsAppOrderMessage(
   lines.push('');
   lines.push(`🍗 *${storeName}*`);
   lines.push(`*Order #${order.id}*`);
+  if (order.customerOrderLabel || order.customerOrderNumber) lines.push(`Customer Order: ${order.customerOrderLabel || order.customerOrderNumber}`);
   lines.push(`📅 Date & Time: ${dateFormatted}`);
   lines.push(`🛵 Order Type: ${order.orderType === 'self_pickup' ? 'Self Pickup' : 'Delivery'}`);
   lines.push('');
