@@ -223,7 +223,7 @@ interface StoreContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   currentView: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews' | 'rewards';
-  setCurrentView: (view: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews') => void;
+  setCurrentView: (view: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews' | 'rewards') => void;
   selectedProduct: MenuItem | null;
   viewProduct: (item: MenuItem) => void;
   goHome: () => void;
@@ -509,7 +509,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedItemForCustomization, setSelectedItemForCustomization] = useState<MenuItem | null>(null);
 
   // Navigation
-  const [currentView, setCurrentView] = useState<'home' | 'product' | 'wishlist' | 'collection' | 'reviews'>(() => {
+  const [currentView, setCurrentView] = useState<'home' | 'product' | 'wishlist' | 'collection' | 'reviews' | 'rewards'>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       if (params.get('reviews') === 'true') return 'reviews';
