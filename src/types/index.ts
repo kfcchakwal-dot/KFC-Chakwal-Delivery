@@ -36,6 +36,8 @@ export interface MenuItem {
   id: string;
   name: string;
   categoryId: CategoryId;
+  /** Additional category memberships for Shopify-style bulk category assignment. */
+  categoryIds?: CategoryId[];
   description: string;
   baseKfcPrice: number; // Authentic KFC Pakistan original price in PKR
   sellingPrice?: number; // Custom direct selling price (overrides base price + markup if provided)
