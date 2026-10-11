@@ -446,6 +446,7 @@ export interface Order {
   /** Derived payment state for quick admin visibility. */
   paymentStatus?: 'unpaid' | 'partial' | 'paid';
   customerOrderNumber?: number;
+  customerOrderLabel?: string;
   customer: CustomerDetails;
   specialInstructions?: string; // Kitchen notes
   paymentMethod: PaymentMethod;
