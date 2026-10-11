@@ -349,7 +349,7 @@ export const LoyaltyProgramModal: React.FC = () => {
 
 
 export const RewardsPage: React.FC = () => {
-  const { currentUser, settings, themeMode, goHome, loyaltyTransactions } = useStore();
+  const { currentUser, settings, themeMode, goHome, loyaltyTransactions, formatPKR } = useStore();
   const points = Math.max(0, Number(currentUser?.loyaltyPoints || 0));
   const pointsPerRupee = Math.max(1, Number(settings.loyaltyConfig?.pointsPerRupee ?? 2));
   const isDark = themeMode === 'dark';
