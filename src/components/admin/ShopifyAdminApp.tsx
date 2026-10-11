@@ -1986,6 +1986,7 @@ export const ShopifyAdminApp: React.FC = () => {
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-mono font-black text-sm text-[#e4002b]">#{order.id}</span>
+                                {order.customerOrderLabel && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">{order.customerOrderLabel}</span>}
                                 
                                 {/* Color-Coded Order Status Badge */}
                                 <span
