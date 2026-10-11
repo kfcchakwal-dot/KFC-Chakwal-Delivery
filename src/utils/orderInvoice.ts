@@ -182,7 +182,9 @@ export function generateWhatsAppOrderMessage(
 
   lines.push(`• Delivery Charges: ${formatPKR(order.deliveryFee || 0)}`);
   lines.push('----------------------------------------');
-  lines.push(`*TOTAL PAYABLE: ${formatPKR(order.total)}*`);
+  lines.push(`*TOTAL BILL: ${formatPKR(order.total)}*`);
+  lines.push(`💵 Amount Received: ${formatPKR(order.paymentReceived || 0)}`);
+  lines.push(`*BALANCE DUE: ${formatPKR(Math.max(0, order.total - (order.paymentReceived || 0)))}*`);
 
   const paymentLabels: Record<string, string> = {
     cod: 'Cash on Delivery (COD)',
@@ -334,7 +336,9 @@ export function generateInvoiceHtml(
             <div class="summary-notes">
               <div class="notes-heading">PAYMENT & INSTRUCTIONS</div>
               <p><strong>Payment Method:</strong> ${paymentMethodText}</p>
-              <p><strong>Payment Status:</strong> ${order.paymentMethod === 'cod' ? 'Cash on Delivery (Pay to Rider)' : 'Paid / Online'}</p>
+              <p><strong>Payment Status:</strong> ${order.paymentStatus || ((order.paymentReceived || 0) >= order.total ? 'Paid' : (order.paymentReceived || 0) > 0 ? 'Partially Paid' : order.paymentMethod === 'cod' ? 'Unpaid / Cash on Delivery' : 'Unpaid')}</p>
+              <p><strong>Amount Received:</strong> ${formatPKR(order.paymentReceived || 0)}</p>
+              <p><strong>Balance Due:</strong> ${formatPKR(Math.max(0, order.total - (order.paymentReceived || 0)))}</p>
               ${order.specialInstructions ? `<p><strong>Kitchen Instructions:</strong> ${order.specialInstructions}</p>` : ''}
               <div class="thank-you-box">
                 Thank you for choosing KFC Chakwal Delivery! We serve hot, fresh and crispy food prepared to authentic recipes.
@@ -459,6 +463,8 @@ export function generateInvoiceHtml(
           <div class="t-row"><span>Delivery Fee:</span> <span>${formatPKR(order.deliveryFee || 0)}</span></div>
           <div class="solid-hr"></div>
           <div class="t-row grand"><span>TOTAL BILL:</span> <span>${formatPKR(order.total)}</span></div>
+          <div class="t-row"><span>Amount Received:</span> <span>${formatPKR(order.paymentReceived || 0)}</span></div>
+          <div class="t-row grand"><span>BALANCE DUE:</span> <span>${formatPKR(Math.max(0, order.total - (order.paymentReceived || 0)))}</span></div>
         </div>
 
         <div class="dashed-hr"></div>
