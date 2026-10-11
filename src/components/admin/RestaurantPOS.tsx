@@ -69,7 +69,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
         deliveryFee: orderType === 'delivery' ? Math.max(0, deliveryFee) : 0,
         discount: discountAmount, taxPercentage, taxAmount, serviceChargePercentage, serviceChargeAmount, total,
         customer: { fullName: customerName.trim() || 'Walk-in Customer', phone: phone.trim(), email: email.trim(), address: address.trim(), notes: notes.trim() },
-        specialInstructions: notes.trim(), paymentMethod: payment, status: 'confirmed',
+        specialInstructions: notes.trim(), paymentMethod: payment, paymentReceived: payment === 'cod' ? total : 0, paymentStatus: payment === 'cod' ? 'paid' : 'unpaid', status: 'confirmed',
         source: 'admin-pos', createdBy: auth.currentUser.uid,
       };
       const quantities = new Map<string, number>();
