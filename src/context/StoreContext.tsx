@@ -510,6 +510,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Navigation
   const [currentView, setCurrentView] = useState<'home' | 'product' | 'wishlist' | 'collection' | 'reviews'>(() => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('reviews') === 'true') return 'reviews';
       const saved = localStorage.getItem('kfc-current-view');
       return saved === 'product' || saved === 'wishlist' || saved === 'collection' || saved === 'reviews' ? saved : 'home';
     } catch { return 'home'; }
