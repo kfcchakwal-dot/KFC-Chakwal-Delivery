@@ -1461,7 +1461,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addMenuItem = (newItem: MenuItem) => {
-    const nextMenu = [newItem, ...menuItems];
+    const itemWithCreatedAt = { ...newItem, createdAt: newItem.createdAt || new Date().toISOString() };
+    const nextMenu = [itemWithCreatedAt, ...menuItems];
     setMenuItems(nextMenu);
     syncStoreToServer({ menuItems: nextMenu });
   };
@@ -1472,9 +1473,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     for (const p of newProducts) {
       if (existingHandles.has(p.id)) {
         const idx = combined.findIndex((m) => m.id === p.id);
-        combined[idx] = p;
+        combined[idx] = { ...p, createdAt: p.createdAt || combined[idx].createdAt || new Date().toISOString() };
       } else {
-        combined.push(p);
+        combined.push({ ...p, createdAt: p.createdAt || new Date().toISOString() });
       }
     }
     setMenuItems(combined);
