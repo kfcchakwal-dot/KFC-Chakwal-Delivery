@@ -2447,14 +2447,15 @@ export const ShopifyAdminApp: React.FC = () => {
                     <button
                       key={st.id}
                       type="button"
+                      aria-pressed={isActive}
                       onClick={() => setProductSubTab(st.id as any)}
                       className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition cursor-pointer ${
                         isActive
-                          ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/80 font-black'
+                          ? 'bg-[#e4002b] text-white shadow-sm border border-[#e4002b] font-black'
                           : 'text-zinc-600 hover:text-zinc-900 hover:bg-white/50'
                       }`}
                     >
-                      <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#e4002b]' : 'text-zinc-500'}`} />
+                      <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
                       <span>{st.label}</span>
                       {st.count !== undefined && (
                         <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-[#e4002b] text-white' : 'bg-zinc-200 text-zinc-700'}`}>
