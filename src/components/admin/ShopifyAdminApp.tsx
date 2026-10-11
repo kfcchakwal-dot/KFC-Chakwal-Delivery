@@ -671,7 +671,7 @@ export const ShopifyAdminApp: React.FC = () => {
   const filteredProducts = menuItems.filter((item) => {
     const q = productSearch.toLowerCase();
     const matchesSearch = item.name.toLowerCase().includes(q) || String(item.sku || '').toLowerCase().includes(q) || String(item.barcode || '').toLowerCase().includes(q);
-    const matchesCat = productCategoryFilter === 'all' || item.categoryId === productCategoryFilter;
+    const matchesCat = productCategoryFilter === 'all' || item.categoryId === productCategoryFilter || (item.categoryIds || []).includes(productCategoryFilter as CategoryId);
     const matchesStatus = productStatusFilter === 'all' || (productStatusFilter === 'active' && item.status !== 'draft') || (productStatusFilter === 'draft' && item.status === 'draft');
     return matchesSearch && matchesCat && matchesStatus;
   }).sort((left, right) => {
@@ -683,7 +683,7 @@ export const ShopifyAdminApp: React.FC = () => {
     return productSortFilter === 'oldest' ? leftDate - rightDate : rightDate - leftDate;
   });
 
-  const handleBulkChangeCategory = async () => {
+  const handleBulkChangeCategory = async (mode: 'add' | 'remove') => {
     if (!selectedProductIds.length || !bulkCategoryTarget) return;
     setIsApplyingBulkProductAction(true);
     setProductActionFeedback(null);
@@ -694,11 +694,21 @@ export const ShopifyAdminApp: React.FC = () => {
         const item = menuItems.find((candidate) => candidate.id === id);
         if (!item) { failed.push(id); continue; }
         try {
-          await updateMenuItem({ ...item, categoryId: bulkCategoryTarget as CategoryId });
+          const currentCategories = Array.from(new Set([item.categoryId, ...(item.categoryIds || [])]));
+          let nextCategories: CategoryId[];
+          let nextPrimary = item.categoryId;
+          if (mode === 'add') {
+            nextCategories = Array.from(new Set([...currentCategories, bulkCategoryTarget as CategoryId]));
+          } else {
+            nextCategories = currentCategories.filter((categoryId) => categoryId !== bulkCategoryTarget);
+            if (!nextCategories.length) nextCategories = ['everyday-value'];
+            if (nextPrimary === bulkCategoryTarget) nextPrimary = nextCategories[0];
+          }
+          await updateMenuItem({ ...item, categoryId: nextPrimary, categoryIds: nextCategories });
           succeeded += 1;
         } catch { failed.push(id); }
       }
-      setProductActionFeedback({ type: failed.length ? 'error' : 'success', message: `${succeeded} products category mein move hue.${failed.length ? ` Failed: ${failed.join(', ')}` : ''}` });
+      setProductActionFeedback({ type: failed.length ? 'error' : 'success', message: `${succeeded} products ke liye category ${mode === 'add' ? 'add' : 'remove'} hui.${failed.length ? ` Failed: ${failed.join(', ')}` : ''}` });
       if (!failed.length) setSelectedProductIds([]);
     } catch (error: any) {
       setProductActionFeedback({ type: 'error', message: error?.message || 'Bulk category update fail hui.' });
@@ -2578,7 +2588,8 @@ export const ShopifyAdminApp: React.FC = () => {
                         <select aria-label="Choose category for selected products" value={bulkCategoryTarget} onChange={(event) => setBulkCategoryTarget(event.target.value)} className="max-w-44 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs font-bold">
                           <option value="">Move to category…</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                         </select>
-                        <button type="button" disabled={isApplyingBulkProductAction || !bulkCategoryTarget} onClick={() => void handleBulkChangeCategory()} className="rounded-lg bg-indigo-600 px-3 py-1.5 font-bold text-white disabled:opacity-40">Move selected</button>
+                        <button type="button" disabled={isApplyingBulkProductAction || !bulkCategoryTarget} onClick={() => void handleBulkChangeCategory("add")} className="rounded-lg bg-indigo-600 px-3 py-1.5 font-bold text-white disabled:opacity-40">Add to selected category</button>
+                        <button type="button" disabled={isApplyingBulkProductAction || !bulkCategoryTarget} onClick={() => void handleBulkChangeCategory("remove")} className="rounded-lg border border-zinc-300 px-3 py-1.5 font-bold text-zinc-700 disabled:opacity-40">Remove from category</button>
                         <button
                           type="button"
                           disabled={isApplyingBulkProductAction}
