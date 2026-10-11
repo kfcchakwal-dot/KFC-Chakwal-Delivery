@@ -2609,9 +2609,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const sendReviewCollectionWhatsapp = (order: Order) => {
     const cleanPhone = order.customer.phone.replace(/[^0-9]/g, '');
     const intlPhone = cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
-    const text = encodeURIComponent(
-      `Assalam o Alaikum ${order.customer.fullName}! Umeed hai aap ka KFC meal bohot crispy aur lazeez tha. Baraye meherbani 1 minute nikaal kar apna review submit karein: ${window.location.origin}/#reviews - Review par aapko 20 FREE KFC Loyalty Points milenge!`
-    );
+    const reviewUrl = `${window.location.origin}/?reviews=true`;
+    const template = String(settings.whatsappTemplates?.reviewRequest || settings.autoReview?.whatsappTemplate || 'Assalam o Alaikum {name}! Order #{orderId} ke liye shukriya. Apna review yahan share karein: {reviewUrl}');
+    const message = template.replace(/\{name\}/g, order.customer.fullName || 'Customer').replace(/\{orderId\}/g, order.id).replace(/\{reviewUrl\}/g, reviewUrl).replace(/\{phone\}/g, order.customer.phone || '');
+    const text = encodeURIComponent(message);
     window.open(`https://wa.me/${intlPhone}?text=${text}`, '_blank');
   };
 
@@ -2646,9 +2647,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const cleanPhone = checkout.phone.replace(/[^0-9]/g, '');
     const intlPhone = cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
     const itemsSummary = checkout.items.map((i) => `${i.quantity}x ${i.menuItem.name}`).join(', ') || 'KFC Meal';
-    const text = encodeURIComponent(
-      `Assalam o Alaikum ${checkout.customerName}! Aap ka KFC Chakwal Delivery bucket ready hai (${itemsSummary}) Total: Rs. ${checkout.cartTotal}. Kya aap abhi order confirm karna chahte hain? Hum Kallar Kahar se fresh KFC lekar aa rahe hain!`
-    );
+    const template = String(settings.whatsappTemplates?.abandonedRecovery || 'Assalam o Alaikum {name}! Aap ka cart ready hai ({items}) Total: {total}.');
+    const message = template.replace(/\{name\}/g, checkout.customerName || 'Customer').replace(/\{items\}/g, itemsSummary).replace(/\{total\}/g, formatPKR(checkout.cartTotal));
+    const text = encodeURIComponent(message);
     window.open(`https://wa.me/${intlPhone}?text=${text}`, '_blank');
 
     const next = abandonedCheckouts.map((a) =>
