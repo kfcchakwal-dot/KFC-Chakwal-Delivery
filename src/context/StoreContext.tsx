@@ -519,7 +519,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch { return 'home'; }
   });
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
-  useEffect(() => { try { localStorage.setItem('kfc-current-view', currentView); } catch { /* storage can be disabled */ } }, [currentView]);
+  useEffect(() => {
+    try { localStorage.setItem('kfc-current-view', currentView); } catch { /* storage can be disabled */ }
+    try {
+      const params = new URLSearchParams(window.location.search);
+      let changed = false;
+      if (currentView !== 'reviews' && params.has('reviews')) { params.delete('reviews'); changed = true; }
+      if (currentView !== 'rewards' && params.has('rewards')) { params.delete('rewards'); changed = true; }
+      if (changed) {
+        const query = params.toString();
+        window.history.replaceState({}, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
+      }
+    } catch { /* URL state is optional */ }
+  }, [currentView]);
   useEffect(() => {
     if (currentView !== 'product' || selectedProduct) return;
     try {
