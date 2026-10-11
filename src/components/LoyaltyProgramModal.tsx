@@ -201,9 +201,9 @@ export const LoyaltyProgramModal: React.FC = () => {
               </h4>
               <div className="space-y-1.5 text-zinc-400 dark:text-zinc-300 text-[11px]">
                 <p>✓ <strong>Earn:</strong> 10 points for every Rs. 300 spent on food.</p>
-                <p>✓ <strong>Redeem:</strong> 1 Point = 1 PKR deduction on checkout.</p>
+                <p>✓ <strong>Redeem:</strong> {Math.max(1, Number(settings.loyaltyConfig?.pointsPerRupee ?? 2))} points = Rs 1 discount at checkout.</p>
                 <p>✓ <strong>Min Order:</strong> Rs. 500 cart order required to redeem points.</p>
-                <p>✓ <strong>Exclusive:</strong> Loyalty points cannot be combined with discount coupon codes.</p>
+                {settings.loyaltyConfig?.combineWithCoupons === true ? <p>✓ <strong>Flexible:</strong> Loyalty points can be combined with eligible discount coupons.</p> : <p>✓ <strong>Exclusive:</strong> Loyalty points cannot be combined with discount coupon codes.</p>}
               </div>
             </div>
 
@@ -270,7 +270,7 @@ export const LoyaltyProgramModal: React.FC = () => {
                 <div>
                   <h4 className="font-bold text-xs">Bonus Points on Reviews & VIP</h4>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    Submit a meal review to claim +20 Bonus Points. Upgrade to Colonel's VIP Club for lifetime percentage discounts!
+                    Submit an eligible review to claim +{Math.max(0, Number(settings.loyaltyConfig?.reviewBonus ?? 20))} Bonus Points. Upgrade to Colonel's VIP Club for lifetime percentage discounts!
                   </p>
                 </div>
               </div>
