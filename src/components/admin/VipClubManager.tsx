@@ -123,7 +123,7 @@ export const VipClubManager: React.FC = () => {
           <p className="text-2xl font-black text-zinc-900 font-mono mt-1">
             {approvedRequests.length}
           </p>
-          <p className="text-[10px] text-zinc-400 mt-0.5">Lifetime discount active</p>
+          <p className="text-[10px] text-zinc-400 mt-0.5">Validity tier settings ke mutabiq</p>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-zinc-200 shadow-sm">
