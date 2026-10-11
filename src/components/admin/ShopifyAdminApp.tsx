@@ -130,6 +130,7 @@ export const ShopifyAdminApp: React.FC = () => {
     calculatePrice,
     allOrders,
     updateOrderStatus,
+    updateOrderPaymentReceived,
     fetchOrders,
     reviews,
     addReview,
@@ -175,6 +176,8 @@ export const ShopifyAdminApp: React.FC = () => {
   const [newAdminUid, setNewAdminUid] = useState('');
   const [adminUserBusy, setAdminUserBusy] = useState(false);
   const [adminUserNotice, setAdminUserNotice] = useState('');
+  const [paymentReceivedInputs, setPaymentReceivedInputs] = useState<Record<string, string>>({});
+  const [paymentReceivedFeedback, setPaymentReceivedFeedback] = useState<{ id: string; message: string; ok: boolean } | null>(null);
   const [activeTab, setActiveTab] = useState<SellerTab>(() => {
     try {
       const saved = localStorage.getItem('kfc-admin-active-tab') as SellerTab | null;
@@ -2152,17 +2155,29 @@ export const ShopifyAdminApp: React.FC = () => {
                             <span>Payment: <strong className="text-zinc-800 uppercase">{order.paymentMethod}</strong></span>
                             <span>·</span>
                             <span>Delivery Fee: {formatPKR(order.deliveryFee || 0)}</span>
-                            {order.discount ? (
-                              <>
-                                <span>·</span>
-                                <span className="text-emerald-700 font-bold">Discount: -{formatPKR(order.discount)}</span>
-                              </>
-                            ) : null}
+                            {order.discount ? <><span>·</span><span className="text-emerald-700 font-bold">Discount: -{formatPKR(order.discount)}</span></> : null}
                           </div>
-                          <span className="text-base font-black text-emerald-600 font-mono">
-                            Total: {formatPKR(order.total)}
-                          </span>
+                          <div className="text-right">
+                            <div className="text-base font-black text-emerald-600 font-mono">Total: {formatPKR(order.total)}</div>
+                            <div className="text-[11px] text-zinc-500">Received: <b className="text-emerald-700">{formatPKR(order.paymentReceived || 0)}</b> · Balance: <b className="text-amber-700">{formatPKR(Math.max(0, order.total - (order.paymentReceived || 0)))}</b></div>
+                            <span className={`inline-block mt-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${(order.paymentStatus || ((order.paymentReceived || 0) >= order.total ? 'paid' : (order.paymentReceived || 0) > 0 ? 'partial' : 'unpaid')) === 'paid' ? 'bg-emerald-100 text-emerald-700' : (order.paymentReceived || 0) > 0 ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-600'}`}>{order.paymentStatus || ((order.paymentReceived || 0) >= order.total ? 'paid' : (order.paymentReceived || 0) > 0 ? 'partial' : 'unpaid')}</span>
+                          </div>
                         </div>
+                        <form className="flex flex-wrap gap-2 pt-2" onSubmit={async (event) => {
+                          event.preventDefault();
+                          try {
+                            await updateOrderPaymentReceived(order.id, Number(paymentReceivedInputs[order.id] || 0));
+                            setPaymentReceivedInputs((previous) => ({ ...previous, [order.id]: '' }));
+                            setPaymentReceivedFeedback({ id: order.id, message: 'Payment receive save ho gayi.', ok: true });
+                            await fetchOrders();
+                          } catch (error: any) {
+                            setPaymentReceivedFeedback({ id: order.id, message: error?.message || 'Payment save nahi hui.', ok: false });
+                          }
+                        }}>
+                          <input aria-label={`Payment received amount for order ${order.id}`} type="number" min="1" step="1" max={Math.max(0, order.total - (order.paymentReceived || 0))} value={paymentReceivedInputs[order.id] || ''} onChange={(event) => setPaymentReceivedInputs((previous) => ({ ...previous, [order.id]: event.target.value }))} placeholder="Payment received (Rs)" disabled={Math.max(0, order.total - (order.paymentReceived || 0)) === 0} className="w-48 max-w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 disabled:opacity-50" />
+                          <button type="submit" disabled={!paymentReceivedInputs[order.id] || Number(paymentReceivedInputs[order.id]) <= 0 || Math.max(0, order.total - (order.paymentReceived || 0)) === 0} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-40">Payment Received</button>
+                          {paymentReceivedFeedback?.id === order.id && <span role="status" className={`self-center text-[11px] font-bold ${paymentReceivedFeedback.ok ? 'text-emerald-700' : 'text-red-600'}`}>{paymentReceivedFeedback.message}</span>}
+                        </form>
 
                         {/* Bottom Actions Toolbar: WhatsApp, Generate/Print Bill, Cancel */}
                         <div className="hidden sm:flex flex-wrap items-center gap-2 pt-1 border-t border-zinc-100">
