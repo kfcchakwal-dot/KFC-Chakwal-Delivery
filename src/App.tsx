@@ -7,6 +7,7 @@ import { CategoryNav } from './components/CategoryNav';
 import { MenuItemCard } from './components/MenuItemCard';
 import { ProductPage } from './components/ProductPage';
 import { WishlistPage } from './components/WishlistPage';
+import { ReviewsPage } from './components/ReviewsPage';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { ItemCustomizeModal } from './components/ItemCustomizeModal';
 import { CartDrawer } from './components/CartDrawer';
@@ -43,6 +44,8 @@ const MainShop: React.FC = () => {
     isAdmin,
     isSellerMode,
     currentView,
+    setCurrentView,
+    reviews,
     setActiveCategory,
     themeMode,
     isCartOpen,
@@ -374,6 +377,7 @@ const MainShop: React.FC = () => {
 
       {/* VIEW ROUTING: WISHLIST PAGE */}
       {currentView === 'wishlist' && <WishlistPage />}
+      {currentView === 'reviews' && <ReviewsPage />}
 
       {/* VIEW ROUTING: HOME & CATEGORY COLLECTIONS */}
       {(currentView === 'home' || currentView === 'collection') && (
@@ -382,6 +386,15 @@ const MainShop: React.FC = () => {
 
           {/* Loyalty Points Balance & Quick Redeem Callout Banner */}
           <LoyaltyPointsBanner />
+          {settings.reviewWidgetConfig?.enabled !== false && settings.reviewWidgetConfig?.showOnHome !== false && reviews.filter((review) => review.isVisible !== false).length > 0 && (
+            <section className="mx-auto my-5 w-full max-w-7xl px-3 sm:px-6 lg:px-8">
+              <button type="button" onClick={() => { setCurrentView('reviews'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="w-full rounded-2xl border border-amber-200 bg-white p-4 text-left shadow-sm transition hover:border-[#e4002b] hover:shadow-md">
+                <span className="flex items-center justify-between gap-3"><span className="text-sm font-black uppercase text-zinc-900">Customer Reviews</span><span className="text-xs font-bold text-[#e4002b]">View all reviews →</span></span>
+                <span className="mt-2 block text-xs text-zinc-500">{reviews.filter((review) => review.isVisible !== false).length} customer reviews · Real feedback from customers</span>
+                <span className="mt-3 flex flex-wrap gap-2">{reviews.filter((review) => review.isVisible !== false).slice(0, 3).map((review) => <span key={review.id} className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-700">{"★".repeat(Math.max(1, Math.min(5, review.rating)))} · {review.customerName}</span>)}</span>
+              </button>
+            </section>
+          )}
 
           {/* Daily 5 Random Meal Box Specials with Flat 4% OFF */}
           <DailyDealsSection />
