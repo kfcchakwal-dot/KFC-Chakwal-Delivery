@@ -7,6 +7,8 @@ import { CategoryNav } from './components/CategoryNav';
 import { MenuItemCard } from './components/MenuItemCard';
 import { ProductPage } from './components/ProductPage';
 import { WishlistPage } from './components/WishlistPage';
+import { ReviewsPage } from './components/ReviewsPage';
+import { ReviewsWidget } from './components/ReviewsWidget';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { ItemCustomizeModal } from './components/ItemCustomizeModal';
 import { CartDrawer } from './components/CartDrawer';
