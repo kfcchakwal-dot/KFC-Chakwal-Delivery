@@ -277,7 +277,8 @@ export interface VipTier {
   id: VipTierId;
   name: string;
   discountPercentage: number; // 3%, 6%, 8%
-  price: number; // 499, 899, 999
+  price: number; // one-time pass fee
+  durationDays?: number; // 0 or omitted means lifetime
   description: string;
   badgeColor: string;
   perks: string[];
