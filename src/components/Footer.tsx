@@ -232,6 +232,8 @@ export const Footer: React.FC = () => {
             <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">|</span>
             <button type="button" onClick={() => { setCurrentView('reviews'); window.history.pushState({ kfcView: 'reviews' }, '', '?view=reviews'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="font-bold text-[#e4002b] hover:underline">Customer Reviews</button>
             <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">|</span>
+            <span className="text-zinc-500">App Developer: Hussain · +92 333-5907574</span>
+            <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">|</span>
             <span className="text-zinc-500">Customer Store</span>
           </div>
         </div>
