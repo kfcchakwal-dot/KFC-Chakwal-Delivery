@@ -13,6 +13,99 @@ const DATABASE_ID = 'ai-studio-kfcchakwaldelive-c794408e-894c-4201-b835-4e01c97c
 const APP_ORIGIN = process.env.APP_ORIGIN || 'https://kfc-chakwal-delivery.kfcchakwal.workers.dev';
 const db = getFirestore(undefined, DATABASE_ID);
 
+exports.recordCustomerOrderHistory = onDocumentCreated(
+  { document: 'orders/{orderId}', database: DATABASE_ID, region: 'us-central1', retry: true },
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+    const orderRef = snapshot.ref;
+    const order = snapshot.data() || {};
+    if (typeof order.customerOrderNumber === 'number' && order.historyRecordedAt) return;
+    const uid = String(order.customer?.uid || '');
+    const phone = String(order.customer?.phone || '').replace(/\s+/g, ' ').trim();
+    let customerOrderNumber = 1;
+    if (uid) {
+      const customerRef = db.collection('customers').doc(uid);
+      await db.runTransaction(async (transaction) => {
+        const [latestOrder, customerSnapshot] = await Promise.all([transaction.get(orderRef), transaction.get(customerRef)]);
+        if (!latestOrder.exists || latestOrder.data().historyRecordedAt) return;
+        const data = latestOrder.data() || {};
+        const customer = customerSnapshot.exists ? customerSnapshot.data() : {};
+        customerOrderNumber = Math.max(0, Number(customer.ordersCount || customer.totalOrdersCount || 0)) + 1;
+        transaction.set(customerRef, {
+          id: uid,
+          ordersCount: customerOrderNumber,
+          totalOrdersCount: customerOrderNumber,
+          totalSpent: Math.max(0, Number(customer.totalSpent || 0)) + Math.max(0, Number(data.total || 0)),
+          loyaltyPoints: Math.max(0, Number(customer.loyaltyPoints || 0) - Number(data.loyaltyPointsRedeemed || 0)) + Math.max(0, Number(data.loyaltyPointsEarned || 0)),
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+        transaction.set(orderRef, { customerOrderNumber, customerOrderLabel: customerOrderNumber === 1 ? '1st Order' : customerOrderNumber === 2 ? '2nd Order' : customerOrderNumber === 3 ? '3rd Order' : customerOrderNumber + 'th Order', historyRecordedAt: new Date().toISOString() }, { merge: true });
+      });
+    } else if (phone) {
+      const matching = await db.collection('orders').where('customer.phone', '==', phone).get();
+      const earlierOrCurrent = matching.docs.filter((item) => {
+        const itemDate = String(item.data().date || '');
+        return item.id === event.params.orderId || (itemDate && itemDate <= String(order.date || ''));
+      });
+      customerOrderNumber = Math.max(1, earlierOrCurrent.length);
+      await orderRef.set({ customerOrderNumber, customerOrderLabel: customerOrderNumber === 1 ? '1st Order' : customerOrderNumber === 2 ? '2nd Order' : customerOrderNumber === 3 ? '3rd Order' : customerOrderNumber + 'th Order', historyRecordedAt: new Date().toISOString() }, { merge: true });
+    } else {
+      await orderRef.set({ customerOrderNumber: 1, customerOrderLabel: '1st Order', historyRecordedAt: new Date().toISOString() }, { merge: true });
+    }
+    logger.info('Customer order history recorded.', { orderId: event.params.orderId, customerOrderNumber });
+  }
+);
+
+exports.syncStockAfterOrder = onDocumentCreated(
+  { document: 'orders/{orderId}', database: DATABASE_ID, region: 'us-central1', retry: true },
+  async (event) => {
+    const order = event.data?.data() || {};
+    const orderItems = Array.isArray(order.items) ? order.items : [];
+    const trackedIds = [...new Set(orderItems.filter((line) => line.menuItem?.trackInventory).map((line) => String(line.menuItem.id || '')).filter(Boolean))];
+    if (!trackedIds.length) return;
+    const productSnapshots = await Promise.all(trackedIds.map((id) => db.collection('products').doc(id).get()));
+    const stockById = new Map();
+    productSnapshots.forEach((snapshot) => {
+      if (snapshot.exists && snapshot.data().trackInventory === true) stockById.set(snapshot.id, Math.max(0, Number(snapshot.data().stockQuantity || 0)));
+    });
+    if (!stockById.size) return;
+    const publicRef = db.collection('storePublic').doc('global');
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(publicRef);
+      if (!snapshot.exists) return;
+      const publicData = snapshot.data() || {};
+      const menuItems = Array.isArray(publicData.menuItems) ? publicData.menuItems : [];
+      const nextMenuItems = menuItems.map((item) => stockById.has(String(item.id)) ? { ...item, trackInventory: true, stockQuantity: stockById.get(String(item.id)) } : item);
+      transaction.set(publicRef, { menuItems: nextMenuItems, updatedAt: new Date().toISOString() }, { merge: true });
+    });
+    logger.info('Tracked stock synchronized to storefront after order.', { orderId: event.params.orderId, productCount: stockById.size });
+  }
+);
+
+exports.awardReviewLoyaltyPoints = onDocumentCreated(
+  { document: 'reviews/{reviewId}', database: DATABASE_ID, region: 'us-central1', retry: true },
+  async (event) => {
+    const reviewRef = event.data?.ref;
+    const review = event.data?.data() || {};
+    const uid = String(review.customerUid || '');
+    if (!reviewRef || !uid || !review.isVisible) return;
+    const settingsSnapshot = await db.collection('storeSettings').doc('global').get();
+    const settings = settingsSnapshot.exists ? (settingsSnapshot.data().settings || {}) : {};
+    const bonus = Math.max(0, Math.floor(Number(settings.loyaltyConfig?.reviewBonus ?? 20)));
+    if (!bonus) return;
+    const customerRef = db.collection('customers').doc(uid);
+    await db.runTransaction(async (transaction) => {
+      const [reviewSnapshot, customerSnapshot] = await Promise.all([transaction.get(reviewRef), transaction.get(customerRef)]);
+      if (!reviewSnapshot.exists || reviewSnapshot.data().rewardAwardedAt || !customerSnapshot.exists) return;
+      const customer = customerSnapshot.data() || {};
+      transaction.set(customerRef, { loyaltyPoints: Math.max(0, Number(customer.loyaltyPoints || 0)) + bonus, updatedAt: new Date().toISOString() }, { merge: true });
+      transaction.set(reviewRef, { rewardPointsAwarded: bonus, rewardAwardedAt: new Date().toISOString() }, { merge: true });
+    });
+    logger.info('Review loyalty bonus processed.', { reviewId: event.params.reviewId, uid, bonus });
+  }
+);
+
 exports.notifyAdminsOnNewOrder = onDocumentCreated(
   {
     document: 'orders/{orderId}',
@@ -252,7 +345,7 @@ exports.queueReviewRequests = onSchedule(
       const rawPhone = String(order.customer?.phone || '').replace(/[^0-9]/g, '');
       const phone = rawPhone.startsWith('0') ? '92' + rawPhone.slice(1) : rawPhone;
       const firstItem = Array.isArray(order.items) ? order.items[0]?.menuItem : null;
-      const reviewUrl = APP_ORIGIN + (firstItem?.id ? '/?product=' + encodeURIComponent(firstItem.id) : '/');
+      const reviewUrl = APP_ORIGIN + '/?reviews=true';
       const baseRecord = {
         orderId: String(order.id || orderDoc.id),
         customerUid: order.customer?.uid || null,

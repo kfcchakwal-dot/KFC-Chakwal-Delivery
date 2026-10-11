@@ -78,6 +78,7 @@ import { VipClubManager } from './VipClubManager';
 import { OrderEditModal } from './OrderEditModal';
 import { BulkProductEditor } from './BulkProductEditor';
 import { RestaurantPOS } from './RestaurantPOS';
+import { InventoryOperations } from './InventoryOperations';
 import { SectionColorManager } from './SectionColorManager';
 import { AnnouncementPushManager } from './AnnouncementPushManager';
 import { CategoryId, MenuItem, MenuItemAddon, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
@@ -89,6 +90,7 @@ type SellerTab =
   | 'dashboard'
   | 'orders'
   | 'pos'
+  | 'operations'
   | 'section-colors'
   | 'abandoned'
   | 'products'
@@ -130,6 +132,7 @@ export const ShopifyAdminApp: React.FC = () => {
     calculatePrice,
     allOrders,
     updateOrderStatus,
+    updateOrderPaymentReceived,
     fetchOrders,
     reviews,
     addReview,
@@ -154,7 +157,6 @@ export const ShopifyAdminApp: React.FC = () => {
     playOrderSound,
     registerAdminPushNotifications,
     goHome,
-    liveStats,
     abandonedCheckouts,
     sendAbandonedRecoveryWhatsapp,
     markAbandonedCheckoutRecovered,
@@ -175,11 +177,22 @@ export const ShopifyAdminApp: React.FC = () => {
   const [newAdminUid, setNewAdminUid] = useState('');
   const [adminUserBusy, setAdminUserBusy] = useState(false);
   const [adminUserNotice, setAdminUserNotice] = useState('');
-  const [activeTab, setActiveTab] = useState<SellerTab>('dashboard');
+  const [paymentReceivedInputs, setPaymentReceivedInputs] = useState<Record<string, string>>({});
+  const [paymentReceivedFeedback, setPaymentReceivedFeedback] = useState<{ id: string; message: string; ok: boolean } | null>(null);
+  const [activeTab, setActiveTab] = useState<SellerTab>(() => {
+    try {
+      const saved = localStorage.getItem('kfc-admin-active-tab') as SellerTab | null;
+      const allowed: SellerTab[] = ['dashboard','orders','pos','operations','abandoned','products','daily-deals','customers','vip-club','announcements','marketing','meta','delivery-methods','discounts','online-store','section-colors','reviews','policies','links','settings'];
+      return saved && allowed.includes(saved) ? saved : 'dashboard';
+    } catch { return 'dashboard'; }
+  });
+  useEffect(() => { try { localStorage.setItem('kfc-admin-active-tab', activeTab); } catch { /* storage can be disabled */ } }, [activeTab]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState<CategoryId | 'all'>('all');
   const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'active' | 'draft'>('all');
+  const [productSortFilter, setProductSortFilter] = useState<'newest' | 'oldest' | 'price-low' | 'price-high' | 'name'>('newest');
+  const [bulkCategoryTarget, setBulkCategoryTarget] = useState<string>('');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isImportingProducts, setIsImportingProducts] = useState(false);
   const [productActionFeedback, setProductActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -339,9 +352,6 @@ export const ShopifyAdminApp: React.FC = () => {
 
   // Orders Filter & Bulk Selection & Print
   const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'active' | 'confirmed' | 'kitchen' | 'dispatched' | 'delivered' | 'cancelled'>('all');
-  const [isLiveVisitorsModalOpen, setIsLiveVisitorsModalOpen] = useState(false);
-  const [isLiveSyncing, setIsLiveSyncing] = useState(false);
-  const [liveSyncMessage, setLiveSyncMessage] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<Order['status']>('kitchen');
   const [isUpdatingBulkStatus, setIsUpdatingBulkStatus] = useState(false);
@@ -655,14 +665,51 @@ export const ShopifyAdminApp: React.FC = () => {
     .slice(0, 5);
 
   const filteredProducts = menuItems.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(productSearch.toLowerCase());
-    const matchesCat = productCategoryFilter === 'all' || item.categoryId === productCategoryFilter;
-    const matchesStatus =
-      productStatusFilter === 'all' ||
-      (productStatusFilter === 'active' && item.status !== 'draft') ||
-      (productStatusFilter === 'draft' && item.status === 'draft');
+    const q = productSearch.toLowerCase();
+    const matchesSearch = item.name.toLowerCase().includes(q) || String(item.sku || '').toLowerCase().includes(q) || String(item.barcode || '').toLowerCase().includes(q);
+    const matchesCat = productCategoryFilter === 'all' || item.categoryId === productCategoryFilter || (item.categoryIds || []).includes(productCategoryFilter as CategoryId);
+    const matchesStatus = productStatusFilter === 'all' || (productStatusFilter === 'active' && item.status !== 'draft') || (productStatusFilter === 'draft' && item.status === 'draft');
     return matchesSearch && matchesCat && matchesStatus;
+  }).sort((left, right) => {
+    if (productSortFilter === 'price-low') return calculatePrice(left.baseKfcPrice, left.sellingPrice) - calculatePrice(right.baseKfcPrice, right.sellingPrice);
+    if (productSortFilter === 'price-high') return calculatePrice(right.baseKfcPrice, right.sellingPrice) - calculatePrice(left.baseKfcPrice, left.sellingPrice);
+    if (productSortFilter === 'name') return left.name.localeCompare(right.name);
+    const leftDate = Date.parse(String((left as any).createdAt || (left as any).createdOn || (left as any).updatedAt || '')) || 0;
+    const rightDate = Date.parse(String((right as any).createdAt || (right as any).createdOn || (right as any).updatedAt || '')) || 0;
+    return productSortFilter === 'oldest' ? leftDate - rightDate : rightDate - leftDate;
   });
+
+  const handleBulkChangeCategory = async (mode: 'add' | 'remove') => {
+    if (!selectedProductIds.length || !bulkCategoryTarget) return;
+    setIsApplyingBulkProductAction(true);
+    setProductActionFeedback(null);
+    let succeeded = 0;
+    const failed: string[] = [];
+    try {
+      for (const id of selectedProductIds) {
+        const item = menuItems.find((candidate) => candidate.id === id);
+        if (!item) { failed.push(id); continue; }
+        try {
+          const currentCategories = Array.from(new Set([item.categoryId, ...(item.categoryIds || [])]));
+          let nextCategories: CategoryId[];
+          let nextPrimary = item.categoryId;
+          if (mode === 'add') {
+            nextCategories = Array.from(new Set([...currentCategories, bulkCategoryTarget as CategoryId]));
+          } else {
+            nextCategories = currentCategories.filter((categoryId) => categoryId !== bulkCategoryTarget);
+            if (!nextCategories.length) nextCategories = ['everyday-value'];
+            if (nextPrimary === bulkCategoryTarget) nextPrimary = nextCategories[0];
+          }
+          await updateMenuItem({ ...item, categoryId: nextPrimary, categoryIds: nextCategories });
+          succeeded += 1;
+        } catch { failed.push(id); }
+      }
+      setProductActionFeedback({ type: failed.length ? 'error' : 'success', message: `${succeeded} products ke liye category ${mode === 'add' ? 'add' : 'remove'} hui.${failed.length ? ` Failed: ${failed.join(', ')}` : ''}` });
+      if (!failed.length) setSelectedProductIds([]);
+    } catch (error: any) {
+      setProductActionFeedback({ type: 'error', message: error?.message || 'Bulk category update fail hui.' });
+    } finally { setIsApplyingBulkProductAction(false); }
+  };
 
   const handleToggleSelectProduct = (productId: string) => {
     setSelectedProductIds((prev) =>
@@ -1247,6 +1294,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 { id: 'dashboard', label: 'Sales & Operational Analytics', icon: LayoutDashboard },
                 { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrders > 0 ? pendingOrders : undefined },
                 { id: 'pos', label: 'Restaurant POS & Billing', icon: Receipt },
+                { id: 'operations', label: 'Vendors, Purchases & Shifts', icon: Boxes },
                 { id: 'abandoned', label: 'Abandoned Checkouts (Manual)', icon: AlertCircle, badge: abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length > 0 ? abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length : undefined },
                 { id: 'products', label: 'Menu Editor & Products', icon: UtensilsCrossed },
                 { id: 'daily-deals', label: 'Daily 5 Deals (4% OFF)', icon: Flame },
@@ -1269,6 +1317,8 @@ export const ShopifyAdminApp: React.FC = () => {
                 return (
                   <button
                     key={item.id}
+                    aria-current={isActive ? "page" : undefined}
+                    aria-pressed={isActive}
                     onClick={() => {
                       setActiveTab(item.id as SellerTab);
                       setIsSidebarOpen(false);
@@ -1363,61 +1413,7 @@ export const ShopifyAdminApp: React.FC = () => {
               </div>
 
               {/* REAL-TIME LIVE ACTIVITY & OPERATIONAL BAR (Fully Functioning 4-Card Grid) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {/* 1. Realtime Live Visitors */}
-                <div
-                  onClick={async () => {
-                    setIsLiveVisitorsModalOpen(true);
-                    setIsLiveSyncing(true);
-                    try {
-                      await syncStoreToServer();
-                      setLiveSyncMessage('Visitor presence re-synced with server.');
-                    } catch {
-                      setLiveSyncMessage('Live status refreshed.');
-                    } finally {
-                      setIsLiveSyncing(false);
-                    }
-                  }}
-                  className="p-4 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 hover:border-emerald-300 rounded-2xl flex items-center justify-between transition cursor-pointer shadow-xs hover:shadow-md active:scale-[0.99] group"
-                  title="Click to view live traffic details & sync presence"
-                >
-                  <div className="min-w-0 pr-2">
-                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                      <span>Realtime Live Visitors</span>
-                    </span>
-                    <p className="text-2xl font-black text-emerald-950 font-mono mt-1 flex items-center gap-2">
-                      <span>{liveStats.activeVisitors} Active</span>
-                      {isLiveSyncing && <RefreshCw className="w-4 h-4 text-emerald-600 animate-spin" />}
-                    </p>
-                    <p className="text-[10px] text-emerald-700 mt-0.5 truncate flex items-center gap-1">
-                      <span>Shoppers browsing store now</span>
-                      <span className="font-bold underline text-emerald-800">· Click details</span>
-                    </p>
-                  </div>
-                  <Activity className="w-8 h-8 text-emerald-600 opacity-80 group-hover:scale-110 transition-transform shrink-0" />
-                </div>
-
-                {/* 2. Active Open Carts */}
-                <div
-                  onClick={() => setActiveTab('abandoned')}
-                  className="p-4 bg-amber-50 hover:bg-amber-100/80 border border-amber-200 hover:border-amber-300 rounded-2xl flex items-center justify-between transition cursor-pointer shadow-xs hover:shadow-md active:scale-[0.99] group"
-                  title="Click to view open carts & WhatsApp recovery"
-                >
-                  <div className="min-w-0 pr-2">
-                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-500" />
-                      <span>Active Open Carts</span>
-                    </span>
-                    <p className="text-2xl font-black text-amber-950 font-mono mt-1">{liveStats.openCartsCount} Buckets</p>
-                    <p className="text-[10px] text-amber-700 mt-0.5 truncate flex items-center gap-1">
-                      <span>Value: {formatPKR(liveStats.openCartsValue)}</span>
-                      <span className="font-bold underline text-amber-800">· Recover</span>
-                    </p>
-                  </div>
-                  <ShoppingBag className="w-8 h-8 text-amber-600 opacity-80 group-hover:scale-110 transition-transform shrink-0" />
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
                 {/* 3. Kitchen & Out for Delivery Queue */}
                 <div
                   onClick={() => {
@@ -1942,6 +1938,7 @@ export const ShopifyAdminApp: React.FC = () => {
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-mono font-black text-sm text-[#e4002b]">#{order.id}</span>
+                                {order.customerOrderLabel && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700">{order.customerOrderLabel}</span>}
                                 
                                 {/* Color-Coded Order Status Badge */}
                                 <span
@@ -2143,17 +2140,29 @@ export const ShopifyAdminApp: React.FC = () => {
                             <span>Payment: <strong className="text-zinc-800 uppercase">{order.paymentMethod}</strong></span>
                             <span>·</span>
                             <span>Delivery Fee: {formatPKR(order.deliveryFee || 0)}</span>
-                            {order.discount ? (
-                              <>
-                                <span>·</span>
-                                <span className="text-emerald-700 font-bold">Discount: -{formatPKR(order.discount)}</span>
-                              </>
-                            ) : null}
+                            {order.discount ? <><span>·</span><span className="text-emerald-700 font-bold">Discount: -{formatPKR(order.discount)}</span></> : null}
                           </div>
-                          <span className="text-base font-black text-emerald-600 font-mono">
-                            Total: {formatPKR(order.total)}
-                          </span>
+                          <div className="text-right">
+                            <div className="text-base font-black text-emerald-600 font-mono">Total: {formatPKR(order.total)}</div>
+                            <div className="text-[11px] text-zinc-500">Received: <b className="text-emerald-700">{formatPKR(order.paymentReceived || 0)}</b> · Balance: <b className="text-amber-700">{formatPKR(Math.max(0, order.total - (order.paymentReceived || 0)))}</b></div>
+                            <span className={`inline-block mt-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${(order.paymentStatus || ((order.paymentReceived || 0) >= order.total ? 'paid' : (order.paymentReceived || 0) > 0 ? 'partial' : 'unpaid')) === 'paid' ? 'bg-emerald-100 text-emerald-700' : (order.paymentReceived || 0) > 0 ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-600'}`}>{order.paymentStatus || ((order.paymentReceived || 0) >= order.total ? 'paid' : (order.paymentReceived || 0) > 0 ? 'partial' : 'unpaid')}</span>
+                          </div>
                         </div>
+                        <form className="flex flex-wrap gap-2 pt-2" onSubmit={async (event) => {
+                          event.preventDefault();
+                          try {
+                            await updateOrderPaymentReceived(order.id, Number(paymentReceivedInputs[order.id] || 0));
+                            setPaymentReceivedInputs((previous) => ({ ...previous, [order.id]: '' }));
+                            setPaymentReceivedFeedback({ id: order.id, message: 'Payment receive save ho gayi.', ok: true });
+                            await fetchOrders();
+                          } catch (error: any) {
+                            setPaymentReceivedFeedback({ id: order.id, message: error?.message || 'Payment save nahi hui.', ok: false });
+                          }
+                        }}>
+                          <input aria-label={`Payment received amount for order ${order.id}`} type="number" min="1" step="1" max={Math.max(0, order.total - (order.paymentReceived || 0))} value={paymentReceivedInputs[order.id] || ''} onChange={(event) => setPaymentReceivedInputs((previous) => ({ ...previous, [order.id]: event.target.value }))} placeholder="Payment received (Rs)" disabled={Math.max(0, order.total - (order.paymentReceived || 0)) === 0} className="w-48 max-w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 disabled:opacity-50" />
+                          <button type="submit" disabled={!paymentReceivedInputs[order.id] || Number(paymentReceivedInputs[order.id]) <= 0 || Math.max(0, order.total - (order.paymentReceived || 0)) === 0} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-40">Payment Received</button>
+                          {paymentReceivedFeedback?.id === order.id && <span role="status" className={`self-center text-[11px] font-bold ${paymentReceivedFeedback.ok ? 'text-emerald-700' : 'text-red-600'}`}>{paymentReceivedFeedback.message}</span>}
+                        </form>
 
                         {/* Bottom Actions Toolbar: WhatsApp, Generate/Print Bill, Cancel */}
                         <div className="hidden sm:flex flex-wrap items-center gap-2 pt-1 border-t border-zinc-100">
@@ -2390,14 +2399,15 @@ export const ShopifyAdminApp: React.FC = () => {
                     <button
                       key={st.id}
                       type="button"
+                      aria-pressed={isActive}
                       onClick={() => setProductSubTab(st.id as any)}
                       className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition cursor-pointer ${
                         isActive
-                          ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/80 font-black'
+                          ? 'bg-[#e4002b] text-white shadow-sm border border-[#e4002b] font-black'
                           : 'text-zinc-600 hover:text-zinc-900 hover:bg-white/50'
                       }`}
                     >
-                      <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#e4002b]' : 'text-zinc-500'}`} />
+                      <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
                       <span>{st.label}</span>
                       {st.count !== undefined && (
                         <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-[#e4002b] text-white' : 'bg-zinc-200 text-zinc-700'}`}>
@@ -2472,6 +2482,9 @@ export const ShopifyAdminApp: React.FC = () => {
                       <option value="active">Active Only ({menuItems.filter((i) => i.status !== 'draft').length})</option>
                       <option value="draft">Draft Only ({menuItems.filter((i) => i.status === 'draft').length})</option>
                     </select>
+                    <select aria-label="Sort products" value={productSortFilter} onChange={(e) => setProductSortFilter(e.target.value as any)} className="bg-zinc-50 border border-zinc-200 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:border-[#e4002b]">
+                      <option value="newest">Newest added</option><option value="oldest">Oldest added</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name A–Z</option>
+                    </select>
                   </div>
 
                   {/* Bulk Product Selection and Actions Bar */}
@@ -2514,6 +2527,11 @@ export const ShopifyAdminApp: React.FC = () => {
 
                     {selectedProductIds.length > 0 && (
                       <div className="flex items-center gap-2 flex-wrap">
+                        <select aria-label="Choose category for selected products" value={bulkCategoryTarget} onChange={(event) => setBulkCategoryTarget(event.target.value)} className="max-w-44 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs font-bold">
+                          <option value="">Move to category…</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                        </select>
+                        <button type="button" disabled={isApplyingBulkProductAction || !bulkCategoryTarget} onClick={() => void handleBulkChangeCategory("add")} className="rounded-lg bg-indigo-600 px-3 py-1.5 font-bold text-white disabled:opacity-40">Add to selected category</button>
+                        <button type="button" disabled={isApplyingBulkProductAction || !bulkCategoryTarget} onClick={() => void handleBulkChangeCategory("remove")} className="rounded-lg border border-zinc-300 px-3 py-1.5 font-bold text-zinc-700 disabled:opacity-40">Remove from category</button>
                         <button
                           type="button"
                           disabled={isApplyingBulkProductAction}
@@ -2536,6 +2554,20 @@ export const ShopifyAdminApp: React.FC = () => {
                           <span>Set to Draft ({selectedProductIds.length})</span>
                         </button>
 
+                        <button type="button" disabled={isApplyingBulkProductAction || settings.skuBarcodeConfig?.enabled === false || (settings.skuBarcodeConfig?.autoGenerateSku === false && settings.skuBarcodeConfig?.autoGenerateBarcode === false)} onClick={async () => {
+                          setIsApplyingBulkProductAction(true);
+                          let count = 0;
+                          try {
+                            for (const id of selectedProductIds) {
+                              const item = menuItems.find((product) => product.id === id);
+                              if (!item) continue;
+                              await updateMenuItem({ ...item, sku: item.sku || (settings.skuBarcodeConfig?.autoGenerateSku === false ? '' : `KFC-${item.id.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`), barcode: item.barcode || (settings.skuBarcodeConfig?.autoGenerateBarcode === false ? '' : `92325${String(item.id).replace(/\D/g, '').slice(-8).padStart(8, '0')}`) });
+                              count += 1;
+                            }
+                            setProductActionFeedback({ type: 'success', message: `SKU/barcode ${count} selected products ke liye generate/save ho gaye.` });
+                          } catch (error: any) { setProductActionFeedback({ type: 'error', message: error?.message || 'SKU/barcode generate nahi ho sake.' }); }
+                          finally { setIsApplyingBulkProductAction(false); }
+                        }} className="rounded-lg bg-indigo-600 px-3 py-1.5 font-bold text-white disabled:opacity-40">Generate SKU + Barcode</button>
                         <button
                           type="button"
                           disabled={isApplyingBulkProductAction}
@@ -2627,6 +2659,10 @@ export const ShopifyAdminApp: React.FC = () => {
                                   Stock: <strong className={Number(item.stockQuantity) <= 5 ? 'text-amber-600' : 'text-emerald-600'}>{item.stockQuantity || 0} pcs</strong>
                                 </p>
                               )}
+                              {settings.skuBarcodeConfig?.enabled !== false && <div className="mt-2 grid grid-cols-1 gap-1.5">
+                                <label className="flex items-center gap-1 text-[10px] text-zinc-500">SKU <input defaultValue={item.sku || ''} placeholder="Add SKU" onBlur={(event) => { const value = event.currentTarget.value.trim(); if (value !== (item.sku || '')) void updateMenuItem({ ...item, sku: value }); }} className="min-w-0 flex-1 rounded border border-zinc-200 px-2 py-1 text-[10px] text-zinc-800" /></label>
+                                <label className="flex items-center gap-1 text-[10px] text-zinc-500">Barcode <input defaultValue={item.barcode || ''} placeholder="Scan / enter barcode" onBlur={(event) => { const value = event.currentTarget.value.trim(); if (value !== (item.barcode || '')) void updateMenuItem({ ...item, barcode: value }); }} className="min-w-0 flex-1 rounded border border-zinc-200 px-2 py-1 text-[10px] text-zinc-800" /></label>
+                              </div>}
                             </div>
                           </div>
 
@@ -3003,6 +3039,11 @@ export const ShopifyAdminApp: React.FC = () => {
                     onChange={(e) => updateDailyDealConfig({ enabled: e.target.checked })}
                     className="w-5 h-5 accent-[#e4002b] cursor-pointer"
                   />
+                </div>
+
+                <div className="flex items-center justify-between border-t border-zinc-100 pt-4">
+                  <div><h3 className="font-bold text-sm text-zinc-900">Show popup when app opens</h3><p className="text-xs text-zinc-500">Popup ko alag se ON/OFF karein. Daily Deals section ki setting alag rahegi.</p></div>
+                  <input type="checkbox" checked={dailyDealConfig.popupEnabled !== false} onChange={(event) => updateDailyDealConfig({ popupEnabled: event.target.checked })} className="h-5 w-5 cursor-pointer accent-[#e4002b]"/>
                 </div>
 
                 {/* Offer Selection Mode: Random vs Specific Collection vs Manual */}
@@ -3455,6 +3496,8 @@ export const ShopifyAdminApp: React.FC = () => {
             <RestaurantPOS onOrderCreated={() => { void fetchOrders(); }} />
           )}
 
+          {activeTab === 'operations' && <InventoryOperations />}
+
           {/* ========================================================================= */}
           {/* TAB: SECTION COLOR SCHEMES */}
           {/* ========================================================================= */}
@@ -3570,8 +3613,9 @@ export const ShopifyAdminApp: React.FC = () => {
                   const rawPhone = String(order.customer.phone || '').replace(/[^0-9]/g, '');
                   const phone = rawPhone.startsWith('92') ? rawPhone : rawPhone.startsWith('0') ? '92' + rawPhone.slice(1) : '92' + rawPhone;
                   const firstItem = order.items?.[0]?.menuItem;
-                  const reviewUrl = firstItem?.id ? `${window.location.origin}/?product=${encodeURIComponent(firstItem.id)}` : window.location.origin;
-                  const message = `Assalam o Alaikum ${order.customer.fullName || 'Customer'}! Aap ke KFC Chakwal Delivery order #${order.id} ke liye shukriya. Meherbani karke apna review share karein: ${reviewUrl}`;
+                  const reviewUrl = `${window.location.origin}/?reviews=true`;
+                  const template = String(settings.autoReview?.whatsappTemplate || 'Assalam o Alaikum {name}! Aap ke order #{orderId} ke liye shukriya. Apna review yahan share karein: {reviewUrl}');
+                  const message = template.replace(/\{name\}/g, order.customer.fullName || 'Customer').replace(/\{orderId\}/g, order.id).replace(/\{reviewUrl\}/g, reviewUrl).replace(/\{phone\}/g, order.customer.phone || '').replace(/\{points\}/g, String(Math.max(0, Number(settings.loyaltyConfig?.reviewBonus ?? 20))));
                   return <div key={order.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 py-2"><div><div className="text-xs font-bold text-zinc-900">#{order.id} · {order.customer.fullName}</div><div className="text-[11px] text-zinc-500">{order.customer.phone} · {new Date(order.date).toLocaleDateString()}</div></div><button type="button" onClick={async () => { const whatsappWindow = window.open('about:blank', '_blank'); try { await createReviewRequest(order, reviewUrl); setReviewRequestRecords((previous) => [{ id: order.id, orderId: order.id, customerName: order.customer.fullName || 'Customer', phone: order.customer.phone, reviewUrl, status: 'opened_whatsapp', requestedAt: new Date().toISOString() }, ...previous.filter((item) => item.id !== order.id)].slice(0, 50)); const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`; if (whatsappWindow) whatsappWindow.location.href = whatsappUrl; else window.location.href = whatsappUrl; } catch (error: any) { whatsappWindow?.close(); alert(error?.message || 'Review request record save nahi hua. Firestore Rules publish karein aur dobara try karein.'); } }} className="inline-flex justify-center bg-[#25D366] text-white font-bold text-xs px-3 py-2 rounded-lg">Send Review Request</button></div>;
                 })}
                 {allOrders.filter((order) => order.status === 'delivered' && order.customer?.phone && Boolean((order.customer as any)?.uid)).length === 0 && <p className="py-4 text-xs text-zinc-500">Abhi kisi registered customer ka delivered order review request ke liye available nahi.</p>}
@@ -3842,6 +3886,47 @@ export const ShopifyAdminApp: React.FC = () => {
                 <p className="text-xs text-zinc-500 mt-1">
                   Upload your preloader logo, app icon URL, WhatsApp contact, and social links.
                 </p>
+              </div>
+
+              <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <div><h3 className="font-bold text-sm text-zinc-900">Rewards & Loyalty Rules</h3><p className="mt-1 text-[11px] text-zinc-500">Points earning, redemption aur signup bonus admin yahan edit kar sakta hai.</p></div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {([
+                    ['pointsPerRupee','Points per Rs 1 discount',2],
+                    ['pointsPerSpend','Points earned per spend step',10],
+                    ['spendThreshold','Spend step amount (Rs)',300],
+                    ['minRedemptionAmount','Minimum cart to redeem (Rs)',500],
+                    ['signupBonus','New customer signup bonus',50],
+                    ['reviewBonus','Review bonus points',20],
+                  ] as const).map(([key,label,fallback]) => <label key={key} className="text-xs font-bold text-zinc-700">{label}<input type="number" min="0" step="1" value={settings.loyaltyConfig?.[key] ?? fallback} onChange={(event) => updateSettings({ loyaltyConfig: { pointsPerRupee: settings.loyaltyConfig?.pointsPerRupee ?? 2, pointsPerSpend: settings.loyaltyConfig?.pointsPerSpend ?? 10, spendThreshold: settings.loyaltyConfig?.spendThreshold ?? 300, minRedemptionAmount: settings.loyaltyConfig?.minRedemptionAmount ?? 500, signupBonus: settings.loyaltyConfig?.signupBonus ?? 50, reviewBonus: settings.loyaltyConfig?.reviewBonus ?? 20, combineWithCoupons: settings.loyaltyConfig?.combineWithCoupons ?? false, [key]: Math.max(0, Number(event.target.value) || 0) } })} className="mt-1 w-full rounded-xl border border-zinc-200 bg-zinc-50 p-2.5 text-sm"/></label>)}
+                </div>
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>Allow reward points with coupon codes</span><input type="checkbox" checked={settings.loyaltyConfig?.combineWithCoupons === true} onChange={(event) => updateSettings({ loyaltyConfig: { pointsPerRupee: settings.loyaltyConfig?.pointsPerRupee ?? 2, pointsPerSpend: settings.loyaltyConfig?.pointsPerSpend ?? 10, spendThreshold: settings.loyaltyConfig?.spendThreshold ?? 300, minRedemptionAmount: settings.loyaltyConfig?.minRedemptionAmount ?? 500, signupBonus: settings.loyaltyConfig?.signupBonus ?? 50, reviewBonus: settings.loyaltyConfig?.reviewBonus ?? 20, combineWithCoupons: event.target.checked } })} className="h-4 w-4 accent-red-600"/></label>
+                <div><h3 className="font-bold text-sm text-zinc-900">WhatsApp Message Templates</h3><p className="mt-1 text-[11px] text-zinc-500">Placeholders: {'{name}'}, {'{orderId}'}, {'{total}'}, {'{received}'}, {'{balance}'}, {'{items}'}, {'{phone}'}, {'{address}'}, {'{reviewUrl}'}, {'{status}'}, {'{points}'}.</p></div>
+                {([
+                  ['orderDetails','Order details / bill','Assalam-o-Alaikum {name}! Order #{orderId}. Items: {items}. Total: {total}. Received: {received}. Balance: {balance}.'],
+                  ['reviewRequest','Review request','Assalam o Alaikum {name}! Order #{orderId} ke liye shukriya. Apna review yahan share karein: {reviewUrl}'],
+                  ['abandonedRecovery','Abandoned cart recovery','Assalam o Alaikum {name}! Aap ka cart ready hai: {items}. Total: {total}.'],
+                  ['vipPass','VIP pass request','Assalam o Alaikum {name}! Aap ka VIP pass {orderId} ke liye request hai. Total: {total}.'],
+                  ['orderStatus','Order status update','Assalam o Alaikum {name}! Aap ke order #{orderId} ka update: {status}. Balance: {balance}.'],
+                ] as const).map(([key,label,fallback]) => <label key={key} className="block text-xs font-bold text-zinc-700">{label}<textarea rows={3} value={settings.whatsappTemplates?.[key] ?? fallback} onChange={(event) => updateSettings({ whatsappTemplates: { orderDetails: settings.whatsappTemplates?.orderDetails ?? 'Assalam-o-Alaikum {name}! Order #{orderId}. Items: {items}. Total: {total}. Received: {received}. Balance: {balance}.', reviewRequest: settings.whatsappTemplates?.reviewRequest ?? 'Assalam o Alaikum {name}! Order #{orderId} ke liye shukriya. Apna review yahan share karein: {reviewUrl}', abandonedRecovery: settings.whatsappTemplates?.abandonedRecovery ?? 'Assalam o Alaikum {name}! Aap ka cart ready hai: {items}. Total: {total}.', vipPass: settings.whatsappTemplates?.vipPass ?? 'Assalam o Alaikum {name}! Aap ka VIP pass {orderId} ke liye request hai. Total: {total}.', orderStatus: settings.whatsappTemplates?.orderStatus ?? 'Assalam o Alaikum {name}! Aap ke order #{orderId} ka update: {status}. Balance: {balance}.', [key]: event.target.value } })} className="mt-1 w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs font-normal"/></label>)}
+                <div><h3 className="font-bold text-sm text-zinc-900">SKU & Barcode Settings</h3><p className="mt-1 text-[11px] text-zinc-500">Enable/disable SKU and barcode fields and bulk generation.</p></div>
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>Enable SKU / Barcode features</span><input type="checkbox" checked={settings.skuBarcodeConfig?.enabled !== false} onChange={(event) => updateSettings({ skuBarcodeConfig: { enabled: event.target.checked, autoGenerateSku: settings.skuBarcodeConfig?.autoGenerateSku !== false, autoGenerateBarcode: settings.skuBarcodeConfig?.autoGenerateBarcode !== false } })} className="h-4 w-4 accent-red-600" /></label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>Auto-generate SKU</span><input type="checkbox" checked={settings.skuBarcodeConfig?.autoGenerateSku !== false} onChange={(event) => updateSettings({ skuBarcodeConfig: { enabled: settings.skuBarcodeConfig?.enabled !== false, autoGenerateSku: event.target.checked, autoGenerateBarcode: settings.skuBarcodeConfig?.autoGenerateBarcode !== false } })} className="h-4 w-4 accent-red-600"/></label>
+                  <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>Auto-generate barcode</span><input type="checkbox" checked={settings.skuBarcodeConfig?.autoGenerateBarcode !== false} onChange={(event) => updateSettings({ skuBarcodeConfig: { enabled: settings.skuBarcodeConfig?.enabled !== false, autoGenerateSku: settings.skuBarcodeConfig?.autoGenerateSku !== false, autoGenerateBarcode: event.target.checked } })} className="h-4 w-4 accent-red-600"/></label>
+                </div>
+                <p className="text-[11px] text-zinc-500">Manual SKU/barcode edit fields Products cards mein hain. Bulk generator sirf missing enabled values generate karta hai.</p>
+              </div>
+
+              {/* Reviews widget placement and visibility */}
+              <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <div><h3 className="font-bold text-sm text-zinc-900">Customer Reviews Widgets</h3><p className="mt-1 text-[11px] text-zinc-500">Reviews widget ko ON/OFF karein aur choose karein k kin pages par show ho.</p></div>
+                {([
+                  ['enabled', 'Enable review widgets'],
+                  ['showOnHome', 'Show reviews widget on homepage'],
+                  ['showOnProductPages', 'Show reviews on product pages'],
+                  ['showOnReviewsPage', 'Enable dedicated reviews page'],
+                ] as const).map(([key, label]) => <label key={key} className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>{label}</span><input type="checkbox" checked={settings.reviewWidgetConfig?.[key] !== false} onChange={(event) => updateSettings({ reviewWidgetConfig: { enabled: settings.reviewWidgetConfig?.enabled !== false, showOnHome: settings.reviewWidgetConfig?.showOnHome !== false, showOnProductPages: settings.reviewWidgetConfig?.showOnProductPages !== false, showOnReviewsPage: settings.reviewWidgetConfig?.showOnReviewsPage !== false, [key]: event.target.checked } })} className="h-4 w-4 accent-red-600" /></label>)}
               </div>
 
               {/* Homepage collection navigation controls */}
@@ -4769,112 +4854,7 @@ export const ShopifyAdminApp: React.FC = () => {
         storeSettings={settings}
       />
 
-      {/* Realtime Live Store Visitors & Traffic Monitor Modal */}
-      {isLiveVisitorsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-6 shadow-2xl border border-zinc-200">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                  <Activity className="w-5 h-5 animate-pulse" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-zinc-900">Realtime Store Visitors & Activity</h3>
-                  <p className="text-xs text-zinc-500">Live active sessions browsing KFC Chakwal storefront</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsLiveVisitorsModalOpen(false)}
-                className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {/* Quick Metrics */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
-                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  <span>Current Active Visitors</span>
-                </span>
-                <p className="text-3xl font-black text-emerald-950 font-mono mt-1">
-                  {liveStats.activeVisitors}
-                </p>
-                <p className="text-[11px] text-emerald-700 mt-0.5">Live store browsers</p>
-              </div>
-
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span>Carts In Progress</span>
-                </span>
-                <p className="text-3xl font-black text-amber-950 font-mono mt-1">
-                  {liveStats.openCartsCount}
-                </p>
-                <p className="text-[11px] text-amber-700 mt-0.5">{formatPKR(liveStats.openCartsValue)} in buckets</p>
-              </div>
-            </div>
-
-            {/* Status Breakdown & sync */}
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-zinc-700 flex items-center gap-1.5">
-                  <Cloud className="w-4 h-4 text-emerald-600" />
-                  <span>Server Presence Status:</span>
-                </span>
-                <span className="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full text-[10px]">
-                  Online & Active
-                </span>
-              </div>
-              <p className="text-xs text-zinc-600 leading-relaxed">
-                Shoppers actively browsing the KFC menu, customizing items, or holding open cart buckets are tracked in real time.
-              </p>
-              {liveSyncMessage && (
-                <p className="text-xs text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 rounded-xl p-2.5">
-                  ✓ {liveSyncMessage}
-                </p>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
-              <button
-                type="button"
-                disabled={isLiveSyncing}
-                onClick={async () => {
-                  setIsLiveSyncing(true);
-                  try {
-                    await syncStoreToServer();
-                    setLiveSyncMessage('Visitor presence re-synced with server.');
-                  } catch {
-                    setLiveSyncMessage('Presence refreshed.');
-                  } finally {
-                    setIsLiveSyncing(false);
-                  }
-                }}
-                className="flex-1 bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-800 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-xs"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLiveSyncing ? 'animate-spin text-[#e4002b]' : ''}`} />
-                <span>{isLiveSyncing ? 'Syncing...' : 'Sync Presence Now'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLiveVisitorsModalOpen(false);
-                  setActiveTab('customers');
-                }}
-                className="flex-1 bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-md shadow-red-950/20"
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>View Customers & Loyalty</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

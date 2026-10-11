@@ -12,6 +12,15 @@ service cloud.firestore {
       );
     }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function configuredSignupBonus() {
+      let settingsPath = /databases/$(database)/documents/storeSettings/global;
+      return exists(settingsPath) &&
+        get(settingsPath).data.settings is map &&
+        get(settingsPath).data.settings.loyaltyConfig is map &&
+        get(settingsPath).data.settings.loyaltyConfig.signupBonus is number
+        ? get(settingsPath).data.settings.loyaltyConfig.signupBonus
+        : 50;
+    }
 
     match /products/{id} { allow read: if true; allow write: if admin(); }
     match /categories/{id} { allow read: if true; allow write: if admin(); }
@@ -37,7 +46,7 @@ service cloud.firestore {
           'ordersCount', 'createdAt', 'updatedAt', 'vipTier', 'vipStatus',
           'emailMarketingConsent', 'emailMarketingConsentAt', 'emailMarketingConsentSource'
         ]) &&
-        request.resource.data.loyaltyPoints == 50 &&
+        request.resource.data.loyaltyPoints == configuredSignupBonus() &&
         request.resource.data.totalSpent == 0 &&
         (!('totalOrdersCount' in request.resource.data) || request.resource.data.totalOrdersCount == 0) &&
         (!('ordersCount' in request.resource.data) || request.resource.data.ordersCount == 0)
@@ -132,6 +141,10 @@ service cloud.firestore {
     match /abandonedCheckouts/{id} { allow read, write: if admin(); }
     match /notifications/{id} { allow read, write: if admin(); }
     match /adminUsers/{uid} { allow read: if admin() || owner(uid); allow write: if admin(); }
+
+    match /vendors/{id} { allow read, write: if admin(); }
+    match /purchases/{id} { allow read, write: if admin(); }
+    match /cashShifts/{id} { allow read, write: if admin(); }
 
     match /test/{id} { allow read: if true; allow write: if admin(); }
   }

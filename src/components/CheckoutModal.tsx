@@ -146,7 +146,23 @@ export const CheckoutModal: React.FC = () => {
         )
         .join('\n');
 
-      const message = `🍗 *NEW ORDER - KFC CHAKWAL DELIVERY*\n` +
+      const customTemplate = String(settings.whatsappTemplates?.orderDetails || '').trim();
+      const message = customTemplate
+        ? customTemplate.replace(/\{([a-zA-Z]+)\}/g, (_match, key: string) => ({
+            name: customer.fullName,
+            orderId: newOrder.id,
+            total: formatPKR(newOrder.total),
+            received: formatPKR(newOrder.paymentReceived || 0),
+            balance: formatPKR(Math.max(0, newOrder.total - (newOrder.paymentReceived || 0))),
+            items: itemsList,
+            phone: customer.phone,
+            address: customer.address,
+            storeName: settings.storeName || 'KFC Chakwal Delivery',
+            status: newOrder.status,
+            reviewUrl: window.location.origin + '/?reviews=true',
+            points: String(Math.max(0, Number(settings.loyaltyConfig?.reviewBonus ?? 20))),
+          } as Record<string, string>)[key] ?? _match)
+        : `🍗 *NEW ORDER - KFC CHAKWAL DELIVERY*\n` +
         `Order ID: #${newOrder.id}\n` +
         `-------------------------\n` +
         `*Items Ordered:*\n${itemsList}\n` +
@@ -528,7 +544,7 @@ export const CheckoutModal: React.FC = () => {
                 <div className="flex justify-between text-amber-700 font-bold">
                   <span className="flex items-center gap-1">
                     <Award className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Loyalty Points Redeemed</span>
+                    <span>Loyalty Discount (2 points = Rs 1)</span>
                   </span>
                   <span className="tabular-nums font-mono">
                     -{formatPKR(loyaltyDiscountAmount)}

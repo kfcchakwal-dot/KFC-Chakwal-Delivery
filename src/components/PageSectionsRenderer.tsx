@@ -1,14 +1,14 @@
 import React from 'react';
 import { PageSection } from '../types';
 import { useStore } from '../context/StoreContext';
-import { Clock, Bike, ArrowRight, ShieldCheck, Sparkles, Plus, Edit2 } from 'lucide-react';
+import { Clock, Bike, ArrowRight, ShieldCheck, Sparkles, Plus, Edit2, Star } from 'lucide-react';
 
 interface PageSectionsRendererProps {
   page: 'home' | 'collection' | 'product' | 'wishlist';
 }
 
 export const PageSectionsRenderer: React.FC<PageSectionsRendererProps> = ({ page }) => {
-  const { settings, themeMode, isAdmin, setIsCustomizerOpen } = useStore();
+  const { settings, themeMode, isAdmin, setIsCustomizerOpen, reviews, setCurrentView } = useStore();
   const isDark = themeMode === 'dark';
 
   const sections = (settings.customSections || [])
@@ -112,6 +112,17 @@ export const PageSectionsRenderer: React.FC<PageSectionsRendererProps> = ({ page
               </div>
             </section>
           );
+        }
+
+        if (section.type === 'reviews-widget') {
+          const visibleReviews = settings.reviewWidgetConfig?.enabled === false ? [] : reviews.filter((review) => review.isVisible !== false).slice(0, 6);
+          return <section key={section.id} className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className={`rounded-3xl border p-5 sm:p-7 ${isDark ? 'border-zinc-700 bg-zinc-900' : 'border-zinc-200 bg-white shadow-sm'}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-widest text-[#e4002b]">{section.subtitle || 'Customer feedback'}</p><h2 className="mt-1 text-2xl font-black uppercase">{section.title || 'Customer Reviews'}</h2><p className="mt-1 text-xs text-zinc-500">{section.description || 'Reviews shared by KFC Chakwal Delivery customers.'}</p></div><button type="button" onClick={() => { setCurrentView('reviews'); window.scrollTo({top:0,behavior:'smooth'}); }} className="rounded-xl bg-[#e4002b] px-4 py-2.5 text-xs font-black text-white">View all reviews</button></div>
+              {visibleReviews.length ? <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{visibleReviews.map((review) => <article key={review.id} className={`rounded-2xl border p-3 ${isDark?'border-zinc-700 bg-zinc-800':'border-zinc-100 bg-zinc-50'}`}><div className="flex items-center justify-between gap-2"><strong className="truncate text-xs">{review.customerName}</strong><span className="text-amber-500 text-xs"><Star className="mr-1 inline h-3 w-3 fill-amber-500"/>{review.rating}/5</span></div><p className="mt-2 line-clamp-3 text-xs text-zinc-500">{review.comment}</p></article>)}</div> : <p className="mt-4 rounded-xl bg-zinc-50 p-4 text-xs text-zinc-500">Abhi reviews available nahi hain.</p>}
+              {isAdmin && <button type="button" onClick={() => setIsCustomizerOpen(true)} className="mt-3 text-[11px] font-bold text-[#e4002b] hover:underline">Edit section settings</button>}
+            </div>
+          </section>;
         }
 
         if (section.type === 'delivery-info') {

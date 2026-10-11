@@ -24,6 +24,7 @@ export const VipClubManager: React.FC = () => {
   const {
     vipTiers,
     updateVipTierImage,
+    updateVipTier,
     vipRequests,
     approveVipRequest,
     rejectVipRequest,
@@ -122,7 +123,7 @@ export const VipClubManager: React.FC = () => {
           <p className="text-2xl font-black text-zinc-900 font-mono mt-1">
             {approvedRequests.length}
           </p>
-          <p className="text-[10px] text-zinc-400 mt-0.5">Lifetime discount active</p>
+          <p className="text-[10px] text-zinc-400 mt-0.5">Validity tier settings ke mutabiq</p>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-zinc-200 shadow-sm">
@@ -156,6 +157,14 @@ export const VipClubManager: React.FC = () => {
               {formatPKR(t.price)} <span className="text-xs text-zinc-400 font-normal">One-Time Fee</span>
             </p>
             <p className="text-xs text-zinc-500 mt-1">{t.description}</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <label className="text-[10px] font-bold text-zinc-500">Pass name<input defaultValue={t.name} onBlur={(event) => { const value = event.currentTarget.value.trim(); if (value && value !== t.name) void updateVipTier(t.id, { name: value }).catch((error: any) => alert(error?.message || 'VIP name save nahi hua.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
+              <label className="text-[10px] font-bold text-zinc-500">Fee (Rs)<input type="number" min="0" defaultValue={t.price} onBlur={(event) => { const value = Math.max(0, Number(event.currentTarget.value)||0); if (value !== t.price) void updateVipTier(t.id, { price: value }).catch((error: any) => alert(error?.message || 'VIP fee save nahi hui.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
+              <label className="text-[10px] font-bold text-zinc-500">Discount %<input type="number" min="0" max="100" defaultValue={t.discountPercentage} onBlur={(event) => { const value = Math.max(0, Math.min(100, Number(event.currentTarget.value)||0)); if (value !== t.discountPercentage) void updateVipTier(t.id, { discountPercentage: value }).catch((error: any) => alert(error?.message || 'VIP discount save nahi hua.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
+              <label className="text-[10px] font-bold text-zinc-500">Validity (days; 0=lifetime)<input type="number" min="0" defaultValue={t.durationDays ?? 0} onBlur={(event) => { const value = Math.max(0, Math.floor(Number(event.currentTarget.value)||0)); if (value !== (t.durationDays ?? 0)) void updateVipTier(t.id, { durationDays: value }).catch((error: any) => alert(error?.message || 'VIP validity save nahi hui.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
+              <label className="col-span-2 text-[10px] font-bold text-zinc-500">Description<textarea defaultValue={t.description} onBlur={(event) => { const value = event.currentTarget.value.trim(); if (value !== t.description) void updateVipTier(t.id, { description: value }).catch((error: any) => alert(error?.message || 'VIP description save nahi hui.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
+              <label className="col-span-2 text-[10px] font-bold text-zinc-500">Perks (one per line)<textarea defaultValue={t.perks.join('\n')} onBlur={(event) => { const value = event.currentTarget.value.split('\n').map((line) => line.trim()).filter(Boolean); if (JSON.stringify(value) !== JSON.stringify(t.perks)) void updateVipTier(t.id, { perks: value }).catch((error: any) => alert(error?.message || 'VIP perks save nahi hue.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
+            </div>
             <div className="mt-3">
               <ImageUploadPicker
                 label={`${t.name} image`}

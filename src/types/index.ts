@@ -36,6 +36,8 @@ export interface MenuItem {
   id: string;
   name: string;
   categoryId: CategoryId;
+  /** Additional category memberships for Shopify-style bulk category assignment. */
+  categoryIds?: CategoryId[];
   description: string;
   baseKfcPrice: number; // Authentic KFC Pakistan original price in PKR
   sellingPrice?: number; // Custom direct selling price (overrides base price + markup if provided)
@@ -46,6 +48,9 @@ export interface MenuItem {
   isPopular?: boolean;
   isAvailable: boolean;
   status?: 'active' | 'draft'; // Individual product status: 'active' (visible) or 'draft' (hidden from customers)
+  sku?: string;
+  barcode?: string;
+  createdAt?: string;
   trackInventory?: boolean; // Flexible inventory toggle: track or un-tracked
   stockQuantity?: number; // Quantity in stock
   lowStockThreshold?: number;
@@ -127,7 +132,8 @@ export type SectionType =
   | 'delivery-info' 
   | 'banner' 
   | 'features' 
-  | 'custom-notice';
+  | 'custom-notice'
+  | 'reviews-widget';
 
 export interface PageSection {
   id: string;
@@ -227,6 +233,10 @@ export interface StoreSettings {
   customDomain?: CustomDomainConfig;
   metaCommerce?: MetaCommerceConfig;
   autoReview?: AutoReviewConfig;
+  reviewWidgetConfig?: { enabled: boolean; showOnProductPages: boolean; showOnHome: boolean; showOnReviewsPage: boolean };
+  skuBarcodeConfig?: { enabled: boolean; autoGenerateSku: boolean; autoGenerateBarcode: boolean };
+  loyaltyConfig?: { pointsPerRupee: number; pointsPerSpend: number; spendThreshold: number; minRedemptionAmount: number; signupBonus: number; reviewBonus: number; combineWithCoupons: boolean };
+  whatsappTemplates?: { orderDetails?: string; reviewRequest?: string; abandonedRecovery?: string; vipPass?: string; orderStatus?: string };
   adminUsers?: { id: string; name: string; email: string; role: 'Super Admin' | 'Manager'; addedAt: string }[];
   homepageVideo?: { enabled: boolean; videoUrl: string; title: string; subtitle: string; position: 'top' | 'middle' | 'bottom' };
   sectionColorSchemes?: Record<string, { background: string; text: string; button: string; buttonText: string; border: string }>;
@@ -274,7 +284,8 @@ export interface VipTier {
   id: VipTierId;
   name: string;
   discountPercentage: number; // 3%, 6%, 8%
-  price: number; // 499, 899, 999
+  price: number; // one-time pass fee
+  durationDays?: number; // 0 or omitted means lifetime
   description: string;
   badgeColor: string;
   perks: string[];
@@ -296,6 +307,10 @@ export interface VipMembershipRequest {
   status: 'pending' | 'approved' | 'rejected';
   approvedAt?: string;
   notes?: string;
+  previousTierId?: VipTierId;
+  previousVipStatus?: 'active' | 'pending' | 'none' | 'rejected';
+  previousPaidAmount?: number;
+  previousVipExpiresAt?: string | null;
 }
 
 export interface LoyaltyTransaction {
@@ -361,6 +376,7 @@ export interface DeliveryMethod {
 
 export interface DailyDealConfig {
   enabled: boolean;
+  popupEnabled?: boolean;
   title: string;
   subtitle: string;
   discountPercentage: number; // default 4%
@@ -432,6 +448,12 @@ export interface Order {
   vipDiscount?: number;
   vipTierApplied?: VipTierId;
   total: number;
+  /** Cumulative amount received from the customer; old orders default to zero. */
+  paymentReceived?: number;
+  /** Derived payment state for quick admin visibility. */
+  paymentStatus?: 'unpaid' | 'partial' | 'paid';
+  customerOrderNumber?: number;
+  customerOrderLabel?: string;
   customer: CustomerDetails;
   specialInstructions?: string; // Kitchen notes
   paymentMethod: PaymentMethod;
@@ -463,6 +485,8 @@ export interface CustomerUser {
   loyaltyPoints: number; // 10 points per Rs 300 spent
   vipTier?: VipTierId;
   vipStatus?: 'active' | 'pending' | 'none' | 'rejected';
+  vipPaidAmount?: number;
+  vipExpiresAt?: string | null;
   createdAt: string;
   totalSpent?: number;
   ordersCount?: number;

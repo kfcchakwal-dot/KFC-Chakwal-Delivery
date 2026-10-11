@@ -237,6 +237,7 @@ export const PageSectionsBuilder: React.FC = () => {
                 >
                   <option value="image-with-text">Image with Text Promo Banner</option>
                   <option value="delivery-info">Delivery Timing & Chakwal Area Notice</option>
+                  <option value="reviews-widget">Customer Reviews Widget</option>
                 </select>
               </div>
 

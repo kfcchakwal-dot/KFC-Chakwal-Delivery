@@ -24,6 +24,7 @@ export const AdminOrdersModal: React.FC = () => {
     setIsOrdersDashboardOpen,
     allOrders,
     updateOrderStatus,
+    updateOrderPaymentReceived,
     fetchOrders,
     formatPKR,
     settings,
@@ -35,6 +36,8 @@ export const AdminOrdersModal: React.FC = () => {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<Order['status']>('kitchen');
   const [bulkActionMessage, setBulkActionMessage] = useState('');
+  const [paymentInputs, setPaymentInputs] = useState<Record<string, string>>({});
+  const [paymentFeedback, setPaymentFeedback] = useState<{ orderId: string; message: string; ok: boolean } | null>(null);
 
   if (!isOrdersDashboardOpen) return null;
 
@@ -107,7 +110,10 @@ export const AdminOrdersModal: React.FC = () => {
             <tr><td>Service Charge (${order.serviceChargePercentage || 0}%)</td><td class="price">${formatPKR(order.serviceChargeAmount || 0)}</td></tr>
             <tr><td>Delivery Charges</td><td class="price">${formatPKR(order.deliveryFee || 0)}</td></tr>
             <tr><td><b>TOTAL</b></td><td class="price"><b>${formatPKR(order.total)}</b></td></tr>
-            <tr><td>Payment</td><td class="price">${String(order.paymentMethod).toUpperCase()}</td></tr>
+            <tr><td>Received</td><td class="price">${formatPKR(order.paymentReceived || 0)}</td></tr>
+            <tr><td><b>BALANCE</b></td><td class="price"><b>${formatPKR(Math.max(0, order.total - (order.paymentReceived || 0)))}</b></td></tr>
+            <tr><td>Payment Status</td><td class="price">${(order.paymentStatus || ((order.paymentReceived || 0) >= order.total ? 'paid' : (order.paymentReceived || 0) > 0 ? 'partial' : 'unpaid')).toUpperCase()}</td></tr>
+            <tr><td>Method</td><td class="price">${String(order.paymentMethod).toUpperCase()}</td></tr>
           </table><hr/><p class="center small">Thank you for ordering with KFC Chakwal Delivery!</p>
         </article>`;
     }).join('<div class="page-break"></div>');
@@ -337,7 +343,7 @@ export const AdminOrdersModal: React.FC = () => {
                 {/* Customer and Delivery Details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                   <div className="space-y-1 bg-[#141416] p-3 rounded-xl border border-[#24242c]">
-                    <p className="font-bold text-white text-sm">{order.customer.fullName}</p>
+                    <p className="font-bold text-white text-sm">{order.customer.fullName} {order.customerOrderLabel && <span className="ml-1 rounded-full bg-blue-500/20 px-1.5 py-0.5 text-[10px] text-blue-300">{order.customerOrderLabel}</span>}</p>
                     <p className="text-zinc-300 font-mono flex items-center gap-1.5">
                       <Phone className="w-3 h-3 text-[#e4002b]" />
                       {order.customer.phone}
@@ -378,14 +384,28 @@ export const AdminOrdersModal: React.FC = () => {
                       ))}
                     </div>
 
-                    <div className="border-t border-[#26262e] pt-1.5 flex justify-between items-center text-xs">
-                      <span className="text-zinc-400">
-                        Total Amount ({order.paymentMethod.toUpperCase()}):
-                      </span>
-                      <span className="text-sm font-black text-[#e4002b] tabular-nums">
-                        {formatPKR(order.total)}
-                      </span>
+                    <div className="border-t border-[#26262e] pt-1.5 space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center"><span className="text-zinc-400">Bill Total ({order.paymentMethod.toUpperCase()})</span><span className="font-black text-[#e4002b] tabular-nums">{formatPKR(order.total)}</span></div>
+                      <div className="flex justify-between"><span className="text-zinc-400">Received</span><span className="font-bold text-emerald-400">{formatPKR(order.paymentReceived || 0)}</span></div>
+                      <div className="flex justify-between"><span className="text-zinc-300 font-bold">Balance</span><span className="font-black text-amber-300">{formatPKR(Math.max(0, order.total - (order.paymentReceived || 0)))}</span></div>
+                      <div className="flex justify-between"><span className="text-zinc-400">Payment</span><span className={`rounded px-1.5 py-0.5 text-[10px] font-black uppercase ${(order.paymentStatus || ((order.paymentReceived || 0) >= order.total ? 'paid' : (order.paymentReceived || 0) > 0 ? 'partial' : 'unpaid')) === 'paid' ? 'bg-emerald-500/20 text-emerald-300' : (order.paymentReceived || 0) > 0 ? 'bg-amber-500/20 text-amber-300' : 'bg-zinc-700 text-zinc-300'}`}>{order.paymentStatus || ((order.paymentReceived || 0) >= order.total ? 'paid' : (order.paymentReceived || 0) > 0 ? 'partial' : 'unpaid')}</span></div>
                     </div>
+                    <form className="mt-2 flex flex-wrap gap-2" onSubmit={async (event) => {
+                      event.preventDefault();
+                      const amount = Number(paymentInputs[order.id] || 0);
+                      try {
+                        await updateOrderPaymentReceived(order.id, amount);
+                        setPaymentInputs((previous) => ({ ...previous, [order.id]: '' }));
+                        setPaymentFeedback({ orderId: order.id, message: 'Payment receive save ho gayi.', ok: true });
+                        await fetchOrders();
+                      } catch (error: any) {
+                        setPaymentFeedback({ orderId: order.id, message: error?.message || 'Payment save nahi hui.', ok: false });
+                      }
+                    }}>
+                      <input aria-label={`Payment received amount for order ${order.id}`} type="number" min="1" step="1" max={Math.max(0, order.total - (order.paymentReceived || 0))} value={paymentInputs[order.id] || ''} onChange={(event) => setPaymentInputs((previous) => ({ ...previous, [order.id]: event.target.value }))} placeholder="Received Rs" disabled={Math.max(0, order.total - (order.paymentReceived || 0)) === 0} className="min-w-0 flex-1 rounded-lg border border-[#373744] bg-[#121214] px-2 py-2 text-xs text-white" />
+                      <button type="submit" disabled={!paymentInputs[order.id] || Number(paymentInputs[order.id]) <= 0 || Math.max(0, order.total - (order.paymentReceived || 0)) === 0} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-40">Payment Received</button>
+                    </form>
+                    {paymentFeedback?.orderId === order.id && <p role="status" className={`mt-1 text-[11px] font-bold ${paymentFeedback.ok ? 'text-emerald-400' : 'text-red-400'}`}>{paymentFeedback.message}</p>}
                   </div>
                 </div>
 

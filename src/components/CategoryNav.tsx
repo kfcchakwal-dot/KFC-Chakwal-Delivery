@@ -34,7 +34,7 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
   }, []);
   const categories = useMemo(() => {
     const knownIds = new Set(KFC_CATEGORIES.map((category) => category.id as string));
-    const extraIds = Array.from(new Set(menuItems.map((item) => String(item.categoryId)).filter((id) => id && !knownIds.has(id))));
+    const extraIds = Array.from(new Set(menuItems.flatMap((item) => [String(item.categoryId), ...(item.categoryIds || []).map(String)]).filter((id) => id && !knownIds.has(id))));
     const extras = extraIds.map((id) => ({ id: id as CategoryId, name: id.replace(/-/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()), subtitle: '' }));
     const all = [...KFC_CATEGORIES, ...extras];
     const order = settings.collectionNavOrder || [];
@@ -51,7 +51,7 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
   const getCategoryCount = (id: CategoryId | 'all') => {
     const active = menuItems.filter((item) => item.status !== 'draft');
     if (id === 'all') return active.length;
-    return active.filter((item) => item.categoryId === id).length;
+    return active.filter((item) => item.categoryId === id || (item.categoryIds || []).includes(id as CategoryId)).length;
   };
 
   return (

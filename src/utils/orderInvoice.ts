@@ -92,7 +92,7 @@ export function formatPKR(val: number): string {
  */
 export function generateWhatsAppOrderMessage(
   order: Order,
-  storeSettings?: { storeName?: string; phone?: string; storeAddress?: string }
+  storeSettings?: { storeName?: string; phone?: string; storeAddress?: string; whatsappTemplates?: { orderDetails?: string; orderStatus?: string } }
 ): string {
   const storeName = storeSettings?.storeName || 'KFC Chakwal Delivery';
   const dateFormatted = order.date
@@ -102,6 +102,13 @@ export function generateWhatsAppOrderMessage(
       })
     : 'Just now';
 
+  const templateSource = order.status !== 'confirmed' ? storeSettings?.whatsappTemplates?.orderStatus : storeSettings?.whatsappTemplates?.orderDetails;
+  const customTemplate = String(templateSource || '').trim();
+  if (customTemplate) {
+    const itemsSummary = order.items.map((item) => `${item.quantity}x ${item.menuItem.name}`).join(', ');
+    const values: Record<string, string> = { name: order.customer.fullName || 'Customer', orderId: order.id, total: formatPKR(order.total), received: formatPKR(order.paymentReceived || 0), balance: formatPKR(Math.max(0, order.total - (order.paymentReceived || 0))), items: itemsSummary, phone: order.customer.phone || '', address: order.customer.address || '', reviewUrl: (typeof window !== 'undefined' ? window.location.origin : '') + '/?reviews=true', points: String(Math.max(0, Number((storeSettings as any)?.loyaltyConfig?.reviewBonus ?? 20))), storeName, status: String(order.status || '').replace(/[-_]/g, ' ') };
+    return customTemplate.replace(/\{([a-zA-Z]+)\}/g, (match, key: string) => values[key] ?? match);
+  }
   const lines: string[] = [];
 
   // Customer greeting
@@ -109,6 +116,7 @@ export function generateWhatsAppOrderMessage(
   lines.push('');
   lines.push(`🍗 *${storeName}*`);
   lines.push(`*Order #${order.id}*`);
+  if (order.customerOrderLabel || order.customerOrderNumber) lines.push(`Customer Order: ${order.customerOrderLabel || order.customerOrderNumber}`);
   lines.push(`📅 Date & Time: ${dateFormatted}`);
   lines.push(`🛵 Order Type: ${order.orderType === 'self_pickup' ? 'Self Pickup' : 'Delivery'}`);
   lines.push('');
@@ -182,7 +190,9 @@ export function generateWhatsAppOrderMessage(
 
   lines.push(`• Delivery Charges: ${formatPKR(order.deliveryFee || 0)}`);
   lines.push('----------------------------------------');
-  lines.push(`*TOTAL PAYABLE: ${formatPKR(order.total)}*`);
+  lines.push(`*TOTAL BILL: ${formatPKR(order.total)}*`);
+  lines.push(`💵 Amount Received: ${formatPKR(order.paymentReceived || 0)}`);
+  lines.push(`*BALANCE DUE: ${formatPKR(Math.max(0, order.total - (order.paymentReceived || 0)))}*`);
 
   const paymentLabels: Record<string, string> = {
     cod: 'Cash on Delivery (COD)',
@@ -334,7 +344,9 @@ export function generateInvoiceHtml(
             <div class="summary-notes">
               <div class="notes-heading">PAYMENT & INSTRUCTIONS</div>
               <p><strong>Payment Method:</strong> ${paymentMethodText}</p>
-              <p><strong>Payment Status:</strong> ${order.paymentMethod === 'cod' ? 'Cash on Delivery (Pay to Rider)' : 'Paid / Online'}</p>
+              <p><strong>Payment Status:</strong> ${order.paymentStatus || ((order.paymentReceived || 0) >= order.total ? 'Paid' : (order.paymentReceived || 0) > 0 ? 'Partially Paid' : order.paymentMethod === 'cod' ? 'Unpaid / Cash on Delivery' : 'Unpaid')}</p>
+              <p><strong>Amount Received:</strong> ${formatPKR(order.paymentReceived || 0)}</p>
+              <p><strong>Balance Due:</strong> ${formatPKR(Math.max(0, order.total - (order.paymentReceived || 0)))}</p>
               ${order.specialInstructions ? `<p><strong>Kitchen Instructions:</strong> ${order.specialInstructions}</p>` : ''}
               <div class="thank-you-box">
                 Thank you for choosing KFC Chakwal Delivery! We serve hot, fresh and crispy food prepared to authentic recipes.
@@ -459,6 +471,8 @@ export function generateInvoiceHtml(
           <div class="t-row"><span>Delivery Fee:</span> <span>${formatPKR(order.deliveryFee || 0)}</span></div>
           <div class="solid-hr"></div>
           <div class="t-row grand"><span>TOTAL BILL:</span> <span>${formatPKR(order.total)}</span></div>
+          <div class="t-row"><span>Amount Received:</span> <span>${formatPKR(order.paymentReceived || 0)}</span></div>
+          <div class="t-row grand"><span>BALANCE DUE:</span> <span>${formatPKR(Math.max(0, order.total - (order.paymentReceived || 0)))}</span></div>
         </div>
 
         <div class="dashed-hr"></div>

@@ -21,9 +21,10 @@ export const VipClubModal: React.FC = () => {
     currentUser,
     requestVipMembershipWhatsApp,
     formatPKR,
+    settings,
   } = useStore();
 
-  const [selectedTierId, setSelectedTierId] = useState<VipTierId>('silver');
+  const [selectedTierId, setSelectedTierId] = useState<VipTierId>(() => currentUser?.vipTier || 'silver');
   const [customerName, setCustomerName] = useState(currentUser?.fullName || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
   const [email, setEmail] = useState(currentUser?.email || '');
@@ -32,7 +33,11 @@ export const VipClubModal: React.FC = () => {
   if (!isVipModalOpen) return null;
 
   const selectedTier = vipTiers.find((t) => t.id === selectedTierId) || vipTiers[0];
-  const isUserVipActive = currentUser?.vipStatus === 'active';
+  const isUserVipActive = currentUser?.vipStatus === 'active' && (!currentUser.vipExpiresAt || new Date(currentUser.vipExpiresAt).getTime() > Date.now());
+  const currentTier = vipTiers.find((tier) => tier.id === currentUser?.vipTier);
+  const isUpgrade = Boolean(isUserVipActive && currentTier && selectedTier && selectedTier.price > currentTier.price);
+  const alreadyPaid = Number(currentUser?.vipPaidAmount ?? currentTier?.price ?? 0);
+  const amountDue = isUpgrade ? Math.max(0, selectedTier.price - alreadyPaid) : selectedTier?.price || 0;
   const isUserVipPending = currentUser?.vipStatus === 'pending' || isSent;
 
   const handleOrderOnWhatsApp = async (e: React.FormEvent) => {
@@ -47,7 +52,7 @@ export const VipClubModal: React.FC = () => {
     }
 
     try {
-      await requestVipMembershipWhatsApp(selectedTierId, customerName, phone, email);
+      await requestVipMembershipWhatsApp(selectedTierId, customerName, phone, email, amountDue);
       setIsSent(true);
     } catch (error: any) {
       alert(error?.message || 'VIP request create nahi ho saki.');
@@ -55,10 +60,12 @@ export const VipClubModal: React.FC = () => {
     }
 
     // Format WhatsApp message to 0325-2777574
-    const message = 
-      `Assalam o Alaikum! Mujhe KFC Chakwal Delivery ka Lifetime VIP Pass order karna hai:\n\n` +
-      `👑 *Pass:* ${selectedTier.name} (Flat ${selectedTier.discountPercentage}% Lifetime OFF)\n` +
-      `💰 *One-Time Fee:* ${formatPKR(selectedTier.price)}\n` +
+    const customVipTemplate = String(settings.whatsappTemplates?.vipPass || '').trim();
+    const message = customVipTemplate ? customVipTemplate.replace(/\{name\}/g, customerName.trim()).replace(/\{orderId\}/g, selectedTier.name).replace(/\{total\}/g, formatPKR(amountDue)).replace(/\{balance\}/g, formatPKR(amountDue)).replace(/\{phone\}/g, phone.trim()) :
+      `Assalam o Alaikum! Mujhe KFC Chakwal Delivery ka VIP Pass order karna hai:\n\n` +
+      `👑 *Pass:* ${selectedTier.name} (Flat ${selectedTier.discountPercentage}% OFF)\n` +
+      (selectedTier.durationDays && selectedTier.durationDays > 0 ? `⏳ *Validity:* ${selectedTier.durationDays} days\n` : `⏳ *Validity:* Lifetime\n`) +
+      (isUpgrade && currentTier ? `💳 *Previous pass credit:* -${formatPKR(alreadyPaid)}\n💰 *Upgrade amount due:* ${formatPKR(amountDue)}\n` : `💰 *Pass Fee:* ${formatPKR(amountDue)}\n`) +
       `👤 *Customer Name:* ${customerName.trim()}\n` +
       `📱 *Phone:* ${phone.trim()}\n` +
       (email.trim() ? `📧 *Email:* ${email.trim()}\n` : '') +
@@ -81,7 +88,7 @@ export const VipClubModal: React.FC = () => {
             </div>
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider bg-black/30 px-2.5 py-0.5 rounded-full text-white inline-block">
-                One-Time Payment · Lifetime Benefit
+                Flexible Pass Benefits
               </span>
               <h3 className="font-kfc text-2xl sm:text-3xl font-black uppercase tracking-tight leading-none mt-1">
                 Lifetime VIP Pass
@@ -103,7 +110,7 @@ export const VipClubModal: React.FC = () => {
         <div className="p-5 overflow-y-auto space-y-4">
 
           {/* ACTIVE VIP MEMBER CARD */}
-          {isUserVipActive ? (
+          {isUserVipActive && !isUpgrade ? (
             <div className="p-6 rounded-3xl bg-red-50 border-2 border-[#e4002b] text-center space-y-3">
               <div className="w-16 h-16 rounded-full bg-[#e4002b] text-white flex items-center justify-center mx-auto shadow-lg">
                 <Crown className="w-8 h-8 text-amber-300" />
@@ -112,10 +119,15 @@ export const VipClubModal: React.FC = () => {
                 Lifetime VIP Pass Active!
               </h4>
               <p className="text-xs text-zinc-700 leading-relaxed max-w-sm mx-auto">
-                Aapka <strong>{currentUser?.vipTier?.toUpperCase()} PASS</strong> kamyabi se active hai. Aapko har order par flat discount automatically mil raha hai.
+                Aapka <strong>{currentUser?.vipTier?.toUpperCase()} PASS</strong> active hai. Aapko har order par configured discount mil raha hai.{currentUser?.vipExpiresAt ? ` Valid until ${new Date(currentUser.vipExpiresAt).toLocaleDateString()}.` : ' Lifetime pass.'}
               </p>
               <div className="inline-block bg-black text-white text-xs font-bold px-4 py-1.5 rounded-full">
                 ✓ Guaranteed Discount on Every Checkout
+              </div>
+              <div className="pt-2 text-left">
+                <p className="mb-2 text-xs font-black text-zinc-800">Upgrade to a higher pass:</p>
+                <div className="flex flex-wrap justify-center gap-2">{vipTiers.filter((tier) => tier.price > (currentTier?.price || 0)).map((tier) => <button key={tier.id} type="button" onClick={() => setSelectedTierId(tier.id)} className="rounded-xl border border-[#e4002b] px-3 py-2 text-xs font-bold text-[#e4002b] hover:bg-red-50">{tier.name} · Pay only {formatPKR(Math.max(0, tier.price - Number(currentUser?.vipPaidAmount ?? currentTier?.price ?? 0)))}</button>)}</div>
+                {vipTiers.every((tier) => tier.price <= (currentTier?.price || 0)) && <p className="text-xs text-zinc-500">Aap already highest-fee pass par hain.</p>}
               </div>
             </div>
           ) : isUserVipPending ? (
@@ -147,7 +159,7 @@ export const VipClubModal: React.FC = () => {
               {/* TIER SELECTION CARDS */}
               <div>
                 <label className="text-xs font-black uppercase tracking-wider text-black block mb-2">
-                  Select Your Pass Tier (One-Time Payment):
+                  Select Your Pass Tier:
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   {vipTiers.map((tier) => {
@@ -266,7 +278,7 @@ export const VipClubModal: React.FC = () => {
                   className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-xl font-black py-3.5 px-4 rounded-2xl shadow-xl flex items-center justify-center gap-2.5 cursor-pointer transition active:scale-98"
                 >
                   <MessageCircle className="w-6 h-6 fill-white text-[#e4002b]" />
-                  <span>Order {selectedTier.name} on WhatsApp ({formatPKR(selectedTier.price)})</span>
+                  <span>{isUpgrade ? `Upgrade to ${selectedTier.name} · Pay ${formatPKR(amountDue)}` : `Order ${selectedTier.name} on WhatsApp (${formatPKR(amountDue)})`}</span>
                 </button>
               </form>
             </>
@@ -277,7 +289,7 @@ export const VipClubModal: React.FC = () => {
         {/* Footer */}
         <div className="p-4 border-t border-zinc-200 bg-zinc-50 flex items-center justify-between shrink-0">
           <span className="text-[11px] text-zinc-600 font-bold">
-            Helpline: +92 325 2777574 · Valid for lifetime orders
+            Helpline: +92 325 2777574 · Pass validity selected tier ke mutabiq
           </span>
 
           <button

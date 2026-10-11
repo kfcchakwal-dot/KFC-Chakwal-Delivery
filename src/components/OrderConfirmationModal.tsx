@@ -46,6 +46,7 @@ export const OrderConfirmationModal: React.FC = () => {
 
     const slip = `🍗 KFC CHAKWAL DELIVERY - OFFICIAL RECEIPT\n` +
       `Order #: ${activeOrder.id}\n` +
+      (activeOrder.customerOrderLabel || activeOrder.customerOrderNumber ? `Customer Order: ${activeOrder.customerOrderLabel || activeOrder.customerOrderNumber}\n` : '') +
       `Date: ${new Date(activeOrder.date).toLocaleString()}\n` +
       `----------------------------------------\n` +
       `Customer: ${activeOrder.customer.fullName}\n` +
@@ -60,6 +61,8 @@ export const OrderConfirmationModal: React.FC = () => {
       (activeOrder.discount > 0 ? `Discount: -${formatPKR(activeOrder.discount)}\n` : '') +
       (activeOrder.loyaltyDiscount ? `Loyalty Discount: -${formatPKR(activeOrder.loyaltyDiscount)}\n` : '') +
       `TOTAL BILL: ${formatPKR(activeOrder.total)} (PKR)\n` +
+      `Amount Received: ${formatPKR(activeOrder.paymentReceived || 0)}\n` +
+      `Balance Due: ${formatPKR(Math.max(0, activeOrder.total - (activeOrder.paymentReceived || 0)))}\n` +
       `Payment: ${activeOrder.paymentMethod.toUpperCase()}\n` +
       `Status: CONFIRMED - Express Delivery Within Chakwal\n` +
       `Helpline: +92 325 2777574`;
@@ -76,7 +79,7 @@ export const OrderConfirmationModal: React.FC = () => {
       }`}>
         
         {/* Top Header */}
-        <div className="bg-[#e4002b] p-5 sm:p-6 text-center text-white relative shadow-md">
+        <div className="bg-emerald-600 p-5 sm:p-6 text-center text-white relative shadow-md">
           <button
             onClick={clearActiveOrder}
             className="absolute top-4 right-4 text-white/80 hover:text-white p-1.5 rounded-full bg-black/20 hover:bg-black/30 cursor-pointer"
@@ -85,12 +88,12 @@ export const OrderConfirmationModal: React.FC = () => {
             <X className="w-5 h-5" />
           </button>
 
-          <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-[#e4002b] mx-auto shadow-xl mb-2.5 animate-bounce">
+          <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-emerald-600 mx-auto shadow-xl mb-2.5 animate-bounce">
             <CheckCircle2 className="w-8 h-8" />
           </div>
 
           <span className="text-[10px] font-black uppercase tracking-widest bg-black/20 px-3 py-1 rounded-full">
-            Order Confirmed & Sent to Fleet
+            Order Placed Successfully
           </span>
 
           <h2 className="font-kfc text-2xl sm:text-3xl font-black uppercase mt-1.5">

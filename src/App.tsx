@@ -7,6 +7,7 @@ import { CategoryNav } from './components/CategoryNav';
 import { MenuItemCard } from './components/MenuItemCard';
 import { ProductPage } from './components/ProductPage';
 import { WishlistPage } from './components/WishlistPage';
+import { ReviewsPage } from './components/ReviewsPage';
 import { CustomerAuthModal } from './components/CustomerAuthModal';
 import { ItemCustomizeModal } from './components/ItemCustomizeModal';
 import { CartDrawer } from './components/CartDrawer';
@@ -23,7 +24,7 @@ import { DailyDealsSection } from './components/DailyDealsSection';
 import { LoyaltyPointsBanner } from './components/LoyaltyPointsBanner';
 import { PoliciesModal } from './components/PoliciesModal';
 import { DailyDealsPopupModal } from './components/DailyDealsPopupModal';
-import { LoyaltyProgramModal } from './components/LoyaltyProgramModal';
+import { LoyaltyProgramModal, RewardsPage } from './components/LoyaltyProgramModal';
 import { VipClubModal } from './components/VipClubModal';
 import { PointsEarnedNotification } from './components/PointsEarnedNotification';
 import { AppUpdatePrompt } from './components/AppUpdatePrompt';
@@ -43,6 +44,8 @@ const MainShop: React.FC = () => {
     isAdmin,
     isSellerMode,
     currentView,
+    setCurrentView,
+    reviews,
     setActiveCategory,
     themeMode,
     isCartOpen,
@@ -83,7 +86,7 @@ const MainShop: React.FC = () => {
   const isDark = themeMode === 'dark';
   const storefrontCategories = useMemo(() => {
     const knownIds = new Set(KFC_CATEGORIES.map((category) => String(category.id)));
-    const extraIds = Array.from(new Set(menuItems.filter((item) => item.status !== 'draft').map((item) => String(item.categoryId)).filter((id) => id && !knownIds.has(id))));
+    const extraIds = Array.from(new Set(menuItems.filter((item) => item.status !== 'draft').flatMap((item) => [String(item.categoryId), ...(item.categoryIds || []).map(String)]).filter((id) => id && !knownIds.has(id))));
     return [...KFC_CATEGORIES, ...extraIds.map((id) => ({ id: id as CategoryId, name: id.replace(/-/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()), subtitle: '' }))];
   }, [menuItems]);
   const sectionColorCss = Object.entries(settings.sectionColorSchemes || {}).map(([key, scheme]) => {
@@ -349,7 +352,7 @@ const MainShop: React.FC = () => {
         backgroundColor: isDark ? '#0e0e11' : (settings.storeBackgroundColor || '#f8f9fa'),
         color: isDark ? '#f4f4f5' : (settings.storeTextColor || '#1a1a1f'),
       }}
-      className={`min-h-screen flex flex-col transition-colors overflow-x-hidden ${
+      className={`min-h-screen flex flex-col transition-colors overflow-x-clip ${
         isDark ? 'bg-[#0e0e11] text-[#f4f4f5]' : 'bg-[#f8f9fa] text-[#1a1a1f]'
       }`}
     >
@@ -370,10 +373,12 @@ const MainShop: React.FC = () => {
       <CustomerNotificationToggle variant="banner" />
 
       {/* VIEW ROUTING: PRODUCT DETAIL PAGE */}
-      {currentView === 'product' && <div data-color-section="product"><ProductPage /></div>}
+      {currentView === 'product' && <><div data-color-section="product"><ProductPage /></div><PageSectionsRenderer page="product" /></>}
 
       {/* VIEW ROUTING: WISHLIST PAGE */}
       {currentView === 'wishlist' && <WishlistPage />}
+      {currentView === 'reviews' && <ReviewsPage />}
+      {currentView === 'rewards' && <RewardsPage />}
 
       {/* VIEW ROUTING: HOME & CATEGORY COLLECTIONS */}
       {(currentView === 'home' || currentView === 'collection') && (
@@ -382,6 +387,15 @@ const MainShop: React.FC = () => {
 
           {/* Loyalty Points Balance & Quick Redeem Callout Banner */}
           <LoyaltyPointsBanner />
+          {currentView === 'home' && settings.reviewWidgetConfig?.enabled !== false && settings.reviewWidgetConfig?.showOnHome !== false && reviews.filter((review) => review.isVisible !== false).length > 0 && (
+            <section className="mx-auto my-5 w-full max-w-7xl px-3 sm:px-6 lg:px-8">
+              <button type="button" onClick={() => { setCurrentView('reviews'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="w-full rounded-2xl border border-amber-200 bg-white p-4 text-left shadow-sm transition hover:border-[#e4002b] hover:shadow-md">
+                <span className="flex items-center justify-between gap-3"><span className="text-sm font-black uppercase text-zinc-900">Customer Reviews</span><span className="text-xs font-bold text-[#e4002b]">View all reviews →</span></span>
+                <span className="mt-2 block text-xs text-zinc-500">{reviews.filter((review) => review.isVisible !== false).length} customer reviews · Real feedback from customers</span>
+                <span className="mt-3 flex flex-wrap gap-2">{reviews.filter((review) => review.isVisible !== false).slice(0, 3).map((review) => <span key={review.id} className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-700">{"★".repeat(Math.max(1, Math.min(5, review.rating)))} · {review.customerName}</span>)}</span>
+              </button>
+            </section>
+          )}
 
           {/* Daily 5 Random Meal Box Specials with Flat 4% OFF */}
           <DailyDealsSection />
@@ -456,7 +470,7 @@ const MainShop: React.FC = () => {
                     <div className="space-y-10 sm:space-y-12">
                       {storefrontCategories.map((category) => {
                         const categoryItems = searchedItems.filter(
-                          (item) => item.categoryId === category.id
+                          (item) => item.categoryId === category.id || (item.categoryIds || []).includes(category.id)
                         );
                         if (categoryItems.length === 0) return null;
 
@@ -523,7 +537,7 @@ const MainShop: React.FC = () => {
                       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
                         {searchedItems
                           .filter((item) =>
-                            selectedCategory === 'all' ? true : item.categoryId === selectedCategory
+                            selectedCategory === 'all' ? true : item.categoryId === selectedCategory || (item.categoryIds || []).includes(selectedCategory as CategoryId)
                           )
                           .map((item) => (
                             <MenuItemCard key={item.id} item={item} />

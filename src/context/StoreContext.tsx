@@ -74,6 +74,7 @@ import {
   query,
   where,
   orderBy,
+  runTransaction,
 } from 'firebase/firestore';
 
 let adminForegroundMessageUnsubscribe: (() => void) | null = null;
@@ -213,6 +214,7 @@ interface StoreContextType {
   allOrders: Order[];
   fetchOrders: () => Promise<void>;
   updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
+  updateOrderPaymentReceived: (orderId: string, amount: number) => Promise<void>;
   playOrderSound: () => void;
 
   // Navigation & Filtering
@@ -220,8 +222,8 @@ interface StoreContextType {
   setActiveCategory: (cat: CategoryId) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  currentView: 'home' | 'product' | 'wishlist' | 'collection';
-  setCurrentView: (view: 'home' | 'product' | 'wishlist' | 'collection') => void;
+  currentView: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews' | 'rewards';
+  setCurrentView: (view: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews' | 'rewards') => void;
   selectedProduct: MenuItem | null;
   viewProduct: (item: MenuItem) => void;
   goHome: () => void;
@@ -275,6 +277,7 @@ interface StoreContextType {
   // VIP Club Program
   vipTiers: VipTier[];
   updateVipTierImage: (tierId: VipTierId, imageUrl: string) => Promise<void>;
+  updateVipTier: (tierId: VipTierId, updates: Partial<VipTier>) => Promise<void>;
   vipRequests: VipMembershipRequest[];
   isVipModalOpen: boolean;
   setIsVipModalOpen: (open: boolean) => void;
@@ -333,7 +336,7 @@ interface StoreContextType {
   deleteCustomer: (customerId: string) => void;
 
   // Lifetime VIP Pass actions
-  requestVipMembershipWhatsApp: (tierId: VipTierId, customerName: string, phone: string, email?: string) => Promise<VipMembershipRequest>;
+  requestVipMembershipWhatsApp: (tierId: VipTierId, customerName: string, phone: string, email?: string, amountOverride?: number) => Promise<VipMembershipRequest>;
   grantVipMembershipManual: (customerPhoneOrId: string, tierId: VipTierId) => void;
 
   // Admin Users
@@ -506,8 +509,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedItemForCustomization, setSelectedItemForCustomization] = useState<MenuItem | null>(null);
 
   // Navigation
-  const [currentView, setCurrentView] = useState<'home' | 'product' | 'wishlist' | 'collection'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'product' | 'wishlist' | 'collection' | 'reviews' | 'rewards'>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('reviews') === 'true') return 'reviews';
+      if (params.get('rewards') === 'true') return 'rewards';
+      const saved = localStorage.getItem('kfc-current-view');
+      return saved === 'product' || saved === 'wishlist' || saved === 'collection' || saved === 'reviews' || saved === 'rewards' ? saved : 'home';
+    } catch { return 'home'; }
+  });
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
+  useEffect(() => {
+    try { localStorage.setItem('kfc-current-view', currentView); } catch { /* storage can be disabled */ }
+    try {
+      const params = new URLSearchParams(window.location.search);
+      let changed = false;
+      if (currentView !== 'reviews' && params.has('reviews')) { params.delete('reviews'); changed = true; }
+      if (currentView !== 'rewards' && params.has('rewards')) { params.delete('rewards'); changed = true; }
+      if (changed) {
+        const query = params.toString();
+        window.history.replaceState({}, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
+      }
+    } catch { /* URL state is optional */ }
+  }, [currentView]);
+  useEffect(() => {
+    if (currentView !== 'product' || selectedProduct) return;
+    try {
+      const savedId = localStorage.getItem('kfc-selected-product-id');
+      if (savedId) {
+        const savedProduct = menuItems.find((item) => item.id === savedId);
+        if (savedProduct) setSelectedProduct(savedProduct);
+        else if (menuItems.length) setCurrentView('home');
+      }
+    } catch { /* storage can be disabled */ }
+  }, [currentView, selectedProduct, menuItems]);
 
   // Reviews
   const [reviews, setReviews] = useState<ProductReview[]>([]);
@@ -610,6 +645,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             loyaltyPoints: Number(data.loyaltyPoints || 50),
             vipTier: data.vipTier,
             vipStatus: data.vipStatus,
+            vipPaidAmount: Number(data.vipPaidAmount || 0),
+            vipExpiresAt: data.vipExpiresAt || null,
             totalSpent: Number(data.totalSpent || 0),
             ordersCount: Number(data.totalOrdersCount || 0),
             createdAt: data.createdAt || new Date().toISOString(),
@@ -659,6 +696,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             createdAt: String(cached?.createdAt || new Date().toISOString()),
             ...(cached?.vipTier !== undefined ? { vipTier: cached.vipTier } : {}),
             ...(cached?.vipStatus !== undefined ? { vipStatus: cached.vipStatus } : {}),
+            ...(cached?.vipPaidAmount !== undefined ? { vipPaidAmount: cached.vipPaidAmount } : {}),
+            ...(cached?.vipExpiresAt !== undefined ? { vipExpiresAt: cached.vipExpiresAt } : {}),
           };
           setCurrentUser(fallbackProfile);
           localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(fallbackProfile));
@@ -714,6 +753,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!tier) throw new Error('VIP pass nahi mila.');
     await setDoc(doc(db, 'vipTiers', tierId), { ...tier, imageUrl, updatedAt: new Date().toISOString() }, { merge: true });
     setVipTiers((prev) => prev.map((item) => item.id === tierId ? { ...item, imageUrl } : item));
+  };
+  const updateVipTier = async (tierId: VipTierId, updates: Partial<VipTier>) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    const tier = vipTiers.find((item) => item.id === tierId) || DEFAULT_VIP_TIERS.find((item) => item.id === tierId);
+    if (!tier) throw new Error('VIP tier not found.');
+    const updated = { ...tier, ...updates, id: tierId, updatedAt: new Date().toISOString() };
+    await setDoc(doc(db, 'vipTiers', tierId), updated, { merge: true });
+    setVipTiers((previous) => previous.map((item) => item.id === tierId ? updated : item));
   };
   const [vipRequests, setVipRequests] = useState<VipMembershipRequest[]>(() => {
     try {
@@ -1137,6 +1184,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const updateOrderPaymentReceived = async (orderId: string, amount: number) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error('Received amount Rs 0 se zyada hona chahiye.');
+    const orderRef = doc(db, 'orders', orderId);
+    let nextReceived = 0;
+    let nextStatus: Order['paymentStatus'] = 'unpaid';
+    await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(orderRef);
+      if (!snapshot.exists()) throw new Error('Order record nahi mila.');
+      const data = snapshot.data() as Order;
+      const total = Math.max(0, Number(data.total || 0));
+      const alreadyReceived = Math.max(0, Number(data.paymentReceived || 0));
+      if (alreadyReceived >= total) throw new Error('Is order ki full payment pehle hi receive ho chuki hai.');
+      if (amount > total - alreadyReceived) throw new Error('Received amount remaining balance se zyada nahi ho sakti.');
+      nextReceived = Math.round((alreadyReceived + amount) * 100) / 100;
+      nextStatus = nextReceived >= total ? 'paid' : 'partial';
+      transaction.set(orderRef, {
+        paymentReceived: nextReceived,
+        paymentStatus: nextStatus,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+    });
+    setAllOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentReceived: nextReceived, paymentStatus: nextStatus } : o));
+    if (activeOrder?.id === orderId) setActiveOrder((prev) => prev ? { ...prev, paymentReceived: nextReceived, paymentStatus: nextStatus } : null);
+  };
+
   const loginAdmin = async (): Promise<{ success: boolean; error?: string }> => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
@@ -1399,7 +1472,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addMenuItem = (newItem: MenuItem) => {
-    const nextMenu = [newItem, ...menuItems];
+    const itemWithCreatedAt = { ...newItem, createdAt: newItem.createdAt || new Date().toISOString() };
+    const nextMenu = [itemWithCreatedAt, ...menuItems];
     setMenuItems(nextMenu);
     syncStoreToServer({ menuItems: nextMenu });
   };
@@ -1410,9 +1484,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     for (const p of newProducts) {
       if (existingHandles.has(p.id)) {
         const idx = combined.findIndex((m) => m.id === p.id);
-        combined[idx] = p;
+        combined[idx] = { ...p, createdAt: p.createdAt || combined[idx].createdAt || new Date().toISOString() };
       } else {
-        combined.push(p);
+        combined.push({ ...p, createdAt: p.createdAt || new Date().toISOString() });
       }
     }
     setMenuItems(combined);
@@ -1491,8 +1565,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }
 
-  // MUTUAL EXCLUSIVITY RULE:
-  // Loyalty points cannot be combined with other discount codes!
+  // Coupon/loyalty combination is controlled by the editable loyalty settings.
   const hasActiveDiscountCoupon = Boolean(
     appliedDiscountCode || (appliedDiscount && appliedDiscount.type !== 'free_shipping' && discountAmount > 0)
   );
@@ -1502,8 +1575,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!clean) return { success: false, message: 'Please enter a discount code' };
 
     // If user is currently redeeming loyalty points, inform them or disable points
-    if (isRedeemingPoints) {
-      setIsRedeemingPoints(false); // Uncheck loyalty points to apply code
+    if (isRedeemingPoints && settings.loyaltyConfig?.combineWithCoupons !== true) {
+      setIsRedeemingPoints(false); // Coupon and points are mutually exclusive unless admin enables combining.
     }
 
     const disc = discounts.find((d) => d.code.toUpperCase() === clean);
@@ -1533,7 +1606,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     setAppliedDiscountCode(clean);
-    return { success: true, message: `Discount code "${clean}" applied! (Note: Loyalty points cannot be combined)` };
+    return { success: true, message: settings.loyaltyConfig?.combineWithCoupons === true ? `Discount code "${clean}" applied! Loyalty points can also be redeemed.` : `Discount code "${clean}" applied! (Note: Loyalty points cannot be combined)` };
   };
 
   const removeDiscountCode = () => {
@@ -1570,25 +1643,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Rule: Users earn 10 points for every 300 Rs spent!
   // Rule: Points CANNOT be redeemed alone! Minimum Rs 500 cart order is required.
   // Rule: Points CANNOT be combined with any other discount coupon!
-  const minPointsRedemptionAmount = 500;
+  const minPointsRedemptionAmount = Math.max(0, Number(settings.loyaltyConfig?.minRedemptionAmount ?? 500));
   const userPoints = currentUser?.loyaltyPoints || 0;
-  const canRedeemPoints = userPoints > 0 && cartSubtotal >= minPointsRedemptionAmount && !hasActiveDiscountCoupon;
+  const canRedeemPoints = userPoints > 0 && cartSubtotal >= minPointsRedemptionAmount && (settings.loyaltyConfig?.combineWithCoupons === true || !hasActiveDiscountCoupon);
 
-  // 1 Point = 1 PKR
+  // Conversion: 2 reward points = Rs 1 discount. Keep point balance and rupee discount separate.
   const subtotalAfterCoupon = Math.max(0, cartSubtotal - discountAmount);
-  const maxRedeemablePoints = canRedeemPoints ? Math.min(userPoints, subtotalAfterCoupon) : 0;
-  const loyaltyDiscountAmount = isRedeemingPoints && canRedeemPoints ? maxRedeemablePoints : 0;
+  const pointsPerRupee = Math.max(1, Number(settings.loyaltyConfig?.pointsPerRupee ?? 2));
+  const maxRedeemablePoints = canRedeemPoints ? Math.min(userPoints, subtotalAfterCoupon * pointsPerRupee) : 0;
+  const loyaltyDiscountAmount = isRedeemingPoints && canRedeemPoints ? Math.floor(maxRedeemablePoints / pointsPerRupee) : 0;
 
   // VIP Membership Lifetime Discount Engine (Flat 3%, 6%, or 8% OFF for approved VIPs)
-  const activeVipTier = DEFAULT_VIP_TIERS.find((t) => t.id === currentUser?.vipTier);
-  const isVipActive = Boolean(currentUser?.vipStatus === 'active' && activeVipTier);
+  const activeVipTier = vipTiers.find((t) => t.id === currentUser?.vipTier) || DEFAULT_VIP_TIERS.find((t) => t.id === currentUser?.vipTier);
+  const isVipActive = Boolean(currentUser?.vipStatus === 'active' && activeVipTier && (!currentUser.vipExpiresAt || new Date(currentUser.vipExpiresAt).getTime() > Date.now()));
   const vipDiscountAmount = isVipActive && cartSubtotal > 0 && activeVipTier
     ? Math.round((cartSubtotal * activeVipTier.discountPercentage) / 100)
     : 0;
 
   // Potential points to earn: 10 points for every 300 Rs spent on food
   const netFoodPaid = Math.max(0, cartSubtotal - discountAmount - loyaltyDiscountAmount - vipDiscountAmount);
-  const potentialPointsToEarn = Math.floor(netFoodPaid / 300) * 10;
+  const potentialPointsToEarn = Math.floor(netFoodPaid / Math.max(1, Number(settings.loyaltyConfig?.spendThreshold ?? 300))) * Math.max(0, Number(settings.loyaltyConfig?.pointsPerSpend ?? 10));
 
   // Effective Delivery Fee from Selected Delivery Method
   let baseDeliveryFee = selectedDeliveryMethod.price || 399;
@@ -1700,6 +1774,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const markupAmount = Math.max(0, cartSubtotal - rawKfcSubtotal);
     const requestedLoyaltyDiscount = isRedeemingPoints && canRedeemPoints ? loyaltyDiscountAmount : 0;
+    const requestedLoyaltyPoints = requestedLoyaltyDiscount * Math.max(1, Number(settings.loyaltyConfig?.pointsPerRupee ?? 2));
 
     const draftOrder: Order = {
       id: `CKW-${Date.now().toString().slice(-8)}`,
@@ -1711,11 +1786,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deliveryFee: effectiveDeliveryFee,
       discount: discountAmount,
       loyaltyPointsEarned: potentialPointsToEarn,
-      loyaltyPointsRedeemed: requestedLoyaltyDiscount,
+      loyaltyPointsRedeemed: requestedLoyaltyPoints,
       loyaltyDiscount: requestedLoyaltyDiscount,
       vipDiscount: vipDiscountAmount,
       vipTierApplied: isVipActive && currentUser?.vipTier ? currentUser.vipTier : undefined,
       total: cartTotal,
+      customerOrderNumber: currentUser ? Number(currentUser.ordersCount || 0) + 1 : undefined,
+      customerOrderLabel: currentUser ? (Number(currentUser.ordersCount || 0) + 1 === 1 ? '1st Order' : Number(currentUser.ordersCount || 0) + 1 === 2 ? '2nd Order' : Number(currentUser.ordersCount || 0) + 1 === 3 ? '3rd Order' : `${Number(currentUser.ordersCount || 0) + 1}th Order`) : undefined,
       customer: {
         ...customer,
         notes: specialInstructions || customer.notes,
@@ -1739,65 +1816,93 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deliveryMethodId: selectedDeliveryMethodId,
       discountCode: appliedDiscountCode || null,
       redeemLoyaltyPoints: requestedLoyaltyDiscount > 0,
+      loyaltyPointsRedeemed: requestedLoyaltyPoints,
     }));
-    // Persist delivery contact details against the authenticated Google account before accepting the order.
-    // If this write fails, stop checkout rather than silently losing the customer's phone/address.
-    if (user) {
-      const phone = String(customer.phone || currentUser?.phone || user.phoneNumber || '').trim();
-      const address = String(customer.address || currentUser?.defaultAddress || currentUser?.address || '').trim();
-      const fullName = String(customer.fullName || currentUser?.fullName || user.displayName || 'Customer').trim();
-      const email = String(user.email || currentUser?.email || '').trim();
-      const customerProfileRef = doc(db, 'customers', user.uid);
-      const existingCustomerProfile = await getDoc(customerProfileRef);
-      const savedProfile: Record<string, any> = existingCustomerProfile.exists() ? existingCustomerProfile.data() : {};
-      const existingAddresses = Array.isArray(savedProfile.savedAddresses)
-        ? savedProfile.savedAddresses as CustomerAddress[]
-        : (currentUser?.savedAddresses || []);
-      const addressExists = address && existingAddresses.some((saved) => String(saved.address || '').trim().toLowerCase() === address.toLowerCase());
-      const savedAddresses = address && !addressExists
-        ? [...existingAddresses, { id: `addr-${Date.now()}`, label: 'Recent Order', address }]
-        : existingAddresses;
-      const profileUpdate = {
-        fullName,
-        email,
-        phone,
-        address,
-        defaultAddress: address,
-        savedAddresses,
-        updatedAt: new Date().toISOString(),
-      };
-      if (existingCustomerProfile.exists()) {
-        await setDoc(customerProfileRef, profileUpdate, { merge: true });
-      } else {
-        await setDoc(customerProfileRef, {
-          id: user.uid,
-          ...profileUpdate,
-          loyaltyPoints: 50,
-          totalSpent: 0,
-          ordersCount: 0,
-          createdAt: new Date().toISOString(),
-        }, { merge: true });
-      }
-      const updatedProfile: CustomerUser = {
-        id: user.uid,
-        fullName,
-        email,
-        phone,
-        address,
-        defaultAddress: address,
-        savedAddresses,
-        loyaltyPoints: Number(currentUser?.loyaltyPoints || 0),
-        createdAt: currentUser?.createdAt || new Date().toISOString(),
-        totalSpent: Number(currentUser?.totalSpent || 0),
-        ordersCount: Number(currentUser?.ordersCount || 0),
-        ...(currentUser?.vipTier ? { vipTier: currentUser.vipTier } : {}),
-        ...(currentUser?.vipStatus ? { vipStatus: currentUser.vipStatus } : {}),
-      };
-      setCurrentUser(updatedProfile);
-      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedProfile));
-    }
+    // Create the order and decrement tracked stock atomically so concurrent checkouts cannot oversell.
+    const quantitiesByProduct = new Map<string, number>();
+    cart.forEach((cartItem) => {
+      if (cartItem.menuItem.trackInventory) quantitiesByProduct.set(cartItem.menuItem.id, (quantitiesByProduct.get(cartItem.menuItem.id) || 0) + cartItem.quantity);
+    });
+    await runTransaction(db, async (transaction) => {
+      const stockEntries = Array.from(quantitiesByProduct.entries());
+      const productRefs = stockEntries.map(([productId]) => doc(db, 'products', productId));
+      const productSnapshots = [];
+      for (const productRef of productRefs) productSnapshots.push(await transaction.get(productRef));
+      productSnapshots.forEach((snapshot, index) => {
+        const [productId, quantity] = stockEntries[index];
+        const cartProduct = cart.find((item) => item.menuItem.id === productId)?.menuItem;
+        const data = snapshot.exists() ? snapshot.data() : (cartProduct as any);
+        if (data?.trackInventory === true) {
+          const available = Math.max(0, Number(data.stockQuantity || 0));
+          if (available < quantity) throw new Error(`${cartProduct?.name || 'Product'} ka stock sirf ${available} available hai.`);
+          if (snapshot.exists()) transaction.update(productRefs[index], { stockQuantity: available - quantity, updatedAt: new Date().toISOString() });
+          else transaction.set(productRefs[index], { ...cartProduct, stockQuantity: available - quantity, updatedAt: new Date().toISOString() }, { merge: true });
+        }
+      });
+      transaction.set(doc(db, 'orders', savedOrder.id), firestoreOrder);
+    });
 
-    await setDoc(doc(db, 'orders', savedOrder.id), firestoreOrder);
+    // Save profile/address in the background so the successful order confirmation is not delayed.
+    if (user) {
+      void (async () => {
+      if (user) {
+        const phone = String(customer.phone || currentUser?.phone || user.phoneNumber || '').trim();
+        const address = String(customer.address || currentUser?.defaultAddress || currentUser?.address || '').trim();
+        const fullName = String(customer.fullName || currentUser?.fullName || user.displayName || 'Customer').trim();
+        const email = String(user.email || currentUser?.email || '').trim();
+        const customerProfileRef = doc(db, 'customers', user.uid);
+        const existingCustomerProfile = await getDoc(customerProfileRef);
+        const savedProfile: Record<string, any> = existingCustomerProfile.exists() ? existingCustomerProfile.data() : {};
+        const existingAddresses = Array.isArray(savedProfile.savedAddresses)
+          ? savedProfile.savedAddresses as CustomerAddress[]
+          : (currentUser?.savedAddresses || []);
+        const addressExists = address && existingAddresses.some((saved) => String(saved.address || '').trim().toLowerCase() === address.toLowerCase());
+        const savedAddresses = address && !addressExists
+          ? [...existingAddresses, { id: `addr-${Date.now()}`, label: 'Recent Order', address }]
+          : existingAddresses;
+        const profileUpdate = {
+          fullName,
+          email,
+          phone,
+          address,
+          defaultAddress: address,
+          savedAddresses,
+          updatedAt: new Date().toISOString(),
+        };
+        if (existingCustomerProfile.exists()) {
+          await setDoc(customerProfileRef, profileUpdate, { merge: true });
+        } else {
+          await setDoc(customerProfileRef, {
+            id: user.uid,
+            ...profileUpdate,
+            loyaltyPoints: Math.max(0, Number(settings.loyaltyConfig?.signupBonus ?? 50)),
+            totalSpent: 0,
+            ordersCount: 0,
+            createdAt: new Date().toISOString(),
+          }, { merge: true });
+        }
+        const updatedProfile: CustomerUser = {
+          id: user.uid,
+          fullName,
+          email,
+          phone,
+          address,
+          defaultAddress: address,
+          savedAddresses,
+          loyaltyPoints: Number(currentUser?.loyaltyPoints || 0),
+          createdAt: currentUser?.createdAt || new Date().toISOString(),
+          totalSpent: Number(currentUser?.totalSpent || 0),
+          ordersCount: Number(currentUser?.ordersCount || 0),
+          ...(currentUser?.vipTier ? { vipTier: currentUser.vipTier } : {}),
+          ...(currentUser?.vipStatus ? { vipStatus: currentUser.vipStatus } : {}),
+        };
+        setCurrentUser(updatedProfile);
+        localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedProfile));
+      }
+  
+  
+      })().catch((error) => console.warn('Customer profile background save notice:', error));
+    }
 
     // Only update local customer/order state after the server has accepted the order.
     const earnedPoints = Number(savedOrder.loyaltyPointsEarned || 0);
@@ -1888,12 +1993,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
     setSelectedProduct(item);
+    try { localStorage.setItem('kfc-selected-product-id', item.id); } catch { /* storage can be disabled */ }
     setCurrentView('product');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goHome = () => {
     setCurrentView('home');
+    try { localStorage.removeItem('kfc-selected-product-id'); } catch { /* storage can be disabled */ }
     setSelectedProduct(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -1943,9 +2050,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       address: data.defaultAddress || '',
       defaultAddress: data.defaultAddress || '',
       savedAddresses: data.savedAddresses || [],
-      loyaltyPoints: Number(data.loyaltyPoints ?? 50),
+      loyaltyPoints: Number(data.loyaltyPoints ?? settings.loyaltyConfig?.signupBonus ?? 50),
       ...(data.vipTier !== undefined ? { vipTier: data.vipTier } : {}),
       ...(data.vipStatus !== undefined ? { vipStatus: data.vipStatus } : {}),
+      ...(data.vipPaidAmount !== undefined ? { vipPaidAmount: data.vipPaidAmount } : {}),
+      ...(data.vipExpiresAt !== undefined ? { vipExpiresAt: data.vipExpiresAt } : {}),
       totalSpent: Number(data.totalSpent || 0),
       ordersCount: Number(data.totalOrdersCount || 0),
       ...(typeof data.emailMarketingConsent === 'boolean' ? { emailMarketingConsent: data.emailMarketingConsent } : {}),
@@ -1964,7 +2073,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         address: profile.address,
         defaultAddress: profile.defaultAddress,
         savedAddresses: profile.savedAddresses,
-        loyaltyPoints: 50,
+        loyaltyPoints: Math.max(0, Number(settings.loyaltyConfig?.signupBonus ?? 50)),
         totalSpent: 0,
         totalOrdersCount: 0,
         emailMarketingConsent: false,
@@ -2067,7 +2176,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         phone: '',
         defaultAddress: '',
         savedAddresses: [],
-        loyaltyPoints: 50,
+        loyaltyPoints: Math.max(0, Number(settings.loyaltyConfig?.signupBonus ?? 50)),
         totalSpent: 0,
         totalOrdersCount: 0,
         emailMarketingConsent: data.emailMarketingConsent === true,
@@ -2269,16 +2378,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!request) throw new Error('VIP request not found.');
     const updated = { ...request, status };
     await setDoc(doc(db, 'vipRequests', requestId), { status, reviewedAt: new Date().toISOString() }, { merge: true });
+    const currentTier = vipTiers.find((item) => item.id === request.tierId) || DEFAULT_VIP_TIERS.find((item) => item.id === request.tierId);
+    const restoredTier = status === 'rejected' ? request.previousTierId : undefined;
+    const restoredStatus = status === 'rejected' ? request.previousVipStatus : undefined;
+    const expiresAt = currentTier?.durationDays && currentTier.durationDays > 0 ? new Date(Date.now() + currentTier.durationDays * 86400000).toISOString() : null;
     await setDoc(doc(db, 'customers', request.customerId), {
-      vipTier: status === 'approved' ? request.tierId : null,
-      vipStatus: status === 'approved' ? 'active' : 'rejected',
+      vipTier: status === 'approved' ? request.tierId : (restoredTier || null),
+      vipStatus: status === 'approved' ? 'active' : (restoredStatus || 'rejected'),
+      vipPaidAmount: status === 'approved' ? Number(currentTier?.price || request.amount) : (request.previousPaidAmount ?? null),
+      vipExpiresAt: status === 'approved' ? expiresAt : (request.previousVipExpiresAt ?? null),
       updatedAt: new Date().toISOString(),
     }, { merge: true });
     setVipRequests((prev) => prev.map((item) => item.id === requestId ? updated : item));
     if (currentUser?.id === request.customerId) {
       setCurrentUser((prev) => prev ? {
         ...prev, vipStatus: status === 'approved' ? 'active' : 'rejected',
-        ...(status === 'approved' ? { vipTier: request.tierId } : { vipTier: undefined }),
+        ...(status === 'approved' ? { vipTier: request.tierId, vipPaidAmount: Number(currentTier?.price || request.amount), vipExpiresAt: expiresAt } : { vipTier: request.previousTierId, vipPaidAmount: request.previousPaidAmount, vipExpiresAt: request.previousVipExpiresAt }),
       } : prev);
     }
   };
@@ -2286,20 +2401,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const rejectVipRequest = async (requestId: string) => setVipRequestStatus(requestId, 'rejected');
 
   const requestVipMembershipWhatsApp = async (
-    tierId: VipTierId, customerName: string, phone: string, email?: string
+    tierId: VipTierId, customerName: string, phone: string, email?: string, amountOverride?: number
   ): Promise<VipMembershipRequest> => {
     const user = auth.currentUser;
     if (!user) throw new Error('Customer authentication required for VIP request.');
-    const tier = DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
+    const tier = vipTiers.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
     const saved: VipMembershipRequest & { uid: string } = {
       id: `vip-req-${Date.now()}`, customerId: user.uid, uid: user.uid,
+      previousTierId: currentUser?.vipTier, previousVipStatus: currentUser?.vipStatus, previousPaidAmount: currentUser?.vipPaidAmount, previousVipExpiresAt: currentUser?.vipExpiresAt,
       customerName: customerName.trim(), phone: phone.trim(), email: email?.trim() || '',
-      tierId, amount: tier.price, paymentMethod: 'whatsapp', transactionId: '',
+      tierId, amount: Math.max(0, Number(amountOverride ?? tier.price)), paymentMethod: 'whatsapp', transactionId: '',
       requestedAt: new Date().toISOString(), status: 'pending',
     };
     await setDoc(doc(db, 'vipRequests', saved.id), saved);
     setVipRequests((prev) => [saved, ...prev.filter((r) => r.id !== saved.id)]);
-    if (currentUser) {
+    if (currentUser && currentUser.vipStatus !== 'active') {
       const updatedUser = { ...currentUser, vipTier: tierId, vipStatus: 'pending' as const };
       setCurrentUser(updatedUser); localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedUser));
     }
@@ -2321,7 +2437,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await setDoc(doc(db, 'vipRequests', request.id), request);
     }
     await setDoc(doc(db, 'vipRequests', request.id), { status: 'approved', reviewedAt: new Date().toISOString(), tierId }, { merge: true });
-    await setDoc(doc(db, 'customers', target.id), { vipTier: tierId, vipStatus: 'active', updatedAt: new Date().toISOString() }, { merge: true });
+    const grantedTier = vipTiers.find((tier) => tier.id === tierId) || DEFAULT_VIP_TIERS.find((tier) => tier.id === tierId);
+    const vipExpiresAt = grantedTier?.durationDays && grantedTier.durationDays > 0 ? new Date(Date.now() + grantedTier.durationDays * 86400000).toISOString() : null;
+    await setDoc(doc(db, 'customers', target.id), { vipTier: tierId, vipStatus: 'active', vipPaidAmount: grantedTier?.price || 0, vipExpiresAt, updatedAt: new Date().toISOString() }, { merge: true });
     setVipRequests((prev) => [{ ...request!, status: 'approved', tierId }, ...prev.filter((item) => item.id !== request!.id)]);
     setCustomerRecords((prev) => prev.map((customer) => customer.id === target.id ? { ...customer, vipTier: tierId } : customer));
   };
@@ -2510,9 +2628,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const sendReviewCollectionWhatsapp = (order: Order) => {
     const cleanPhone = order.customer.phone.replace(/[^0-9]/g, '');
     const intlPhone = cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
-    const text = encodeURIComponent(
-      `Assalam o Alaikum ${order.customer.fullName}! Umeed hai aap ka KFC meal bohot crispy aur lazeez tha. Baraye meherbani 1 minute nikaal kar apna review submit karein: ${window.location.origin}/#reviews - Review par aapko 20 FREE KFC Loyalty Points milenge!`
-    );
+    const reviewUrl = `${window.location.origin}/?reviews=true`;
+    const template = String(settings.whatsappTemplates?.reviewRequest || settings.autoReview?.whatsappTemplate || 'Assalam o Alaikum {name}! Order #{orderId} ke liye shukriya. Apna review yahan share karein: {reviewUrl}');
+    const message = template.replace(/\{name\}/g, order.customer.fullName || 'Customer').replace(/\{orderId\}/g, order.id).replace(/\{reviewUrl\}/g, reviewUrl).replace(/\{phone\}/g, order.customer.phone || '').replace(/\{points\}/g, String(Math.max(0, Number(settings.loyaltyConfig?.reviewBonus ?? 20))));
+    const text = encodeURIComponent(message);
     window.open(`https://wa.me/${intlPhone}?text=${text}`, '_blank');
   };
 
@@ -2547,9 +2666,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const cleanPhone = checkout.phone.replace(/[^0-9]/g, '');
     const intlPhone = cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
     const itemsSummary = checkout.items.map((i) => `${i.quantity}x ${i.menuItem.name}`).join(', ') || 'KFC Meal';
-    const text = encodeURIComponent(
-      `Assalam o Alaikum ${checkout.customerName}! Aap ka KFC Chakwal Delivery bucket ready hai (${itemsSummary}) Total: Rs. ${checkout.cartTotal}. Kya aap abhi order confirm karna chahte hain? Hum Kallar Kahar se fresh KFC lekar aa rahe hain!`
-    );
+    const template = String(settings.whatsappTemplates?.abandonedRecovery || 'Assalam o Alaikum {name}! Aap ka cart ready hai ({items}) Total: {total}.');
+    const message = template.replace(/\{name\}/g, checkout.customerName || 'Customer').replace(/\{items\}/g, itemsSummary).replace(/\{total\}/g, formatPKR(checkout.cartTotal));
+    const text = encodeURIComponent(message);
     window.open(`https://wa.me/${intlPhone}?text=${text}`, '_blank');
 
     const next = abandonedCheckouts.map((a) =>
@@ -2761,10 +2880,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         allOrders,
         fetchOrders,
         updateOrderStatus,
+        updateOrderPaymentReceived,
         isOrdersDashboardOpen,
         setIsOrdersDashboardOpen,
         vipTiers,
         updateVipTierImage,
+        updateVipTier,
         vipRequests,
         isVipModalOpen,
         setIsVipModalOpen,
