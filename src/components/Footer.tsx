@@ -231,6 +231,8 @@ export const Footer: React.FC = () => {
             </p>
             <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">|</span>
             <span className="text-zinc-500">Customer Store</span>
+            <span className="text-zinc-300 hidden sm:inline">|</span>
+            <span className="font-semibold text-zinc-500">App Developer: Hussain · +92 333-5907574</span>
           </div>
         </div>
       </div>
