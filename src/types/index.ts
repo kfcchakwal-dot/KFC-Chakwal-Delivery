@@ -300,6 +300,9 @@ export interface VipMembershipRequest {
   status: 'pending' | 'approved' | 'rejected';
   approvedAt?: string;
   notes?: string;
+  previousTierId?: VipTierId;
+  previousVipStatus?: 'active' | 'pending' | 'none' | 'rejected';
+  previousPaidAmount?: number;
 }
 
 export interface LoyaltyTransaction {
@@ -471,6 +474,7 @@ export interface CustomerUser {
   loyaltyPoints: number; // 10 points per Rs 300 spent
   vipTier?: VipTierId;
   vipStatus?: 'active' | 'pending' | 'none' | 'rejected';
+  vipPaidAmount?: number;
   createdAt: string;
   totalSpent?: number;
   ordersCount?: number;
