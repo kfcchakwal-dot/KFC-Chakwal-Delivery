@@ -228,6 +228,7 @@ export interface StoreSettings {
   metaCommerce?: MetaCommerceConfig;
   autoReview?: AutoReviewConfig;
   reviewWidgetConfig?: { enabled: boolean; showOnProductPages: boolean; showOnHome: boolean; showOnReviewsPage: boolean };
+  skuBarcodeConfig?: { enabled: boolean; autoGenerateSku: boolean; autoGenerateBarcode: boolean };
   adminUsers?: { id: string; name: string; email: string; role: 'Super Admin' | 'Manager'; addedAt: string }[];
   homepageVideo?: { enabled: boolean; videoUrl: string; title: string; subtitle: string; position: 'top' | 'middle' | 'bottom' };
   sectionColorSchemes?: Record<string, { background: string; text: string; button: string; buttonText: string; border: string }>;
