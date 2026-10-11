@@ -57,6 +57,29 @@ exports.recordCustomerOrderHistory = onDocumentCreated(
   }
 );
 
+exports.awardReviewLoyaltyPoints = onDocumentCreated(
+  { document: 'reviews/{reviewId}', database: DATABASE_ID, region: 'us-central1', retry: true },
+  async (event) => {
+    const reviewRef = event.data?.ref;
+    const review = event.data?.data() || {};
+    const uid = String(review.customerUid || '');
+    if (!reviewRef || !uid || !review.isVisible) return;
+    const settingsSnapshot = await db.collection('storeSettings').doc('global').get();
+    const settings = settingsSnapshot.exists ? (settingsSnapshot.data().settings || {}) : {};
+    const bonus = Math.max(0, Math.floor(Number(settings.loyaltyConfig?.reviewBonus ?? 20)));
+    if (!bonus) return;
+    const customerRef = db.collection('customers').doc(uid);
+    await db.runTransaction(async (transaction) => {
+      const [reviewSnapshot, customerSnapshot] = await Promise.all([transaction.get(reviewRef), transaction.get(customerRef)]);
+      if (!reviewSnapshot.exists || reviewSnapshot.data().rewardAwardedAt || !customerSnapshot.exists) return;
+      const customer = customerSnapshot.data() || {};
+      transaction.set(customerRef, { loyaltyPoints: Math.max(0, Number(customer.loyaltyPoints || 0)) + bonus, updatedAt: new Date().toISOString() }, { merge: true });
+      transaction.set(reviewRef, { rewardPointsAwarded: bonus, rewardAwardedAt: new Date().toISOString() }, { merge: true });
+    });
+    logger.info('Review loyalty bonus processed.', { reviewId: event.params.reviewId, uid, bonus });
+  }
+);
+
 exports.notifyAdminsOnNewOrder = onDocumentCreated(
   {
     document: 'orders/{orderId}',
