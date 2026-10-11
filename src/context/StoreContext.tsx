@@ -2617,7 +2617,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const intlPhone = cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
     const reviewUrl = `${window.location.origin}/?reviews=true`;
     const template = String(settings.whatsappTemplates?.reviewRequest || settings.autoReview?.whatsappTemplate || 'Assalam o Alaikum {name}! Order #{orderId} ke liye shukriya. Apna review yahan share karein: {reviewUrl}');
-    const message = template.replace(/\{name\}/g, order.customer.fullName || 'Customer').replace(/\{orderId\}/g, order.id).replace(/\{reviewUrl\}/g, reviewUrl).replace(/\{phone\}/g, order.customer.phone || '');
+    const message = template.replace(/\{name\}/g, order.customer.fullName || 'Customer').replace(/\{orderId\}/g, order.id).replace(/\{reviewUrl\}/g, reviewUrl).replace(/\{phone\}/g, order.customer.phone || '').replace(/\{points\}/g, String(Math.max(0, Number(settings.loyaltyConfig?.reviewBonus ?? 20))));
     const text = encodeURIComponent(message);
     window.open(`https://wa.me/${intlPhone}?text=${text}`, '_blank');
   };
