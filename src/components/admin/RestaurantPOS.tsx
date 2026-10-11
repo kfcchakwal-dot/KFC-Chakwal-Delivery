@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Search, Plus, Minus, Trash2, Printer, Receipt, ShoppingCart, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { auth, db } from '../../lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, runTransaction } from 'firebase/firestore';
 import type { CartItem, MenuItem, Order, OrderType } from '../../types';
 
 type PosLine = { item: MenuItem; quantity: number };
@@ -32,7 +32,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
   const categories = useMemo(() => [...new Set(menuItems.map((i) => i.categoryId))], [menuItems]);
   const visibleItems = useMemo(() => menuItems.filter((item) =>
     (category === 'all' || item.categoryId === category) &&
-    (!search.trim() || item.name.toLowerCase().includes(search.trim().toLowerCase())) &&
+    (!search.trim() || item.name.toLowerCase().includes(search.trim().toLowerCase()) || String(item.sku || '').toLowerCase().includes(search.trim().toLowerCase()) || String(item.barcode || '').toLowerCase().includes(search.trim().toLowerCase())) &&
     item.isAvailable !== false
   ), [menuItems, category, search]);
 
@@ -72,7 +72,26 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
         specialInstructions: notes.trim(), paymentMethod: payment, status: 'confirmed',
         source: 'admin-pos', createdBy: auth.currentUser.uid,
       };
-      await setDoc(doc(db, 'orders', id), JSON.parse(JSON.stringify(order)));
+      const quantities = new Map<string, number>();
+      cart.forEach(({ item, quantity }) => { if (item.trackInventory) quantities.set(item.id, (quantities.get(item.id) || 0) + quantity); });
+      await runTransaction(db, async (transaction) => {
+        const entries = Array.from(quantities.entries());
+        const refs = entries.map(([productId]) => doc(db, 'products', productId));
+        const snapshots = [];
+        for (const ref of refs) snapshots.push(await transaction.get(ref));
+        snapshots.forEach((snapshot, index) => {
+          const [productId, quantity] = entries[index];
+          const item = cart.find((line) => line.item.id === productId)?.item;
+          if (!snapshot.exists()) throw new Error(`Inventory record missing for ${item?.name || productId}.`);
+          const data = snapshot.data();
+          if (data.trackInventory === true) {
+            const available = Math.max(0, Number(data.stockQuantity || 0));
+            if (available < quantity) throw new Error(`${item?.name || 'Product'} ka stock sirf ${available} available hai.`);
+            transaction.update(refs[index], { stockQuantity: available - quantity, updatedAt: new Date().toISOString() });
+          }
+        });
+        transaction.set(doc(db, 'orders', id), JSON.parse(JSON.stringify(order)));
+      });
       setReceiptOrder(order);
       setNotice('Order ' + id + ' save ho gaya. Ab receipt print kar sakte hain.');
       onOrderCreated?.();
@@ -139,7 +158,7 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
       </section>
     </div>
     <section id="kfc-pos-receipt" className="a4 mx-auto max-w-3xl rounded-2xl border bg-white p-6 text-zinc-950 print:border-0 print:shadow-none">
-      {receiptOrder ? <><div className="mb-5 border-b-2 border-dashed pb-4 text-center"><h1 className="text-2xl font-black uppercase">{settings.storeName || 'KFC Chakwal Delivery'}</h1><p className="text-sm">{settings.storeAddress}</p><p className="text-sm">{settings.phone}</p><h2 className="mt-3 text-lg font-black">SALES RECEIPT</h2><p className="text-sm">Order: {receiptOrder.id} · {new Date(receiptOrder.date).toLocaleString()}</p></div><div className="mb-4 text-sm"><p><b>Customer:</b> {receiptOrder.customer.fullName}</p><p><b>Phone:</b> {receiptOrder.customer.phone}</p><p><b>Address:</b> {receiptOrder.customer.address || 'Pickup'}</p><p><b>Payment:</b> {receiptOrder.paymentMethod.toUpperCase()}</p></div><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="py-2">Item</th><th>Qty</th><th>Price</th><th className="text-right">Amount</th></tr></thead><tbody>{receiptOrder.items.map(i=><tr key={i.cartItemId} className="border-b border-dashed"><td className="py-2">{i.menuItem.name}</td><td>{i.quantity}</td><td>{money(i.unitPrice)}</td><td className="text-right">{money(i.unitPrice*i.quantity)}</td></tr>)}</tbody></table><div className="ml-auto mt-4 max-w-xs space-y-2 text-sm"><p className="flex justify-between"><span>Subtotal</span><b>{money(receiptOrder.subtotal)}</b></p><p className="flex justify-between"><span>Discount</span><b>-{money(receiptOrder.discount)}</b></p><p className="flex justify-between"><span>Tax ({receiptOrder.taxPercentage || 0}%)</span><b>{money(receiptOrder.taxAmount || 0)}</b></p><p className="flex justify-between"><span>Service charge ({receiptOrder.serviceChargePercentage || 0}%)</span><b>{money(receiptOrder.serviceChargeAmount || 0)}</b></p><p className="flex justify-between"><span>Delivery</span><b>{money(receiptOrder.deliveryFee)}</b></p><p className="flex justify-between border-t pt-2 text-lg"><span>Total</span><b>{money(receiptOrder.total)}</b></p></div><p className="mt-6 border-t border-dashed pt-4 text-center text-xs">Thank you for ordering · KFC Chakwal Delivery</p><div className="pos-no-print mt-4 flex flex-wrap justify-center gap-2"><button onClick={()=>{const el=document.getElementById('kfc-pos-receipt');el?.classList.remove('a4');el?.classList.add('thermal');window.print();}} className="rounded-xl border px-4 py-2 text-sm font-bold"><Printer size={15} className="mr-2 inline"/>Thermal 58/80mm</button><button onClick={()=>{const el=document.getElementById('kfc-pos-receipt');el?.classList.remove('thermal');el?.classList.add('a4');window.print();}} className="rounded-xl border px-4 py-2 text-sm font-bold"><Printer size={15} className="mr-2 inline"/>A4 Receipt</button></div></> : <div className="py-10 text-center text-zinc-400"><Receipt className="mx-auto mb-2" size={28}/><p>Saved order ki receipt yahan nazar aaye gi.</p></div>}
+      {receiptOrder ? <><div className="mb-5 border-b-2 border-dashed pb-4 text-center"><h1 className="text-2xl font-black uppercase">{settings.storeName || 'KFC Chakwal Delivery'}</h1><p className="text-sm">{settings.storeAddress}</p><p className="text-sm">{settings.phone}</p><h2 className="mt-3 text-lg font-black">SALES RECEIPT</h2><p className="text-sm">Order: {receiptOrder.id} · {new Date(receiptOrder.date).toLocaleString()}</p></div><div className="mb-4 text-sm"><p><b>Customer:</b> {receiptOrder.customer.fullName}</p><p><b>Phone:</b> {receiptOrder.customer.phone}</p><p><b>Address:</b> {receiptOrder.customer.address || 'Pickup'}</p><p><b>Payment:</b> {receiptOrder.paymentMethod.toUpperCase()}</p></div><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="py-2">Item</th><th>Qty</th><th>Price</th><th className="text-right">Amount</th></tr></thead><tbody>{receiptOrder.items.map(i=><tr key={i.cartItemId} className="border-b border-dashed"><td className="py-2">{i.menuItem.name}</td><td>{i.quantity}</td><td>{money(i.unitPrice)}</td><td className="text-right">{money(i.unitPrice*i.quantity)}</td></tr>)}</tbody></table><div className="ml-auto mt-4 max-w-xs space-y-2 text-sm"><p className="flex justify-between"><span>Subtotal</span><b>{money(receiptOrder.subtotal)}</b></p><p className="flex justify-between"><span>Discount</span><b>-{money(receiptOrder.discount)}</b></p><p className="flex justify-between"><span>Tax ({receiptOrder.taxPercentage || 0}%)</span><b>{money(receiptOrder.taxAmount || 0)}</b></p><p className="flex justify-between"><span>Service charge ({receiptOrder.serviceChargePercentage || 0}%)</span><b>{money(receiptOrder.serviceChargeAmount || 0)}</b></p><p className="flex justify-between"><span>Delivery</span><b>{money(receiptOrder.deliveryFee)}</b></p><p className="flex justify-between border-t pt-2 text-lg"><span>Total</span><b>{money(receiptOrder.total)}</b></p><p className="flex justify-between"><span>Received</span><b>{money(receiptOrder.paymentReceived || 0)}</b></p><p className="flex justify-between"><span>Balance</span><b>{money(Math.max(0, receiptOrder.total - (receiptOrder.paymentReceived || 0)))}</b></p></div><p className="mt-6 border-t border-dashed pt-4 text-center text-xs">Thank you for ordering · KFC Chakwal Delivery</p><div className="pos-no-print mt-4 flex flex-wrap justify-center gap-2"><button onClick={()=>{const el=document.getElementById('kfc-pos-receipt');el?.classList.remove('a4');el?.classList.add('thermal');window.print();}} className="rounded-xl border px-4 py-2 text-sm font-bold"><Printer size={15} className="mr-2 inline"/>Thermal 58/80mm</button><button onClick={()=>{const el=document.getElementById('kfc-pos-receipt');el?.classList.remove('thermal');el?.classList.add('a4');window.print();}} className="rounded-xl border px-4 py-2 text-sm font-bold"><Printer size={15} className="mr-2 inline"/>A4 Receipt</button></div></> : <div className="py-10 text-center text-zinc-400"><Receipt className="mx-auto mb-2" size={28}/><p>Saved order ki receipt yahan nazar aaye gi.</p></div>}
     </section>
   </div>;
 };
