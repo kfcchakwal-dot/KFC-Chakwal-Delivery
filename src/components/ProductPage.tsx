@@ -680,8 +680,8 @@ export const ProductPage: React.FC = () => {
             )}
           </div>
 
-          {/* Write a Review Form */}
-          <form onSubmit={handleReviewSubmit} className={`p-5 rounded-2xl border space-y-3 ${
+          {/* Write a Review Form: independently controlled by admin */}
+          {settings.reviewWidgets?.showFormOnProductPages !== false && <form onSubmit={handleReviewSubmit} className={`p-5 rounded-2xl border space-y-3 ${
             isDark ? 'bg-[#18181c] border-[#2d2d38]' : 'bg-zinc-100 border-zinc-300'
           }`}>
             <h3 className="font-kfc text-lg font-black uppercase flex items-center gap-1.5 text-[#e4002b]">
@@ -761,9 +761,10 @@ export const ProductPage: React.FC = () => {
               </button>
             </div>
             <p className="text-[11px] text-zinc-500">Phone OTP ya sign-in ki zaroorat nahi. Please apna genuine review share karein.</p>
-          </form>
+          </form>}
 
         </div>
+        )}
 
       </div>
     </div>
