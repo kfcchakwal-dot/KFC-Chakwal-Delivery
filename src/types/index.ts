@@ -303,6 +303,7 @@ export interface VipMembershipRequest {
   previousTierId?: VipTierId;
   previousVipStatus?: 'active' | 'pending' | 'none' | 'rejected';
   previousPaidAmount?: number;
+  previousVipExpiresAt?: string | null;
 }
 
 export interface LoyaltyTransaction {
@@ -475,6 +476,7 @@ export interface CustomerUser {
   vipTier?: VipTierId;
   vipStatus?: 'active' | 'pending' | 'none' | 'rejected';
   vipPaidAmount?: number;
+  vipExpiresAt?: string | null;
   createdAt: string;
   totalSpent?: number;
   ordersCount?: number;
