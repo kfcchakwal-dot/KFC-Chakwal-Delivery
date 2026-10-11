@@ -345,7 +345,7 @@ exports.queueReviewRequests = onSchedule(
       const rawPhone = String(order.customer?.phone || '').replace(/[^0-9]/g, '');
       const phone = rawPhone.startsWith('0') ? '92' + rawPhone.slice(1) : rawPhone;
       const firstItem = Array.isArray(order.items) ? order.items[0]?.menuItem : null;
-      const reviewUrl = APP_ORIGIN + (firstItem?.id ? '/?product=' + encodeURIComponent(firstItem.id) : '/');
+      const reviewUrl = APP_ORIGIN + '/?reviews=true';
       const baseRecord = {
         orderId: String(order.id || orderDoc.id),
         customerUid: order.customer?.uid || null,
