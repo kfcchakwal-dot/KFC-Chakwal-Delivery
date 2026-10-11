@@ -13,6 +13,50 @@ const DATABASE_ID = 'ai-studio-kfcchakwaldelive-c794408e-894c-4201-b835-4e01c97c
 const APP_ORIGIN = process.env.APP_ORIGIN || 'https://kfc-chakwal-delivery.kfcchakwal.workers.dev';
 const db = getFirestore(undefined, DATABASE_ID);
 
+exports.recordCustomerOrderHistory = onDocumentCreated(
+  { document: 'orders/{orderId}', database: DATABASE_ID, region: 'us-central1', retry: true },
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+    const orderRef = snapshot.ref;
+    const order = snapshot.data() || {};
+    if (typeof order.customerOrderNumber === 'number') return;
+    const uid = String(order.customer?.uid || '');
+    const phone = String(order.customer?.phone || '').replace(/\s+/g, ' ').trim();
+    let customerOrderNumber = 1;
+    if (uid) {
+      const customerRef = db.collection('customers').doc(uid);
+      await db.runTransaction(async (transaction) => {
+        const [latestOrder, customerSnapshot] = await Promise.all([transaction.get(orderRef), transaction.get(customerRef)]);
+        if (!latestOrder.exists || typeof latestOrder.data().customerOrderNumber === 'number') return;
+        const data = latestOrder.data() || {};
+        const customer = customerSnapshot.exists ? customerSnapshot.data() : {};
+        customerOrderNumber = Math.max(0, Number(customer.ordersCount || customer.totalOrdersCount || 0)) + 1;
+        transaction.set(customerRef, {
+          id: uid,
+          ordersCount: customerOrderNumber,
+          totalOrdersCount: customerOrderNumber,
+          totalSpent: Math.max(0, Number(customer.totalSpent || 0)) + Math.max(0, Number(data.total || 0)),
+          loyaltyPoints: Math.max(0, Number(customer.loyaltyPoints || 0) - Number(data.loyaltyPointsRedeemed || 0)) + Math.max(0, Number(data.loyaltyPointsEarned || 0)),
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+        transaction.set(orderRef, { customerOrderNumber, customerOrderLabel: customerOrderNumber === 1 ? '1st Order' : customerOrderNumber === 2 ? '2nd Order' : customerOrderNumber === 3 ? '3rd Order' : customerOrderNumber + 'th Order', historyRecordedAt: new Date().toISOString() }, { merge: true });
+      });
+    } else if (phone) {
+      const matching = await db.collection('orders').where('customer.phone', '==', phone).get();
+      const earlierOrCurrent = matching.docs.filter((item) => {
+        const itemDate = String(item.data().date || '');
+        return item.id === event.params.orderId || (itemDate && itemDate <= String(order.date || ''));
+      });
+      customerOrderNumber = Math.max(1, earlierOrCurrent.length);
+      await orderRef.set({ customerOrderNumber, customerOrderLabel: customerOrderNumber === 1 ? '1st Order' : customerOrderNumber === 2 ? '2nd Order' : customerOrderNumber === 3 ? '3rd Order' : customerOrderNumber + 'th Order', historyRecordedAt: new Date().toISOString() }, { merge: true });
+    } else {
+      await orderRef.set({ customerOrderNumber: 1, customerOrderLabel: '1st Order', historyRecordedAt: new Date().toISOString() }, { merge: true });
+    }
+    logger.info('Customer order history recorded.', { orderId: event.params.orderId, customerOrderNumber });
+  }
+);
+
 exports.notifyAdminsOnNewOrder = onDocumentCreated(
   {
     document: 'orders/{orderId}',
