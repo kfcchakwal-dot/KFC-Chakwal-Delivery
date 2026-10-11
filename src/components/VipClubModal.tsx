@@ -21,6 +21,7 @@ export const VipClubModal: React.FC = () => {
     currentUser,
     requestVipMembershipWhatsApp,
     formatPKR,
+    settings,
   } = useStore();
 
   const [selectedTierId, setSelectedTierId] = useState<VipTierId>(() => currentUser?.vipTier || 'silver');
@@ -59,8 +60,9 @@ export const VipClubModal: React.FC = () => {
     }
 
     // Format WhatsApp message to 0325-2777574
-    const message = 
-      `Assalam o Alaikum! Mujhe KFC Chakwal Delivery ka Lifetime VIP Pass order karna hai:\n\n` +
+    const customVipTemplate = String(settings.whatsappTemplates?.vipPass || '').trim();
+    const message = customVipTemplate ? customVipTemplate.replace(/\{name\}/g, customerName.trim()).replace(/\{orderId\}/g, selectedTier.name).replace(/\{total\}/g, formatPKR(amountDue)).replace(/\{balance\}/g, formatPKR(amountDue)).replace(/\{phone\}/g, phone.trim()) :
+      `Assalam o Alaikum! Mujhe KFC Chakwal Delivery ka VIP Pass order karna hai:\n\n` +
       `👑 *Pass:* ${selectedTier.name} (Flat ${selectedTier.discountPercentage}% OFF)\n` +
       (selectedTier.durationDays && selectedTier.durationDays > 0 ? `⏳ *Validity:* ${selectedTier.durationDays} days\n` : `⏳ *Validity:* Lifetime\n`) +
       (isUpgrade && currentTier ? `💳 *Previous pass credit:* -${formatPKR(alreadyPaid)}\n💰 *Upgrade amount due:* ${formatPKR(amountDue)}\n` : `💰 *Pass Fee:* ${formatPKR(amountDue)}\n`) +
