@@ -149,3 +149,9 @@ button.buy-button[class~="text-white"]:hover,
 button.buy-button[class~="text-white"]:focus-visible {
   color: #ffffff !important;
 }
+
+
+/* Clear selected state for admin navigation, tabs, and toggle controls. */
+[aria-current="page"], button[aria-pressed="true"] {
+  outline-offset: 2px;
+}
