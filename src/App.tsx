@@ -320,9 +320,12 @@ const MainShop: React.FC = () => {
   // If in Admin Mode or Seller Mode (?app=seller), render KCD Seller Portal
   if (isAdmin || isSellerMode) {
     return (
-      <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-zinc-500">Loading admin panel…</div>}>
-        <ShopifyAdminApp />
-      </Suspense>
+      <>
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-zinc-500">Loading admin panel…</div>}>
+          <ShopifyAdminApp />
+        </Suspense>
+        <AppUpdatePrompt />
+      </>
     );
   }
 
@@ -611,6 +614,7 @@ const MainShop: React.FC = () => {
       <LoyaltyProgramModal />
       <div data-color-section="vip"><VipClubModal /></div>
       <PointsEarnedNotification />
+      <AppUpdatePrompt />
     </div>
   );
 };
