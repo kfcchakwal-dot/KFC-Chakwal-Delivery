@@ -667,7 +667,8 @@ export const ShopifyAdminApp: React.FC = () => {
     .slice(0, 5);
 
   const filteredProducts = menuItems.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(productSearch.toLowerCase());
+    const q = productSearch.toLowerCase();
+    const matchesSearch = item.name.toLowerCase().includes(q) || String(item.sku || '').toLowerCase().includes(q) || String(item.barcode || '').toLowerCase().includes(q);
     const matchesCat = productCategoryFilter === 'all' || item.categoryId === productCategoryFilter;
     const matchesStatus = productStatusFilter === 'all' || (productStatusFilter === 'active' && item.status !== 'draft') || (productStatusFilter === 'draft' && item.status === 'draft');
     return matchesSearch && matchesCat && matchesStatus;
@@ -2595,6 +2596,20 @@ export const ShopifyAdminApp: React.FC = () => {
                           <span>Set to Draft ({selectedProductIds.length})</span>
                         </button>
 
+                        <button type="button" disabled={isApplyingBulkProductAction || settings.skuBarcodeConfig?.enabled === false} onClick={async () => {
+                          setIsApplyingBulkProductAction(true);
+                          let count = 0;
+                          try {
+                            for (const id of selectedProductIds) {
+                              const item = menuItems.find((product) => product.id === id);
+                              if (!item) continue;
+                              await updateMenuItem({ ...item, sku: item.sku || `KFC-${item.id.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`, barcode: item.barcode || `92325${String(item.id).replace(/\D/g, '').slice(-8).padStart(8, '0')}` });
+                              count += 1;
+                            }
+                            setProductActionFeedback({ type: 'success', message: `SKU/barcode ${count} selected products ke liye generate/save ho gaye.` });
+                          } catch (error: any) { setProductActionFeedback({ type: 'error', message: error?.message || 'SKU/barcode generate nahi ho sake.' }); }
+                          finally { setIsApplyingBulkProductAction(false); }
+                        }} className="rounded-lg bg-indigo-600 px-3 py-1.5 font-bold text-white disabled:opacity-40">Generate SKU + Barcode</button>
                         <button
                           type="button"
                           disabled={isApplyingBulkProductAction}
@@ -2686,6 +2701,10 @@ export const ShopifyAdminApp: React.FC = () => {
                                   Stock: <strong className={Number(item.stockQuantity) <= 5 ? 'text-amber-600' : 'text-emerald-600'}>{item.stockQuantity || 0} pcs</strong>
                                 </p>
                               )}
+                              {settings.skuBarcodeConfig?.enabled !== false && <div className="mt-2 grid grid-cols-1 gap-1.5">
+                                <label className="flex items-center gap-1 text-[10px] text-zinc-500">SKU <input defaultValue={item.sku || ''} placeholder="Add SKU" onBlur={(event) => { const value = event.currentTarget.value.trim(); if (value !== (item.sku || '')) void updateMenuItem({ ...item, sku: value }); }} className="min-w-0 flex-1 rounded border border-zinc-200 px-2 py-1 text-[10px] text-zinc-800" /></label>
+                                <label className="flex items-center gap-1 text-[10px] text-zinc-500">Barcode <input defaultValue={item.barcode || ''} placeholder="Scan / enter barcode" onBlur={(event) => { const value = event.currentTarget.value.trim(); if (value !== (item.barcode || '')) void updateMenuItem({ ...item, barcode: value }); }} className="min-w-0 flex-1 rounded border border-zinc-200 px-2 py-1 text-[10px] text-zinc-800" /></label>
+                              </div>}
                             </div>
                           </div>
 
@@ -3902,6 +3921,12 @@ export const ShopifyAdminApp: React.FC = () => {
                 <p className="text-xs text-zinc-500 mt-1">
                   Upload your preloader logo, app icon URL, WhatsApp contact, and social links.
                 </p>
+              </div>
+
+              <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <div><h3 className="font-bold text-sm text-zinc-900">SKU & Barcode Settings</h3><p className="mt-1 text-[11px] text-zinc-500">Enable/disable SKU and barcode fields and bulk generation.</p></div>
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>Enable SKU / Barcode features</span><input type="checkbox" checked={settings.skuBarcodeConfig?.enabled !== false} onChange={(event) => updateSettings({ skuBarcodeConfig: { enabled: event.target.checked, autoGenerateSku: settings.skuBarcodeConfig?.autoGenerateSku !== false, autoGenerateBarcode: settings.skuBarcodeConfig?.autoGenerateBarcode !== false } })} className="h-4 w-4 accent-red-600" /></label>
+                <p className="text-[11px] text-zinc-500">Manual SKU/barcode edit fields Products cards mein hain. Bulk generator sirf missing values generate karta hai.</p>
               </div>
 
               {/* Reviews widget placement and visibility */}
