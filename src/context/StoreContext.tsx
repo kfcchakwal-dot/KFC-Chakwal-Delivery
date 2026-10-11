@@ -1538,8 +1538,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }
 
-  // MUTUAL EXCLUSIVITY RULE:
-  // Loyalty points cannot be combined with other discount codes!
+  // Coupon/loyalty combination is controlled by the editable loyalty settings.
   const hasActiveDiscountCoupon = Boolean(
     appliedDiscountCode || (appliedDiscount && appliedDiscount.type !== 'free_shipping' && discountAmount > 0)
   );
@@ -1549,8 +1548,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!clean) return { success: false, message: 'Please enter a discount code' };
 
     // If user is currently redeeming loyalty points, inform them or disable points
-    if (isRedeemingPoints) {
-      setIsRedeemingPoints(false); // Uncheck loyalty points to apply code
+    if (isRedeemingPoints && settings.loyaltyConfig?.combineWithCoupons !== true) {
+      setIsRedeemingPoints(false); // Coupon and points are mutually exclusive unless admin enables combining.
     }
 
     const disc = discounts.find((d) => d.code.toUpperCase() === clean);
@@ -1580,7 +1579,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     setAppliedDiscountCode(clean);
-    return { success: true, message: `Discount code "${clean}" applied! (Note: Loyalty points cannot be combined)` };
+    return { success: true, message: settings.loyaltyConfig?.combineWithCoupons === true ? `Discount code "${clean}" applied! Loyalty points can also be redeemed.` : `Discount code "${clean}" applied! (Note: Loyalty points cannot be combined)` };
   };
 
   const removeDiscountCode = () => {
@@ -1619,7 +1618,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Rule: Points CANNOT be combined with any other discount coupon!
   const minPointsRedemptionAmount = Math.max(0, Number(settings.loyaltyConfig?.minRedemptionAmount ?? 500));
   const userPoints = currentUser?.loyaltyPoints || 0;
-  const canRedeemPoints = userPoints > 0 && cartSubtotal >= minPointsRedemptionAmount && !hasActiveDiscountCoupon;
+  const canRedeemPoints = userPoints > 0 && cartSubtotal >= minPointsRedemptionAmount && (settings.loyaltyConfig?.combineWithCoupons === true || !hasActiveDiscountCoupon);
 
   // Conversion: 2 reward points = Rs 1 discount. Keep point balance and rupee discount separate.
   const subtotalAfterCoupon = Math.max(0, cartSubtotal - discountAmount);
