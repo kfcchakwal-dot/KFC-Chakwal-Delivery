@@ -343,7 +343,7 @@ export const AdminOrdersModal: React.FC = () => {
                 {/* Customer and Delivery Details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                   <div className="space-y-1 bg-[#141416] p-3 rounded-xl border border-[#24242c]">
-                    <p className="font-bold text-white text-sm">{order.customer.fullName}</p>
+                    <p className="font-bold text-white text-sm">{order.customer.fullName} {order.customerOrderLabel && <span className="ml-1 rounded-full bg-blue-500/20 px-1.5 py-0.5 text-[10px] text-blue-300">{order.customerOrderLabel}</span>}</p>
                     <p className="text-zinc-300 font-mono flex items-center gap-1.5">
                       <Phone className="w-3 h-3 text-[#e4002b]" />
                       {order.customer.phone}
