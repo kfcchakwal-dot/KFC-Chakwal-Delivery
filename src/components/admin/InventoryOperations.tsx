@@ -70,11 +70,12 @@ export const InventoryOperations: React.FC = () => {
         const snapshots = [];
         for (const ref of refs) snapshots.push(await transaction.get(ref));
         snapshots.forEach((snapshot, index) => {
-          if (!snapshot.exists()) throw new Error('Product ' + lines[index].productId + ' ka Firestore record nahi mila.');
           const line = lines[index];
-          const product = snapshot.data();
+          const product = snapshot.exists() ? snapshot.data() : (products[index] as any);
           if (product.trackInventory === true) {
-            transaction.update(refs[index], { stockQuantity: Math.max(0, Number(product.stockQuantity || 0)) + line.quantity, updatedAt: new Date().toISOString() });
+            const nextStock = Math.max(0, Number(product.stockQuantity || 0)) + line.quantity;
+            if (snapshot.exists()) transaction.update(refs[index], { stockQuantity: nextStock, updatedAt: new Date().toISOString() });
+            else transaction.set(refs[index], { ...products[index], stockQuantity: nextStock, updatedAt: new Date().toISOString() }, { merge: true });
           }
         });
         transaction.set(doc(db, 'purchases', id), { id, vendorId: purchaseVendor || null, vendorName: vendor?.name || 'Walk-in / no vendor', items: lines, total, date: new Date().toISOString(), notes: purchaseNotes.trim(), createdBy: auth.currentUser?.uid });
