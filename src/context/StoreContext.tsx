@@ -222,8 +222,8 @@ interface StoreContextType {
   setActiveCategory: (cat: CategoryId) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  currentView: 'home' | 'product' | 'wishlist' | 'collection';
-  setCurrentView: (view: 'home' | 'product' | 'wishlist' | 'collection') => void;
+  currentView: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews';
+  setCurrentView: (view: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews') => void;
   selectedProduct: MenuItem | null;
   viewProduct: (item: MenuItem) => void;
   goHome: () => void;
@@ -508,8 +508,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedItemForCustomization, setSelectedItemForCustomization] = useState<MenuItem | null>(null);
 
   // Navigation
-  const [currentView, setCurrentView] = useState<'home' | 'product' | 'wishlist' | 'collection'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'product' | 'wishlist' | 'collection' | 'reviews'>(() => {
+    try {
+      const saved = localStorage.getItem('kfc-current-view');
+      return saved === 'product' || saved === 'wishlist' || saved === 'collection' || saved === 'reviews' ? saved : 'home';
+    } catch { return 'home'; }
+  });
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
+  useEffect(() => { try { localStorage.setItem('kfc-current-view', currentView); } catch { /* storage can be disabled */ } }, [currentView]);
+  useEffect(() => {
+    if (currentView !== 'product' || selectedProduct) return;
+    try {
+      const savedId = localStorage.getItem('kfc-selected-product-id');
+      if (savedId) {
+        const savedProduct = menuItems.find((item) => item.id === savedId);
+        if (savedProduct) setSelectedProduct(savedProduct);
+        else if (menuItems.length) setCurrentView('home');
+      }
+    } catch { /* storage can be disabled */ }
+  }, [currentView, selectedProduct, menuItems]);
 
   // Reviews
   const [reviews, setReviews] = useState<ProductReview[]>([]);
@@ -1918,12 +1935,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
     setSelectedProduct(item);
+    try { localStorage.setItem('kfc-selected-product-id', item.id); } catch { /* storage can be disabled */ }
     setCurrentView('product');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goHome = () => {
     setCurrentView('home');
+    try { localStorage.removeItem('kfc-selected-product-id'); } catch { /* storage can be disabled */ }
     setSelectedProduct(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
