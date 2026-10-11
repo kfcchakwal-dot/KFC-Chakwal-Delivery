@@ -1781,6 +1781,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       vipTierApplied: isVipActive && currentUser?.vipTier ? currentUser.vipTier : undefined,
       total: cartTotal,
       customerOrderNumber: currentUser ? Number(currentUser.ordersCount || 0) + 1 : undefined,
+      customerOrderLabel: currentUser ? (Number(currentUser.ordersCount || 0) + 1 === 1 ? '1st Order' : Number(currentUser.ordersCount || 0) + 1 === 2 ? '2nd Order' : Number(currentUser.ordersCount || 0) + 1 === 3 ? '3rd Order' : `${Number(currentUser.ordersCount || 0) + 1}th Order`) : undefined,
       customer: {
         ...customer,
         notes: specialInstructions || customer.notes,
