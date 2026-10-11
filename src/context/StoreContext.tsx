@@ -277,6 +277,7 @@ interface StoreContextType {
   // VIP Club Program
   vipTiers: VipTier[];
   updateVipTierImage: (tierId: VipTierId, imageUrl: string) => Promise<void>;
+  updateVipTier: (tierId: VipTierId, updates: Partial<VipTier>) => Promise<void>;
   vipRequests: VipMembershipRequest[];
   isVipModalOpen: boolean;
   setIsVipModalOpen: (open: boolean) => void;
@@ -335,7 +336,7 @@ interface StoreContextType {
   deleteCustomer: (customerId: string) => void;
 
   // Lifetime VIP Pass actions
-  requestVipMembershipWhatsApp: (tierId: VipTierId, customerName: string, phone: string, email?: string) => Promise<VipMembershipRequest>;
+  requestVipMembershipWhatsApp: (tierId: VipTierId, customerName: string, phone: string, email?: string, amountOverride?: number) => Promise<VipMembershipRequest>;
   grantVipMembershipManual: (customerPhoneOrId: string, tierId: VipTierId) => void;
 
   // Admin Users
@@ -735,6 +736,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!tier) throw new Error('VIP pass nahi mila.');
     await setDoc(doc(db, 'vipTiers', tierId), { ...tier, imageUrl, updatedAt: new Date().toISOString() }, { merge: true });
     setVipTiers((prev) => prev.map((item) => item.id === tierId ? { ...item, imageUrl } : item));
+  };
+  const updateVipTier = async (tierId: VipTierId, updates: Partial<VipTier>) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    const tier = vipTiers.find((item) => item.id === tierId) || DEFAULT_VIP_TIERS.find((item) => item.id === tierId);
+    if (!tier) throw new Error('VIP tier not found.');
+    const updated = { ...tier, ...updates, id: tierId, updatedAt: new Date().toISOString() };
+    await setDoc(doc(db, 'vipTiers', tierId), updated, { merge: true });
+    setVipTiers((previous) => previous.map((item) => item.id === tierId ? updated : item));
   };
   const [vipRequests, setVipRequests] = useState<VipMembershipRequest[]>(() => {
     try {
@@ -2359,7 +2368,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const rejectVipRequest = async (requestId: string) => setVipRequestStatus(requestId, 'rejected');
 
   const requestVipMembershipWhatsApp = async (
-    tierId: VipTierId, customerName: string, phone: string, email?: string
+    tierId: VipTierId, customerName: string, phone: string, email?: string, amountOverride?: number
   ): Promise<VipMembershipRequest> => {
     const user = auth.currentUser;
     if (!user) throw new Error('Customer authentication required for VIP request.');
@@ -2367,7 +2376,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const saved: VipMembershipRequest & { uid: string } = {
       id: `vip-req-${Date.now()}`, customerId: user.uid, uid: user.uid,
       customerName: customerName.trim(), phone: phone.trim(), email: email?.trim() || '',
-      tierId, amount: tier.price, paymentMethod: 'whatsapp', transactionId: '',
+      tierId, amount: Math.max(0, Number(amountOverride ?? tier.price)), paymentMethod: 'whatsapp', transactionId: '',
       requestedAt: new Date().toISOString(), status: 'pending',
     };
     await setDoc(doc(db, 'vipRequests', saved.id), saved);
@@ -2839,6 +2848,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsOrdersDashboardOpen,
         vipTiers,
         updateVipTierImage,
+        updateVipTier,
         vipRequests,
         isVipModalOpen,
         setIsVipModalOpen,
