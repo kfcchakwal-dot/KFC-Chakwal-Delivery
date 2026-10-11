@@ -36,20 +36,35 @@
       if ('serviceWorker' in navigator) {
         var registerSW = function() {
           navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
-            // Check for updates on load and periodically
-            if (reg) {
-              reg.update();
-              reg.addEventListener('updatefound', function() {
-                var installingWorker = reg.installing;
-                if (installingWorker) {
-                  installingWorker.addEventListener('statechange', function() {
-                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                      window.dispatchEvent(new CustomEvent('pwa-update-available', { detail: reg }));
-                    }
-                  });
+            if (!reg) return;
+
+            // Check immediately on every app launch and when the installed PWA returns to foreground.
+            var checkForAppUpdate = function() {
+              if (navigator.onLine && reg.update) {
+                reg.update().catch(function() {});
+              }
+              if (reg.waiting) {
+                window.dispatchEvent(new CustomEvent('pwa-update-available', { detail: reg }));
+              }
+            };
+
+            checkForAppUpdate();
+            window.addEventListener('focus', checkForAppUpdate);
+            window.addEventListener('pageshow', checkForAppUpdate);
+            document.addEventListener('visibilitychange', function() {
+              if (document.visibilityState === 'visible') checkForAppUpdate();
+            });
+            window.addEventListener('online', checkForAppUpdate);
+
+            reg.addEventListener('updatefound', function() {
+              var installingWorker = reg.installing;
+              if (!installingWorker) return;
+              installingWorker.addEventListener('statechange', function() {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  window.dispatchEvent(new CustomEvent('pwa-update-available', { detail: reg }));
                 }
               });
-            }
+            });
           }).catch(function(err) {
             console.warn('SW register notice:', err);
           });
