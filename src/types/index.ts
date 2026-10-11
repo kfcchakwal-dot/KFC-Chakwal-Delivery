@@ -373,6 +373,7 @@ export interface DeliveryMethod {
 
 export interface DailyDealConfig {
   enabled: boolean;
+  popupEnabled?: boolean;
   title: string;
   subtitle: string;
   discountPercentage: number; // default 4%
