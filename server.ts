@@ -5,6 +5,7 @@ import { createServer as createViteServer } from 'vite';
 import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, type Auth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore';
+import { getMessaging, type Messaging } from 'firebase-admin/messaging';
 import { syncShopifyProductsToFirestore, getShopifyProducts, getShopifyConfigStatus } from './server/shopify';
 import { fetchAllSourceProducts, mergeSourceProducts } from './src/utils/productImporter';
 import { INITIAL_KFC_ITEMS } from './src/data/kfcMenu';
@@ -26,6 +27,7 @@ const FIRESTORE_DATABASE_ID = process.env.FIRESTORE_DATABASE_ID || firebaseConfi
 
 let firestoreDb: Firestore | null = null;
 let firebaseAuth: Auth | null = null;
+let firebaseMessaging: Messaging | null = null;
 
 try {
   if (!getApps().length) {
@@ -40,6 +42,11 @@ try {
     ? getFirestore(FIRESTORE_DATABASE_ID)
     : getFirestore();
   firebaseAuth = getAuth();
+  try {
+    firebaseMessaging = getMessaging();
+  } catch (msgErr) {
+    console.warn('[Firebase Messaging] Initialization warning:', msgErr);
+  }
   console.log(`[Firebase Admin] Initialized for project "${PROJECT_ID}", database "${FIRESTORE_DATABASE_ID}"`);
 } catch (err) {
   console.warn('[Firebase Admin] Initialization warning (running in hybrid mode):', err);
@@ -158,6 +165,34 @@ async function getOptionalCustomerAuth(req: Request): Promise<{ uid: string; ema
 }
 
 // =========================================================================
+// API CACHE CONTROL MIDDLEWARE
+// Prevents stale cached responses on Cloudflare and client browsers for all data/API endpoints
+// =========================================================================
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
+const sanitizeSettings = (settings: any) => {
+  if (!settings || typeof settings !== 'object') return settings;
+  const clean = { ...settings };
+  delete clean.adminUsers;
+  delete clean.adminPin;
+  if (clean.shopify) {
+    clean.shopify = { ...clean.shopify };
+    delete clean.shopify.storefrontAccessToken;
+    delete clean.shopify.adminWebhookUrl;
+  }
+  if (clean.metaCommerce) {
+    clean.metaCommerce = { ...clean.metaCommerce };
+    delete clean.metaCommerce.conversionsApiToken;
+  }
+  return clean;
+};
+
+// =========================================================================
 // API ENDPOINTS
 // =========================================================================
 
@@ -175,18 +210,9 @@ app.get('/api/store-data', async (req, res) => {
           isAdminRequest = adminDoc.exists && adminDoc.data()?.role === 'admin' && adminDoc.data()?.active !== false;
         }
         const safe = { ...data };
-        const sanitizeSettings = (settings: any) => {
-          if (!settings || typeof settings !== 'object') return settings;
-          const clean = { ...settings };
-          delete clean.adminUsers;
-          if (clean.metaCommerce) {
-            clean.metaCommerce = { ...clean.metaCommerce };
-            delete clean.metaCommerce.conversionsApiToken;
-          }
-          return clean;
-        };
         if (!isAdminRequest) {
           delete safe.adminUsers;
+          delete safe.adminPin;
           safe.settings = sanitizeSettings(safe.settings);
         }
         if (safe.metaCommerce) {
@@ -206,13 +232,29 @@ app.get('/api/store-data', async (req, res) => {
 app.post('/api/store-data', verifyAdminAuth, async (req, res) => {
   try {
     const payload = req.body || {};
+    const timestamp = new Date().toISOString();
     const updated = {
       ...payload,
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: timestamp,
     };
 
     if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    
+    // 1. Save to primary storeSettings/global (read by admin and server)
     await firestoreDb.collection('storeSettings').doc('global').set(updated, { merge: true });
+
+    // 2. CRITICAL REAL-TIME SYNC: Also keep storePublic/global strictly in sync!
+    // Customer app and other admin browser tabs listen to storePublic/global via onSnapshot.
+    const publicData: any = { ...updated, updatedAt: timestamp };
+    if (publicData.settings) {
+      publicData.settings = sanitizeSettings(publicData.settings);
+    }
+    if (publicData.metaCommerce) {
+      publicData.metaCommerce = sanitizeSettings(publicData.metaCommerce);
+    }
+    await firestoreDb.collection('storePublic').doc('global').set(publicData, { merge: true });
+
+    // 3. Keep products collection in sync for individual document queries
     if (Array.isArray(payload.menuItems)) {
       const batch = firestoreDb.batch();
       for (const product of payload.menuItems) {
@@ -224,7 +266,231 @@ app.post('/api/store-data', verifyAdminAuth, async (req, res) => {
 
     res.json(updated);
   } catch (err) {
+    console.error('Failed to update store data:', err);
     res.status(500).json({ error: 'Failed to update store data' });
+  }
+});
+
+// =========================================================================
+// PUSH NOTIFICATIONS API (FCM Backend Sender)
+// =========================================================================
+
+// POST /api/admin/send-push-notification (Admin Only)
+app.post('/api/admin/send-push-notification', verifyAdminAuth, async (req, res) => {
+  try {
+    if (!firestoreDb) {
+      return res.status(503).json({ error: 'Firestore is unavailable' });
+    }
+
+    const { title, message, body, imageUrl, targetUrl, type, testToken } = req.body || {};
+    const notificationTitle = String(title || '🍗 KFC Chakwal Delivery').trim().slice(0, 100);
+    const notificationBody = String(message || body || 'New announcement from KFC Chakwal!').trim().slice(0, 300);
+    const notificationImage = imageUrl ? String(imageUrl).trim() : undefined;
+    const notificationUrl = targetUrl ? String(targetUrl).trim() : '/';
+    const notifType = type || 'announcement';
+
+    if (!notificationTitle || !notificationBody) {
+      return res.status(400).json({ error: 'Title and message are required' });
+    }
+
+    if (!firebaseMessaging) {
+      try {
+        firebaseMessaging = getMessaging();
+      } catch (err) {
+        console.warn('Firebase Messaging init attempt failed:', err);
+      }
+    }
+
+    if (!firebaseMessaging) {
+      return res.status(503).json({
+        error: 'Firebase Cloud Messaging sender is unavailable on server. Verify Firebase project configuration.',
+      });
+    }
+
+    // 1. Single test device mode
+    if (testToken) {
+      try {
+        const sendResult = await firebaseMessaging.send({
+          token: testToken,
+          notification: {
+            title: notificationTitle,
+            body: notificationBody,
+            imageUrl: notificationImage,
+          },
+          data: {
+            url: notificationUrl,
+            type: String(notifType),
+            isTest: 'true',
+          },
+          webpush: {
+            fcmOptions: { link: notificationUrl },
+            notification: {
+              icon: '/pwa-192.png',
+              badge: '/pwa-192.png',
+              image: notificationImage,
+              requireInteraction: true,
+              tag: `kfc-test-${Date.now()}`,
+            },
+          },
+        });
+
+        return res.json({
+          success: true,
+          isTest: true,
+          messageId: sendResult,
+          sentCount: 1,
+          failureCount: 0,
+          totalTokens: 1,
+        });
+      } catch (testErr: any) {
+        console.error('Test push delivery failed:', testErr);
+        return res.status(500).json({
+          success: false,
+          isTest: true,
+          error: testErr.message || 'Failed to deliver test notification',
+          errorCode: testErr.code,
+        });
+      }
+    }
+
+    // 2. Broadcast mode: fetch active customer tokens from Firestore
+    const tokensSnap = await firestoreDb.collection('customerPushTokens').where('active', '==', true).get();
+    const tokenDocs = tokensSnap.docs;
+    const rawTokens = tokenDocs.map((doc) => ({
+      docId: doc.id,
+      token: String(doc.data().token || '').trim(),
+    })).filter((t) => t.token.length > 0);
+
+    // Deduplicate unique tokens
+    const uniqueMap = new Map<string, string>(); // token -> docId
+    for (const item of rawTokens) {
+      if (!uniqueMap.has(item.token)) {
+        uniqueMap.set(item.token, item.docId);
+      }
+    }
+
+    const tokens = Array.from(uniqueMap.keys());
+    if (tokens.length === 0) {
+      return res.json({
+        success: true,
+        sentCount: 0,
+        failureCount: 0,
+        totalTokens: 0,
+        message: 'No active subscribed customer devices found.',
+      });
+    }
+
+    // Send in chunks of 500
+    let totalSuccess = 0;
+    let totalFailure = 0;
+    const staleDocIds: string[] = [];
+    const errors: string[] = [];
+
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
+      const batchTokens = tokens.slice(i, i + BATCH_SIZE);
+      const response = await firebaseMessaging.sendEachForMulticast({
+        tokens: batchTokens,
+        notification: {
+          title: notificationTitle,
+          body: notificationBody,
+          imageUrl: notificationImage,
+        },
+        data: {
+          url: notificationUrl,
+          type: String(notifType),
+        },
+        webpush: {
+          fcmOptions: { link: notificationUrl },
+          notification: {
+            icon: '/pwa-192.png',
+            badge: '/pwa-192.png',
+            image: notificationImage,
+            requireInteraction: true,
+            tag: `kfc-notice-${Date.now()}`,
+          },
+        },
+      });
+
+      totalSuccess += response.successCount;
+      totalFailure += response.failureCount;
+
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          const errCode = resp.error?.code;
+          if (errCode) errors.push(errCode);
+          if (
+            errCode === 'messaging/registration-token-not-registered' ||
+            errCode === 'messaging/invalid-registration-token'
+          ) {
+            const badToken = batchTokens[idx];
+            const docId = uniqueMap.get(badToken);
+            if (docId) staleDocIds.push(docId);
+          }
+        }
+      });
+    }
+
+    // Deactivate stale/expired tokens asynchronously
+    if (staleDocIds.length > 0) {
+      const batch = firestoreDb.batch();
+      staleDocIds.forEach((docId) => {
+        batch.update(firestoreDb!.collection('customerPushTokens').doc(docId), { active: false, deactivatedAt: FieldValue.serverTimestamp() });
+      });
+      batch.commit().catch((err) => console.warn('Failed to prune stale tokens:', err));
+    }
+
+    // Save record to notifications collection
+    const notifRecord = {
+      title: notificationTitle,
+      message: notificationBody,
+      imageUrl: notificationImage || null,
+      targetUrl: notificationUrl,
+      type: notifType,
+      sentAt: new Date().toISOString(),
+      sentCount: totalSuccess,
+      failureCount: totalFailure,
+      totalTokens: tokens.length,
+      prunedTokensCount: staleDocIds.length,
+      createdBy: (req as any).adminUser?.email || 'admin',
+    };
+    await firestoreDb.collection('notifications').add(notifRecord);
+
+    return res.json({
+      success: true,
+      sentCount: totalSuccess,
+      failureCount: totalFailure,
+      totalTokens: tokens.length,
+      prunedCount: staleDocIds.length,
+      errors: Array.from(new Set(errors)).slice(0, 5),
+    });
+  } catch (err: any) {
+    console.error('[FCM Send Error]:', err);
+    return res.status(500).json({ error: err.message || 'Failed to send push notification' });
+  }
+});
+
+// GET /api/admin/notifications (List recent notification history)
+app.get('/api/admin/notifications', verifyAdminAuth, async (_req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const snap = await firestoreDb.collection('notifications').orderBy('sentAt', 'desc').limit(40).get();
+    const list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return res.json(list);
+  } catch (err: any) {
+    console.error('List notifications error:', err);
+    return res.status(500).json({ error: 'Failed to load notifications history' });
+  }
+});
+
+// GET /api/admin/subscribers-count (Active subscriber count)
+app.get('/api/admin/subscribers-count', verifyAdminAuth, async (_req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const snap = await firestoreDb.collection('customerPushTokens').where('active', '==', true).get();
+    return res.json({ activeCount: snap.size });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Failed to count subscribers' });
   }
 });
 
@@ -1169,15 +1435,35 @@ async function startServer() {
         const indexPath = path.resolve(process.cwd(), 'index.html');
         let template = fs.readFileSync(indexPath, 'utf-8');
         template = await vite.transformIndexHtml(req.originalUrl, template);
-        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+        res.status(200).set({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }).end(template);
       } catch (e) {
         next(e);
       }
     });
   } else {
-    app.use(express.static(path.resolve(process.cwd(), 'dist')));
+    // Production static assets: Immutable caching for hashed assets, no-cache for index.html
+    app.use(express.static(path.resolve(process.cwd(), 'dist'), {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        } else if (filePath.includes('/assets/') || filePath.includes('\\assets\\')) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      }
+    }));
     app.get('*', (_req, res) => {
-      res.sendFile(path.resolve(process.cwd(), 'dist/index.html'));
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }).sendFile(path.resolve(process.cwd(), 'dist/index.html'));
     });
   }
 

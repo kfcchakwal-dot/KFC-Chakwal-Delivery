@@ -1,7 +1,7 @@
 // KFC Chakwal Delivery Progressive Web App Service Worker
-// Version: 11.0.0 - Reliable PWA Updates & Rich Customer Push Notifications
+// Version: 12.0.0 - Reliable PWA Updates & Rich Customer Push Notifications
 
-const CACHE_NAME = 'kfc-chakwal-v11';
+const CACHE_NAME = 'kfc-chakwal-v12';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',

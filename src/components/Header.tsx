@@ -21,6 +21,7 @@ import {
   ArrowRight,
   Store
 } from 'lucide-react';
+import { CustomerNotificationToggle } from './CustomerNotificationToggle';
 
 const MEAL_BOX_SUGGESTIONS = [
   'Krunch Combo',
@@ -646,6 +647,11 @@ export const Header: React.FC = () => {
                     {currentUser?.vipStatus === 'active' ? 'Active' : 'Get Pass'}
                   </span>
                 </button>
+
+                {/* Customer Push Notification Subscription Toggle */}
+                <div className="pt-1">
+                  <CustomerNotificationToggle variant="button" />
+                </div>
 
               </div>
             </div>

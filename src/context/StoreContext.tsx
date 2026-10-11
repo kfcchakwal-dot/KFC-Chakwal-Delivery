@@ -117,7 +117,7 @@ interface StoreContextType {
 
   // Menu Catalog (Fully editable)
   menuItems: MenuItem[];
-  updateMenuItem: (item: MenuItem) => void;
+  updateMenuItem: (item: MenuItem) => Promise<void> | void;
   updateProductStatus: (itemId: string, status: 'active' | 'draft') => Promise<void>;
   bulkUpdateProductStatus: (itemIds: string[], status: 'active' | 'draft') => Promise<{ success: boolean; updatedCount: number; failedIds: string[] }>;
   bulkDeleteMenuItems: (itemIds: string[]) => Promise<{ success: boolean; deletedCount: number; failedIds: string[] }>;
@@ -891,7 +891,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         publicPayload.metaCommerce = { ...publicPayload.metaCommerce };
         delete publicPayload.metaCommerce.conversionsApiToken;
       }
-      await setDoc(doc(db, 'storePublic', 'global'), { ...publicPayload, updatedAt: new Date().toISOString() }, { merge: true });
+      const timestamp = new Date().toISOString();
+      // 1. Write to storePublic/global (triggers live onSnapshot updates across all customer and admin devices)
+      await setDoc(doc(db, 'storePublic', 'global'), { ...publicPayload, updatedAt: timestamp }, { merge: true });
+      
+      // 2. Write to storeSettings/global (backend source of truth and admin persistence)
+      try {
+        await setDoc(doc(db, 'storeSettings', 'global'), { ...payload, lastUpdated: timestamp }, { merge: true });
+      } catch (adminDocErr) {
+        console.warn('storeSettings write notice:', adminDocErr);
+      }
+
       setServerSyncStatus('synced');
       return true;
     } catch (error) {
@@ -962,12 +972,56 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   useEffect(() => {
-    // Treat the first fetch after login/role changes as the baseline, not a new order.
+    // Real-time Firestore onSnapshot listener for instant orders synchronization across all admin & customer devices
     ordersInitializedRef.current = false;
     previousOrderCountRef.current = 0;
-    void fetchOrders();
-    const interval = setInterval(() => { void fetchOrders(); }, 15000);
-    return () => clearInterval(interval);
+
+    const user = auth.currentUser;
+    if (!user) {
+      setAllOrders([]);
+      return;
+    }
+
+    const ordersQuery = isAdmin
+      ? query(collection(db, 'orders'), orderBy('date', 'desc'))
+      : query(collection(db, 'orders'), where('customer.uid', '==', user.uid), orderBy('date', 'desc'));
+
+    const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
+      const data: Order[] = snapshot.docs
+        .map((d) => ({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      if (isAdmin && ordersInitializedRef.current && data.length > previousOrderCountRef.current) {
+        if (settings.orderNotificationSound !== false) playNewOrderChime();
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const title = '🍗 New KFC Chakwal Order';
+          const options: NotificationOptions = {
+            body: 'New order #' + (data[0]?.id || '') + ' received. Tap to open Seller Center.',
+            icon: '/pwa-192.png',
+            tag: 'kfc-new-order-' + (data[0]?.id || ''),
+            data: { url: '/seller' },
+          };
+          if ('serviceWorker' in navigator) {
+            void navigator.serviceWorker.ready
+              .then((registration) => registration.showNotification(title, options))
+              .catch(() => {
+                const notification = new Notification(title, options);
+                notification.onclick = () => { window.focus(); window.location.href = '/seller'; };
+              });
+          } else {
+            const notification = new Notification(title, options);
+            notification.onclick = () => { window.focus(); window.location.href = '/seller'; };
+          }
+        }
+      }
+      previousOrderCountRef.current = data.length;
+      ordersInitializedRef.current = true;
+      setAllOrders(data);
+    }, (error) => {
+      console.warn('Orders Firestore real-time onSnapshot notice:', error);
+    });
+
+    return () => unsubscribe();
   }, [settings.orderNotificationSound, isAdmin]);
 
   // Manual refresh helper retained for the admin UI; the live listener below keeps this current automatically.
@@ -1224,7 +1278,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Menu item operations (Fully editable: Title, description, price, compareAt, image, etc.)
-  const updateMenuItem = (updatedItem: MenuItem) => {
+  const updateMenuItem = async (updatedItem: MenuItem) => {
     const nextMenu = menuItems.map((item) =>
       item.id === updatedItem.id ? updatedItem : item
     );
@@ -1232,7 +1286,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (updatedItem.status === 'draft') {
       setCart((prev) => prev.filter((item) => item.menuItem.id !== updatedItem.id));
     }
-    syncStoreToServer({ menuItems: nextMenu });
+    await syncStoreToServer({ menuItems: nextMenu });
+    try {
+      await setDoc(doc(db, 'products', updatedItem.id), { ...updatedItem, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch (e) {
+      console.warn('Individual product doc sync notice:', e);
+    }
   };
 
   const updateProductStatus = async (itemId: string, status: 'active' | 'draft') => {
@@ -1244,6 +1303,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCart((prev) => prev.filter((item) => item.menuItem.id !== itemId));
     }
     await syncStoreToServer({ menuItems: nextMenu });
+    try {
+      await setDoc(doc(db, 'products', itemId), { status, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch (e) {
+      console.warn('Product status doc sync notice:', e);
+    }
   };
 
   const bulkUpdateProductStatus = async (

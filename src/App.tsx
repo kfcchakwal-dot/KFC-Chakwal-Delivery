@@ -26,6 +26,8 @@ import { DailyDealsPopupModal } from './components/DailyDealsPopupModal';
 import { LoyaltyProgramModal } from './components/LoyaltyProgramModal';
 import { VipClubModal } from './components/VipClubModal';
 import { PointsEarnedNotification } from './components/PointsEarnedNotification';
+import { AppUpdatePrompt } from './components/AppUpdatePrompt';
+import { CustomerNotificationToggle } from './components/CustomerNotificationToggle';
 import { KFC_CATEGORIES } from './data/kfcMenu';
 import { CategoryId } from './types';
 import { SearchX, Bike } from 'lucide-react';
@@ -47,6 +49,8 @@ const MainShop: React.FC = () => {
     setIsCartOpen,
     isCustomizerOpen,
     setIsCustomizerOpen,
+    selectedItemForCustomization,
+    setSelectedItemForCustomization,
     isCheckoutOpen,
     setIsCheckoutOpen,
     isCustomerAuthModalOpen,
@@ -68,8 +72,10 @@ const MainShop: React.FC = () => {
   } = useStore();
 
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  const [hasExitedCleanly, setHasExitedCleanly] = useState(false);
   const allowExitRef = useRef(false);
   const lastBackPressTimeRef = useRef<number>(0);
+  const backHintTimerRef = useRef<any>(null);
   const [showBackHint, setShowBackHint] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
   const [navSelectedCategory, setNavSelectedCategory] = useState<CategoryId | 'all'>('all');
@@ -158,6 +164,7 @@ const MainShop: React.FC = () => {
     isCheckoutOpen ||
     isCartOpen ||
     isCustomizerOpen ||
+    selectedItemForCustomization ||
     isCustomerAuthModalOpen ||
     isAdminLoginModalOpen ||
     isPoliciesModalOpen ||
@@ -183,63 +190,82 @@ const MainShop: React.FC = () => {
       // 1. If Exit Confirmation dialog is already open, back button simply dismisses it
       if (isExitConfirmOpen) {
         setIsExitConfirmOpen(false);
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
 
       // 2. If any modal, drawer, customizer or subscreen is open, close the top-most layer
+      // and reset the exit timer so closing a modal never counts as the first tap of an exit sequence.
       if (isDailyDealsPopupOpen) {
         setIsDailyDealsPopupOpen(false);
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
       if (isVipModalOpen) {
         setIsVipModalOpen(false);
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
       if (isLoyaltyModalOpen) {
         setIsLoyaltyModalOpen(false);
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
       if (isCheckoutOpen) {
         setIsCheckoutOpen(false);
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
       if (isCartOpen) {
         setIsCartOpen(false);
+        lastBackPressTimeRef.current = 0;
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+      if (selectedItemForCustomization) {
+        setSelectedItemForCustomization(null);
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
       if (isCustomizerOpen) {
         setIsCustomizerOpen(false);
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
       if (isCustomerAuthModalOpen) {
         setIsCustomerAuthModalOpen(false);
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
       if (isAdminLoginModalOpen) {
         setIsAdminLoginModalOpen(false);
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
       if (isPoliciesModalOpen) {
         setIsPoliciesModalOpen(false);
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
       if (activeOrder) {
         clearActiveOrder();
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
       if (currentView !== 'home') {
         goHome();
+        lastBackPressTimeRef.current = 0;
         window.history.pushState({ kfcGuard: true }, '');
         return;
       }
@@ -255,7 +281,8 @@ const MainShop: React.FC = () => {
         // First Back press: show brief non-intrusive hint without disturbing the user
         lastBackPressTimeRef.current = now;
         setShowBackHint(true);
-        setTimeout(() => setShowBackHint(false), 2000);
+        if (backHintTimerRef.current) clearTimeout(backHintTimerRef.current);
+        backHintTimerRef.current = setTimeout(() => setShowBackHint(false), 2000);
       }
       window.history.pushState({ kfcGuard: true }, '');
     };
@@ -270,6 +297,7 @@ const MainShop: React.FC = () => {
     isCheckoutOpen,
     isCartOpen,
     isCustomizerOpen,
+    selectedItemForCustomization,
     isCustomerAuthModalOpen,
     isAdminLoginModalOpen,
     isPoliciesModalOpen,
@@ -281,6 +309,7 @@ const MainShop: React.FC = () => {
     setIsCheckoutOpen,
     setIsCartOpen,
     setIsCustomizerOpen,
+    setSelectedItemForCustomization,
     setIsCustomerAuthModalOpen,
     setIsAdminLoginModalOpen,
     setIsPoliciesModalOpen,
@@ -333,6 +362,9 @@ const MainShop: React.FC = () => {
 
       {/* 100% Customer Facing Header (Mobile Optimized, Zero Overflow) */}
       <div data-color-section="header"><Header /></div>
+
+      {/* Customer Opt-in Notification Banner (non-intrusive, only shown when permission unprompted) */}
+      <CustomerNotificationToggle variant="banner" />
 
       {/* VIEW ROUTING: PRODUCT DETAIL PAGE */}
       {currentView === 'product' && <div data-color-section="product"><ProductPage /></div>}
@@ -534,7 +566,10 @@ const MainShop: React.FC = () => {
             <div className="grid grid-cols-2 gap-3 pt-1">
               <button
                 type="button"
-                onClick={() => setIsExitConfirmOpen(false)}
+                onClick={() => {
+                  setIsExitConfirmOpen(false);
+                  lastBackPressTimeRef.current = 0;
+                }}
                 className="rounded-xl border border-zinc-300 hover:bg-zinc-100 px-4 py-2.5 text-xs font-bold text-zinc-700 transition cursor-pointer"
               >
                 Nahi, yahin rahen

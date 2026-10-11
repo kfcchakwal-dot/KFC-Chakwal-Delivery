@@ -79,6 +79,7 @@ import { OrderEditModal } from './OrderEditModal';
 import { BulkProductEditor } from './BulkProductEditor';
 import { RestaurantPOS } from './RestaurantPOS';
 import { SectionColorManager } from './SectionColorManager';
+import { AnnouncementPushManager } from './AnnouncementPushManager';
 import { CategoryId, MenuItem, MenuItemAddon, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
 import { KFC_CATEGORIES } from '../../data/kfcMenu';
 import { auth, db } from '../../lib/firebase';
@@ -94,6 +95,7 @@ type SellerTab =
   | 'daily-deals'
   | 'customers'
   | 'vip-club'
+  | 'announcements'
   | 'marketing'
   | 'meta'
   | 'delivery-methods'
@@ -1242,6 +1244,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 { id: 'daily-deals', label: 'Daily 5 Deals (4% OFF)', icon: Flame },
                 { id: 'customers', label: 'Customers & Loyalty', icon: Users },
                 { id: 'vip-club', label: "Colonel's VIP Club", icon: Crown },
+                { id: 'announcements', label: 'Announcements & Push Alerts', icon: Bell },
                 { id: 'marketing', label: 'WhatsApp Marketing', icon: Send },
                 { id: 'meta', label: 'Meta Ads & Catalog', icon: Share2 },
                 { id: 'delivery-methods', label: 'Delivery Methods', icon: Truck },
@@ -3433,13 +3436,30 @@ export const ShopifyAdminApp: React.FC = () => {
           )}
 
           {/* ========================================================================= */}
+          {/* TAB: ANNOUNCEMENTS & CUSTOMER PUSH NOTIFICATIONS */}
+          {/* ========================================================================= */}
+          {activeTab === 'announcements' && (
+            <AnnouncementPushManager />
+          )}
+
+          {/* ========================================================================= */}
           {/* TAB: WHATSAPP MARKETING */}
           {/* ========================================================================= */}
           {activeTab === 'marketing' && (
             <div className="space-y-6 max-w-5xl">
-              <div className="border-b border-zinc-200 pb-5">
-                <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">WhatsApp Marketing</h2>
-                <p className="text-xs text-zinc-500 mt-1">Campaign history is shown below. Automatic WhatsApp sending requires the WhatsApp Business Cloud API configuration.</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200 pb-5">
+                <div>
+                  <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">WhatsApp Marketing</h2>
+                  <p className="text-xs text-zinc-500 mt-1">Campaign history is shown below. Automatic WhatsApp sending requires the WhatsApp Business Cloud API configuration.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('announcements')}
+                  className="rounded-xl bg-[#e4002b] hover:bg-[#c30025] text-white px-3.5 py-2 text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  <span>Push Notifications & Banners</span>
+                </button>
               </div>
               <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-800 text-sm">
                 <strong>Free WhatsApp mode:</strong> WhatsApp Business API ki zaroorat nahi. Neeche diye gaye button se customer ki WhatsApp chat pre-filled message ke saath open hogi. Official WhatsApp Click-to-Chat links mobile aur WhatsApp Web dono par kaam karte hain.

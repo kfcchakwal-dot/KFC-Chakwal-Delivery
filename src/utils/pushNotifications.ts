@@ -163,3 +163,98 @@ export async function unsubscribeCustomerFromPush(): Promise<{ success: boolean;
     return { success: false, error: err?.message || 'Failed to unsubscribe.' };
   }
 }
+
+/**
+ * Returns currently stored FCM token on this device if any.
+ */
+export function getCurrentDeviceFcmToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(PUSH_TOKEN_STORAGE_KEY);
+}
+
+export interface SendPushPayload {
+  title: string;
+  message: string;
+  imageUrl?: string;
+  targetUrl?: string;
+  type?: 'announcement' | 'discount' | 'promotion' | 'menu_update';
+  testToken?: string;
+}
+
+export interface SendPushResult {
+  success: boolean;
+  isTest?: boolean;
+  sentCount?: number;
+  failureCount?: number;
+  totalTokens?: number;
+  prunedCount?: number;
+  message?: string;
+  error?: string;
+  errors?: string[];
+}
+
+/**
+ * Securely triggers server-side FCM push notification dispatch via /api/admin/send-push-notification.
+ * No server keys are ever exposed in client code.
+ */
+export async function sendPushNotificationViaServer(
+  payload: SendPushPayload,
+  adminToken: string
+): Promise<SendPushResult> {
+  try {
+    const res = await fetch('/api/admin/send-push-notification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: data.error || `Server responded with status ${res.status}`,
+      };
+    }
+
+    return data;
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Failed to communicate with push notification server',
+    };
+  }
+}
+
+/**
+ * Loads recent notification dispatch history.
+ */
+export async function fetchNotificationHistory(adminToken: string): Promise<any[]> {
+  try {
+    const res = await fetch('/api/admin/notifications', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Loads current count of active subscribed customer devices.
+ */
+export async function fetchSubscribersCount(adminToken: string): Promise<number> {
+  try {
+    const res = await fetch('/api/admin/subscribers-count', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return Number(data.activeCount || 0);
+  } catch {
+    return 0;
+  }
+}

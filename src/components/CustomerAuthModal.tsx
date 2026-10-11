@@ -20,6 +20,7 @@ import {
   Home,
   LogOut
 } from 'lucide-react';
+import { CustomerNotificationToggle } from './CustomerNotificationToggle';
 
 export const CustomerAuthModal: React.FC = () => {
   const {
@@ -259,6 +260,9 @@ export const CustomerAuthModal: React.FC = () => {
                     Current Default Address: <strong className={isDark ? 'text-white' : 'text-zinc-900'}>{currentUser.address}</strong>
                   </p>
                 </div>
+
+                {/* Push Notification Preferences */}
+                <CustomerNotificationToggle variant="button" />
 
                 {/* Loyalty Rules & Policy */}
                 <div className={`p-4 rounded-2xl border space-y-2 text-xs ${
