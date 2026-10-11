@@ -78,6 +78,7 @@ import { VipClubManager } from './VipClubManager';
 import { OrderEditModal } from './OrderEditModal';
 import { BulkProductEditor } from './BulkProductEditor';
 import { RestaurantPOS } from './RestaurantPOS';
+import { InventoryOperations } from './InventoryOperations';
 import { SectionColorManager } from './SectionColorManager';
 import { AnnouncementPushManager } from './AnnouncementPushManager';
 import { CategoryId, MenuItem, MenuItemAddon, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
@@ -89,6 +90,7 @@ type SellerTab =
   | 'dashboard'
   | 'orders'
   | 'pos'
+  | 'operations'
   | 'section-colors'
   | 'abandoned'
   | 'products'
@@ -181,7 +183,7 @@ export const ShopifyAdminApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SellerTab>(() => {
     try {
       const saved = localStorage.getItem('kfc-admin-active-tab') as SellerTab | null;
-      const allowed: SellerTab[] = ['dashboard','orders','pos','abandoned','products','daily-deals','customers','vip-club','announcements','marketing','meta','delivery-methods','discounts','online-store','section-colors','reviews','policies','links','settings'];
+      const allowed: SellerTab[] = ['dashboard','orders','pos','operations','abandoned','products','daily-deals','customers','vip-club','announcements','marketing','meta','delivery-methods','discounts','online-store','section-colors','reviews','policies','links','settings'];
       return saved && allowed.includes(saved) ? saved : 'dashboard';
     } catch { return 'dashboard'; }
   });
@@ -1286,6 +1288,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 { id: 'dashboard', label: 'Sales & Operational Analytics', icon: LayoutDashboard },
                 { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrders > 0 ? pendingOrders : undefined },
                 { id: 'pos', label: 'Restaurant POS & Billing', icon: Receipt },
+                { id: 'operations', label: 'Vendors, Purchases & Shifts', icon: Boxes },
                 { id: 'abandoned', label: 'Abandoned Checkouts (Manual)', icon: AlertCircle, badge: abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length > 0 ? abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length : undefined },
                 { id: 'products', label: 'Menu Editor & Products', icon: UtensilsCrossed },
                 { id: 'daily-deals', label: 'Daily 5 Deals (4% OFF)', icon: Flame },
@@ -3532,6 +3535,8 @@ export const ShopifyAdminApp: React.FC = () => {
           {activeTab === 'pos' && (
             <RestaurantPOS onOrderCreated={() => { void fetchOrders(); }} />
           )}
+
+          {activeTab === 'operations' && <InventoryOperations />}
 
           {/* ========================================================================= */}
           {/* TAB: SECTION COLOR SCHEMES */}
