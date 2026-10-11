@@ -394,6 +394,9 @@ const MainShop: React.FC = () => {
           {/* Dynamic Page Sections - e.g. Image with Text placeholders placed by Admin */}
           <PageSectionsRenderer page="home" />
 
+          {/* Admin-configurable customer reviews widget */}
+          <ReviewsWidget variant="home" />
+
           {/* Main Menu Section (pb-28 on mobile avoids FloatingCartBar overlap) */}
           <section id="kfc-menu-section" className="flex-1 pb-28 sm:pb-16">
             <CategoryNav
