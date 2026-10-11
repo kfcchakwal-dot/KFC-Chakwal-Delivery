@@ -2513,7 +2513,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const cleanPhone = order.customer.phone.replace(/[^0-9]/g, '');
     const intlPhone = cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
     const text = encodeURIComponent(
-      `Assalam o Alaikum ${order.customer.fullName}! Umeed hai aap ka KFC meal bohot crispy aur lazeez tha. Baraye meherbani 1 minute nikaal kar apna review submit karein: ${window.location.origin}/#reviews - Review par aapko 20 FREE KFC Loyalty Points milenge!`
+      `Assalam o Alaikum ${order.customer.fullName}! Umeed hai aap ka KFC meal bohot crispy aur lazeez tha. Baraye meherbani 1 minute nikaal kar apna review submit karein: ${window.location.origin}/?view=reviews - Review par aapko 20 FREE KFC Loyalty Points milenge!`
     );
     window.open(`https://wa.me/${intlPhone}?text=${text}`, '_blank');
   };
