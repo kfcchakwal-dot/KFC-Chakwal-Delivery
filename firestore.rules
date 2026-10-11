@@ -114,6 +114,17 @@ service cloud.firestore {
       allow delete: if admin() || (signedIn() && resource.data.uid == request.auth.uid);
     }
 
+    // Customer-owned FCM tokens for announcements, sales, and promotional updates.
+    match /customerPushTokens/{tokenId} {
+      allow read: if admin() || (signedIn() && resource.data.customerId == request.auth.uid);
+      allow create, update: if
+        request.resource.data.token is string &&
+        request.resource.data.token.size() > 0 &&
+        request.resource.data.token.size() <= 1024 &&
+        request.resource.data.active is bool;
+      allow delete: if admin() || (signedIn() && resource.data.customerId == request.auth.uid);
+    }
+
     // Order review-request history is private to authorized admins.
     match /reviewRequests/{id} { allow read, write: if admin(); }
 

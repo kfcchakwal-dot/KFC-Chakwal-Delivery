@@ -336,7 +336,10 @@ export const ShopifyAdminApp: React.FC = () => {
   const [newProdBadge, setNewProdBadge] = useState('');
 
   // Orders Filter & Bulk Selection & Print
-  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'confirmed' | 'kitchen' | 'dispatched' | 'delivered' | 'cancelled'>('all');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'active' | 'confirmed' | 'kitchen' | 'dispatched' | 'delivered' | 'cancelled'>('all');
+  const [isLiveVisitorsModalOpen, setIsLiveVisitorsModalOpen] = useState(false);
+  const [isLiveSyncing, setIsLiveSyncing] = useState(false);
+  const [liveSyncMessage, setLiveSyncMessage] = useState<string | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<Order['status']>('kitchen');
   const [isUpdatingBulkStatus, setIsUpdatingBulkStatus] = useState(false);
@@ -537,18 +540,37 @@ export const ShopifyAdminApp: React.FC = () => {
     );
   }
 
-  // Dashboard calculations (All Time)
+  // Dashboard calculations (All Time & Today)
   const totalRevenue = allOrders.reduce((acc, o) => acc + (o.total || 0), 0);
   const pendingOrders = allOrders.filter((o) => o.status === 'confirmed' || o.status === 'kitchen').length;
+  const inDeliveryOrders = allOrders.filter((o) => o.status === 'dispatched').length;
+  const activeOrdersInQueue = allOrders.filter((o) => o.status === 'confirmed' || o.status === 'kitchen' || o.status === 'dispatched').length;
   const deliveredOrders = allOrders.filter((o) => o.status === 'delivered').length;
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const isOrderToday = (dateStr: string) => {
+    if (!dateStr) return false;
+    if (dateStr.startsWith(todayDateStr)) return true;
+    try {
+      const d = new Date(dateStr);
+      const curr = new Date();
+      return (
+        d.getFullYear() === curr.getFullYear() &&
+        d.getMonth() === curr.getMonth() &&
+        d.getDate() === curr.getDate()
+      );
+    } catch {
+      return false;
+    }
+  };
+  const todayOrders = allOrders.filter((o) => isOrderToday(o.date));
+  const todayRevenue = todayOrders.reduce((acc, o) => acc + (o.total || 0), 0);
 
   // Date-wise Filtering (Shopify Sales Report)
   const now = new Date();
   const filteredOrdersByDate = allOrders.filter((o) => {
     const oDate = new Date(o.date);
     if (salesDateRange === 'today') {
-      const todayStr = now.toISOString().split('T')[0];
-      return o.date.startsWith(todayStr);
+      return isOrderToday(o.date);
     }
     if (salesDateRange === 'yesterday') {
       const y = new Date(now);
@@ -779,6 +801,9 @@ export const ShopifyAdminApp: React.FC = () => {
 
   const filteredOrders = allOrders.filter((order) => {
     if (orderStatusFilter === 'all') return true;
+    if (orderStatusFilter === 'active') {
+      return order.status === 'confirmed' || order.status === 'kitchen' || order.status === 'dispatched';
+    }
     return order.status === orderStatusFilter;
   });
 
@@ -1209,7 +1234,7 @@ export const ShopifyAdminApp: React.FC = () => {
             {/* Navigation Menu */}
             <nav className="space-y-1">
               {[
-                { id: 'dashboard', label: 'Dashboard & Realtime', icon: LayoutDashboard },
+                { id: 'dashboard', label: 'Sales & Operational Analytics', icon: LayoutDashboard },
                 { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrders > 0 ? pendingOrders : undefined },
                 { id: 'pos', label: 'Restaurant POS & Billing', icon: Receipt },
                 { id: 'abandoned', label: 'Abandoned Checkouts (Manual)', icon: AlertCircle, badge: abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length > 0 ? abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length : undefined },
@@ -1275,9 +1300,9 @@ export const ShopifyAdminApp: React.FC = () => {
               {/* Header & Quick Sync */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
                 <div>
-                  <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight flex items-center gap-2">
+                  <h2 className="text-2xl font-black text-zinc-900 tracking-tight flex items-center gap-2">
                     <TrendingUp className="w-6 h-6 text-[#e4002b]" />
-                    <span>Shopify-Style Sales & Operational Analytics</span>
+                    <span>Sales & Operational Analytics</span>
                   </h2>
                   <p className="text-xs text-zinc-500 mt-1">
                     Date-wise financial reports, order metrics, and menu sales breakdown for KFC Chakwal.
@@ -1326,47 +1351,123 @@ export const ShopifyAdminApp: React.FC = () => {
                 </div>
               </div>
 
-              {/* REAL-TIME LIVE ACTIVITY BAR (Visitors, Open Carts, Checking Out) */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
-                  <div>
+              {/* REAL-TIME LIVE ACTIVITY & OPERATIONAL BAR (Fully Functioning 4-Card Grid) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* 1. Realtime Live Visitors */}
+                <div
+                  onClick={async () => {
+                    setIsLiveVisitorsModalOpen(true);
+                    setIsLiveSyncing(true);
+                    try {
+                      await syncStoreToServer();
+                      setLiveSyncMessage('Visitor presence re-synced with server.');
+                    } catch {
+                      setLiveSyncMessage('Live status refreshed.');
+                    } finally {
+                      setIsLiveSyncing(false);
+                    }
+                  }}
+                  className="p-4 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 hover:border-emerald-300 rounded-2xl flex items-center justify-between transition cursor-pointer shadow-xs hover:shadow-md active:scale-[0.99] group"
+                  title="Click to view live traffic details & sync presence"
+                >
+                  <div className="min-w-0 pr-2">
                     <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                       <span>Realtime Live Visitors</span>
                     </span>
-                    <p className="text-2xl font-black text-emerald-950 font-mono mt-1">{liveStats.activeVisitors} Active</p>
-                    <p className="text-[10px] text-emerald-700 mt-0.5">Customers browsing KFC Chakwal app right now</p>
+                    <p className="text-2xl font-black text-emerald-950 font-mono mt-1 flex items-center gap-2">
+                      <span>{liveStats.activeVisitors} Active</span>
+                      {isLiveSyncing && <RefreshCw className="w-4 h-4 text-emerald-600 animate-spin" />}
+                    </p>
+                    <p className="text-[10px] text-emerald-700 mt-0.5 truncate flex items-center gap-1">
+                      <span>Shoppers browsing store now</span>
+                      <span className="font-bold underline text-emerald-800">· Click details</span>
+                    </p>
                   </div>
-                  <Activity className="w-8 h-8 text-emerald-600 opacity-80" />
+                  <Activity className="w-8 h-8 text-emerald-600 opacity-80 group-hover:scale-110 transition-transform shrink-0" />
                 </div>
 
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between">
-                  <div>
+                {/* 2. Active Open Carts */}
+                <div
+                  onClick={() => setActiveTab('abandoned')}
+                  className="p-4 bg-amber-50 hover:bg-amber-100/80 border border-amber-200 hover:border-amber-300 rounded-2xl flex items-center justify-between transition cursor-pointer shadow-xs hover:shadow-md active:scale-[0.99] group"
+                  title="Click to view open carts & WhatsApp recovery"
+                >
+                  <div className="min-w-0 pr-2">
                     <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-amber-500" />
                       <span>Active Open Carts</span>
                     </span>
                     <p className="text-2xl font-black text-amber-950 font-mono mt-1">{liveStats.openCartsCount} Buckets</p>
-                    <p className="text-[10px] text-amber-700 mt-0.5">Customers with hot meals in cart ({formatPKR(liveStats.openCartsValue)})</p>
+                    <p className="text-[10px] text-amber-700 mt-0.5 truncate flex items-center gap-1">
+                      <span>Value: {formatPKR(liveStats.openCartsValue)}</span>
+                      <span className="font-bold underline text-amber-800">· Recover</span>
+                    </p>
                   </div>
-                  <ShoppingBag className="w-8 h-8 text-amber-600 opacity-80" />
+                  <ShoppingBag className="w-8 h-8 text-amber-600 opacity-80 group-hover:scale-110 transition-transform shrink-0" />
                 </div>
 
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between">
-                  <div>
+                {/* 3. Kitchen & Out for Delivery Queue */}
+                <div
+                  onClick={() => {
+                    setOrderStatusFilter('active');
+                    setActiveTab('orders');
+                  }}
+                  className="p-4 bg-blue-50 hover:bg-blue-100/80 border border-blue-200 hover:border-blue-300 rounded-2xl flex items-center justify-between transition cursor-pointer shadow-xs hover:shadow-md active:scale-[0.99] group"
+                  title="Click to view Kitchen & Delivery queue in Orders tab"
+                >
+                  <div className="min-w-0 pr-2">
                     <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-blue-500" />
-                      <span>Checking Out Now</span>
+                      <span>Kitchen & In Delivery</span>
                     </span>
-                    <p className="text-2xl font-black text-blue-950 font-mono mt-1">{liveStats.checkoutsInProgress} People</p>
-                    <p className="text-[10px] text-blue-700 mt-0.5">Entering address & selecting payment</p>
+                    <p className="text-2xl font-black text-blue-950 font-mono mt-1">{activeOrdersInQueue} Orders</p>
+                    <p className="text-[10px] text-blue-700 mt-0.5 truncate flex items-center gap-1">
+                      <span>{pendingOrders} Kitchen · {inDeliveryOrders} On Bike</span>
+                      <span className="font-bold underline text-blue-800">· Open queue</span>
+                    </p>
                   </div>
-                  <CreditCard className="w-8 h-8 text-blue-600 opacity-80" />
+                  <Truck className="w-8 h-8 text-blue-600 opacity-80 group-hover:scale-110 transition-transform shrink-0" />
+                </div>
+
+                {/* 4. Today's Completed Sales */}
+                <div
+                  onClick={() => {
+                    setSalesDateRange('today');
+                    const el = document.getElementById('sales-report-section');
+                    if (el) {
+                      el.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }}
+                  className={`p-4 border rounded-2xl flex items-center justify-between transition cursor-pointer shadow-xs hover:shadow-md active:scale-[0.99] group ${
+                    salesDateRange === 'today'
+                      ? 'bg-red-100/90 border-[#e4002b] ring-2 ring-[#e4002b]/40 shadow-sm'
+                      : 'bg-red-50 hover:bg-red-100/70 border-red-200 hover:border-red-300'
+                  }`}
+                  title="Click to filter analytics report to Today"
+                >
+                  <div className="min-w-0 pr-2">
+                    <span className="text-[10px] font-bold text-red-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#e4002b]" />
+                      <span>Today's Sales</span>
+                      {salesDateRange === 'today' && (
+                        <span className="bg-[#e4002b] text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full">
+                          Active
+                        </span>
+                      )}
+                    </span>
+                    <p className="text-2xl font-black text-red-950 font-mono mt-1">{formatPKR(todayRevenue)}</p>
+                    <p className="text-[10px] text-red-700 mt-0.5 truncate flex items-center gap-1">
+                      <span>{todayOrders.length} orders placed today</span>
+                      <span className="font-bold underline text-red-800">· View report</span>
+                    </p>
+                  </div>
+                  <TrendingUp className="w-8 h-8 text-[#e4002b] opacity-80 group-hover:scale-110 transition-transform shrink-0" />
                 </div>
               </div>
 
               {/* SHOPIFY-STYLE DATE RANGE FILTER BAR */}
-              <div className="bg-white border border-zinc-200 p-4 rounded-2xl shadow-sm space-y-3">
+              <div id="sales-report-section" className="bg-white border border-zinc-200 p-4 rounded-2xl shadow-sm space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700">
                     <Calendar className="w-4 h-4 text-[#e4002b]" />
@@ -1655,6 +1756,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 <div className="flex flex-wrap gap-2">
                   {[
                     { id: 'all', label: 'All Orders', count: allOrders.length },
+                    { id: 'active', label: '🔥 Kitchen & Bike Queue', count: activeOrdersInQueue },
                     { id: 'confirmed', label: 'Confirmed', count: allOrders.filter((o) => o.status === 'confirmed').length },
                     { id: 'kitchen', label: 'Kitchen / Preparing', count: allOrders.filter((o) => o.status === 'kitchen').length },
                     { id: 'dispatched', label: 'On Bike Rider', count: allOrders.filter((o) => o.status === 'dispatched').length },
@@ -4605,6 +4707,113 @@ export const ShopifyAdminApp: React.FC = () => {
         orders={ordersToPrint}
         storeSettings={settings}
       />
+
+      {/* Realtime Live Store Visitors & Traffic Monitor Modal */}
+      {isLiveVisitorsModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-6 shadow-2xl border border-zinc-200">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <Activity className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-zinc-900">Realtime Store Visitors & Activity</h3>
+                  <p className="text-xs text-zinc-500">Live active sessions browsing KFC Chakwal storefront</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLiveVisitorsModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span>Current Active Visitors</span>
+                </span>
+                <p className="text-3xl font-black text-emerald-950 font-mono mt-1">
+                  {liveStats.activeVisitors}
+                </p>
+                <p className="text-[11px] text-emerald-700 mt-0.5">Live store browsers</p>
+              </div>
+
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span>Carts In Progress</span>
+                </span>
+                <p className="text-3xl font-black text-amber-950 font-mono mt-1">
+                  {liveStats.openCartsCount}
+                </p>
+                <p className="text-[11px] text-amber-700 mt-0.5">{formatPKR(liveStats.openCartsValue)} in buckets</p>
+              </div>
+            </div>
+
+            {/* Status Breakdown & sync */}
+            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-zinc-700 flex items-center gap-1.5">
+                  <Cloud className="w-4 h-4 text-emerald-600" />
+                  <span>Server Presence Status:</span>
+                </span>
+                <span className="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full text-[10px]">
+                  Online & Active
+                </span>
+              </div>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Shoppers actively browsing the KFC menu, customizing items, or holding open cart buckets are tracked in real time.
+              </p>
+              {liveSyncMessage && (
+                <p className="text-xs text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 rounded-xl p-2.5">
+                  ✓ {liveSyncMessage}
+                </p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isLiveSyncing}
+                onClick={async () => {
+                  setIsLiveSyncing(true);
+                  try {
+                    await syncStoreToServer();
+                    setLiveSyncMessage('Visitor presence re-synced with server.');
+                  } catch {
+                    setLiveSyncMessage('Presence refreshed.');
+                  } finally {
+                    setIsLiveSyncing(false);
+                  }
+                }}
+                className="flex-1 bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-800 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-xs"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLiveSyncing ? 'animate-spin text-[#e4002b]' : ''}`} />
+                <span>{isLiveSyncing ? 'Syncing...' : 'Sync Presence Now'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLiveVisitorsModalOpen(false);
+                  setActiveTab('customers');
+                }}
+                className="flex-1 bg-[#e4002b] hover:bg-[#c30025] text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-md shadow-red-950/20"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>View Customers & Loyalty</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

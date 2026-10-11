@@ -193,6 +193,22 @@
         "createdAt": { "type": "string" }
       },
       "required": ["uid", "role"]
+    },
+    "CustomerPushToken": {
+      "title": "CustomerPushToken",
+      "description": "FCM push token registered by a customer or guest device for announcements and sales",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "token": { "type": "string" },
+        "active": { "type": "boolean" },
+        "customerId": { "type": "string" },
+        "platform": { "type": "string" },
+        "userAgent": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["token", "active"]
     }
   },
   "firestore": {
@@ -211,6 +227,10 @@
     "/customers/{customerId}": {
       "schema": "Customer",
       "description": "Customer profiles. Owner can read/update own, admin can read/manage"
+    },
+    "/customerPushTokens/{tokenId}": {
+      "schema": "CustomerPushToken",
+      "description": "FCM push tokens for customer announcements and sales"
     },
     "/discounts/{discountId}": {
       "schema": "Discount",

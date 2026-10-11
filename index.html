@@ -36,19 +36,23 @@
       if ('serviceWorker' in navigator) {
         var registerSW = function() {
           navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
-            if (reg) reg.update();
-          }).catch(function(err) {
-            console.warn('SW register error:', err);
-          });
-          if ('caches' in window) {
-            caches.keys().then(function(keys) {
-              keys.forEach(function(key) {
-                if (key !== 'kfc-chakwal-v10') {
-                  caches.delete(key);
+            // Check for updates on load and periodically
+            if (reg) {
+              reg.update();
+              reg.addEventListener('updatefound', function() {
+                var installingWorker = reg.installing;
+                if (installingWorker) {
+                  installingWorker.addEventListener('statechange', function() {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      window.dispatchEvent(new CustomEvent('pwa-update-available', { detail: reg }));
+                    }
+                  });
                 }
               });
-            }).catch(function() {});
-          }
+            }
+          }).catch(function(err) {
+            console.warn('SW register notice:', err);
+          });
         };
         if (document.readyState === 'complete' || document.readyState === 'interactive') {
           registerSW();

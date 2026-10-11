@@ -754,12 +754,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return [];
   });
 
-  const [liveStats] = useState<LiveStoreStats>({
-    activeVisitors: 0,
-    openCartsCount: 0,
-    openCartsValue: 0,
-    checkoutsInProgress: 0,
-  });
+
 
   // Marketing Campaigns
   const [marketingCampaigns, setMarketingCampaigns] = useState<MarketingCampaign[]>(() => {
@@ -857,80 +852,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {}
   }, [menuItems]);
 
-  const hasModalOrSubpageOpen = Boolean(
-    selectedItemForCustomization ||
-    isCheckoutOpen ||
-    isCartOpen ||
-    isCustomerAuthModalOpen ||
-    isPoliciesModalOpen ||
-    isAdminLoginModalOpen ||
-    activeOrder ||
-    currentView !== 'home'
-  );
-
-  const prevModalOpenStateRef = useRef(false);
-
-  useEffect(() => {
-    if (hasModalOrSubpageOpen && !prevModalOpenStateRef.current) {
-      window.history.pushState({ kfcModalLayer: true }, '');
-    } else if (!hasModalOrSubpageOpen && prevModalOpenStateRef.current) {
-      if (window.history.state?.kfcModalLayer) {
-        window.history.back();
-      }
-    }
-    prevModalOpenStateRef.current = hasModalOrSubpageOpen;
-  }, [hasModalOrSubpageOpen]);
-
-  useEffect(() => {
-    const handleAndroidBack = () => {
-      // Close top-most modal layer first
-      if (selectedItemForCustomization) {
-        setSelectedItemForCustomization(null);
-        return;
-      }
-      if (isCheckoutOpen) {
-        setIsCheckoutOpen(false);
-        return;
-      }
-      if (isCartOpen) {
-        setIsCartOpen(false);
-        return;
-      }
-      if (isCustomerAuthModalOpen) {
-        setIsCustomerAuthModalOpen(false);
-        return;
-      }
-      if (isPoliciesModalOpen) {
-        setIsPoliciesModalOpen(false);
-        return;
-      }
-      if (isAdminLoginModalOpen) {
-        setIsAdminLoginModalOpen(false);
-        return;
-      }
-      if (activeOrder) {
-        setActiveOrder(null);
-        return;
-      }
-      if (currentView !== 'home') {
-        setCurrentView('home');
-        setSelectedProduct(null);
-        return;
-      }
-    };
-
-    window.addEventListener('popstate', handleAndroidBack);
-    return () => window.removeEventListener('popstate', handleAndroidBack);
-  }, [
-    selectedItemForCustomization,
-    isCheckoutOpen,
-    isCartOpen,
-    isCustomerAuthModalOpen,
-    isPoliciesModalOpen,
-    isAdminLoginModalOpen,
-    activeOrder,
-    currentView
-  ]);
+  // Hardware and gesture back-button handling is centrally managed in App.tsx
+  // to prevent race conditions, duplicate popstate triggers, and accidental exit popups on cart updates.
 
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
     const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
@@ -1614,6 +1537,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const cartTotal = cartSubtotal > 0
     ? Math.max(0, cartSubtotal - discountAmount - loyaltyDiscountAmount - vipDiscountAmount) + effectiveDeliveryFee
     : 0;
+
+  // Real-time live store statistics
+  const unrecoveredCheckouts = abandonedCheckouts.filter((c) => c.recoveryStatus !== 'recovered');
+  const liveStats: LiveStoreStats = {
+    activeVisitors: Math.max(1, unrecoveredCheckouts.length + (cart.length > 0 ? 1 : 0) + (currentUser ? 1 : 0)),
+    openCartsCount: unrecoveredCheckouts.length + (cart.length > 0 ? 1 : 0),
+    openCartsValue: unrecoveredCheckouts.reduce((sum, c) => sum + (c.cartTotal || 0), 0) + (cartSubtotal > 0 ? cartTotal : 0),
+    checkoutsInProgress: isCheckoutOpen ? 1 : (unrecoveredCheckouts.length > 0 ? 1 : 0),
+  };
 
   // Cart operations
   const addToCart = (item: MenuItem, options?: CartItemOption, quantity: number = 1) => {

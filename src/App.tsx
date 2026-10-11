@@ -69,6 +69,8 @@ const MainShop: React.FC = () => {
 
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const allowExitRef = useRef(false);
+  const lastBackPressTimeRef = useRef<number>(0);
+  const [showBackHint, setShowBackHint] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
   const [navSelectedCategory, setNavSelectedCategory] = useState<CategoryId | 'all'>('all');
   const initialProductHandled = useRef(false);
@@ -140,83 +142,148 @@ const MainShop: React.FC = () => {
     return () => observer.disconnect();
   }, [currentView, selectedCategory, searchQuery, storefrontCategories, settings.collectionNavHidden, menuItems, setActiveCategory]);
 
-  // Keep one history entry inside the app so the first Back action can be handled gracefully.
+  // Initialize history guard once on mount
   useEffect(() => {
-    window.history.pushState({ kfcExitGuard: true }, '');
+    try {
+      window.history.replaceState({ kfcRoot: true }, '');
+      window.history.pushState({ kfcGuard: true }, '');
+    } catch {}
   }, []);
 
-  // Android Back Gesture & System Back Button Handling: Close top-most modal/subview gracefully
+  // Determine if any overlay modal, cart drawer, customizer or non-home screen is active
+  const isAnyModalOpen = Boolean(
+    isDailyDealsPopupOpen ||
+    isVipModalOpen ||
+    isLoyaltyModalOpen ||
+    isCheckoutOpen ||
+    isCartOpen ||
+    isCustomizerOpen ||
+    isCustomerAuthModalOpen ||
+    isAdminLoginModalOpen ||
+    isPoliciesModalOpen ||
+    activeOrder ||
+    currentView !== 'home'
+  );
+
+  const prevModalOpenRef = useRef(false);
+
   useEffect(() => {
-    const isAnyModalOpen =
-      isCartOpen ||
-      isCustomizerOpen ||
-      isCheckoutOpen ||
-      isCustomerAuthModalOpen ||
-      isAdminLoginModalOpen ||
-      isPoliciesModalOpen ||
-      isLoyaltyModalOpen ||
-      isVipModalOpen ||
-      isDailyDealsPopupOpen ||
-      !!activeOrder ||
-      currentView !== 'home';
-
-    if (isAnyModalOpen) {
-      window.history.pushState({ modalOpen: true }, '');
+    // When a modal or subpage opens, push a history layer once so back gesture closes it
+    if (isAnyModalOpen && !prevModalOpenRef.current) {
+      window.history.pushState({ kfcModalLayer: true }, '');
     }
+    prevModalOpenRef.current = isAnyModalOpen;
+  }, [isAnyModalOpen]);
 
+  // Android Back Gesture & System Back Button Handling
+  useEffect(() => {
     const handlePopState = () => {
       if (allowExitRef.current) return;
+
+      // 1. If Exit Confirmation dialog is already open, back button simply dismisses it
+      if (isExitConfirmOpen) {
+        setIsExitConfirmOpen(false);
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+
+      // 2. If any modal, drawer, customizer or subscreen is open, close the top-most layer
       if (isDailyDealsPopupOpen) {
         setIsDailyDealsPopupOpen(false);
-      } else if (isVipModalOpen) {
-        setIsVipModalOpen(false);
-      } else if (isLoyaltyModalOpen) {
-        setIsLoyaltyModalOpen(false);
-      } else if (isCheckoutOpen) {
-        setIsCheckoutOpen(false);
-      } else if (isCartOpen) {
-        setIsCartOpen(false);
-      } else if (isCustomizerOpen) {
-        setIsCustomizerOpen(false);
-      } else if (isCustomerAuthModalOpen) {
-        setIsCustomerAuthModalOpen(false);
-      } else if (isAdminLoginModalOpen) {
-        setIsAdminLoginModalOpen(false);
-      } else if (isPoliciesModalOpen) {
-        setIsPoliciesModalOpen(false);
-      } else if (activeOrder) {
-        clearActiveOrder();
-      } else if (currentView !== 'home') {
-        goHome();
-      } else {
-        setIsExitConfirmOpen(true);
-        window.history.pushState({ kfcExitGuard: true }, '');
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
       }
+      if (isVipModalOpen) {
+        setIsVipModalOpen(false);
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+      if (isLoyaltyModalOpen) {
+        setIsLoyaltyModalOpen(false);
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+      if (isCheckoutOpen) {
+        setIsCheckoutOpen(false);
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+      if (isCartOpen) {
+        setIsCartOpen(false);
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+      if (isCustomizerOpen) {
+        setIsCustomizerOpen(false);
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+      if (isCustomerAuthModalOpen) {
+        setIsCustomerAuthModalOpen(false);
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+      if (isAdminLoginModalOpen) {
+        setIsAdminLoginModalOpen(false);
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+      if (isPoliciesModalOpen) {
+        setIsPoliciesModalOpen(false);
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+      if (activeOrder) {
+        clearActiveOrder();
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+      if (currentView !== 'home') {
+        goHome();
+        window.history.pushState({ kfcGuard: true }, '');
+        return;
+      }
+
+      // 3. Root Screen (Home): Exit popup ONLY on repeated press within 2000ms
+      const now = Date.now();
+      const interval = 2000;
+      if (now - lastBackPressTimeRef.current <= interval) {
+        // Repeated Back press within 2 seconds: Show exit confirmation popup
+        lastBackPressTimeRef.current = 0;
+        setIsExitConfirmOpen(true);
+      } else {
+        // First Back press: show brief non-intrusive hint without disturbing the user
+        lastBackPressTimeRef.current = now;
+        setShowBackHint(true);
+        setTimeout(() => setShowBackHint(false), 2000);
+      }
+      window.history.pushState({ kfcGuard: true }, '');
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [
+    isExitConfirmOpen,
+    isDailyDealsPopupOpen,
+    isVipModalOpen,
+    isLoyaltyModalOpen,
+    isCheckoutOpen,
     isCartOpen,
     isCustomizerOpen,
-    isCheckoutOpen,
     isCustomerAuthModalOpen,
     isAdminLoginModalOpen,
     isPoliciesModalOpen,
-    isLoyaltyModalOpen,
-    isVipModalOpen,
-    isDailyDealsPopupOpen,
     activeOrder,
     currentView,
+    setIsDailyDealsPopupOpen,
+    setIsVipModalOpen,
+    setIsLoyaltyModalOpen,
+    setIsCheckoutOpen,
     setIsCartOpen,
     setIsCustomizerOpen,
-    setIsCheckoutOpen,
     setIsCustomerAuthModalOpen,
     setIsAdminLoginModalOpen,
     setIsPoliciesModalOpen,
-    setIsLoyaltyModalOpen,
-    setIsVipModalOpen,
-    setIsDailyDealsPopupOpen,
     clearActiveOrder,
     goHome,
   ]);
@@ -450,15 +517,55 @@ const MainShop: React.FC = () => {
       <OrderConfirmationModal />
       <AdminLoginModal />
       {isExitConfirmOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4" role="dialog" aria-modal="true" aria-labelledby="exit-confirm-title">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-5 text-zinc-900 shadow-2xl">
-            <h2 id="exit-confirm-title" className="text-lg font-black">Exit KFC Chakwal Delivery?</h2>
-            <p className="mt-2 text-sm text-zinc-600">Kya aap app se exit karna chahte hain?</p>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setIsExitConfirmOpen(false)} className="rounded-xl border border-zinc-300 px-4 py-3 text-sm font-bold text-zinc-700">Nahi, yahin rahen</button>
-              <button type="button" onClick={() => { allowExitRef.current = true; setIsExitConfirmOpen(false); window.close(); window.location.replace('about:blank'); }} className="rounded-xl bg-[#e4002b] px-4 py-3 text-sm font-black text-white">Haan, Exit</button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4 animate-in fade-in duration-150" role="dialog" aria-modal="true" aria-labelledby="exit-confirm-title">
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-5 text-zinc-900 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 text-[#e4002b] flex items-center justify-center font-bold text-lg">
+                🍗
+              </div>
+              <div>
+                <h2 id="exit-confirm-title" className="text-base font-black text-zinc-900">Exit KFC Chakwal Delivery?</h2>
+                <p className="text-xs text-zinc-500">Aap ki cart mein items mehfooz rahenge.</p>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-600">
+              Kya aap app se exit karna chahte hain?
+            </p>
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsExitConfirmOpen(false)}
+                className="rounded-xl border border-zinc-300 hover:bg-zinc-100 px-4 py-2.5 text-xs font-bold text-zinc-700 transition cursor-pointer"
+              >
+                Nahi, yahin rahen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  allowExitRef.current = true;
+                  setIsExitConfirmOpen(false);
+                  try {
+                    window.close();
+                  } catch {}
+                  if (window.history.length > 2) {
+                    window.history.go(-2);
+                  } else {
+                    window.history.back();
+                  }
+                }}
+                className="rounded-xl bg-[#e4002b] hover:bg-[#c30025] px-4 py-2.5 text-xs font-black text-white shadow-md transition cursor-pointer"
+              >
+                Haan, Exit
+              </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Non-intrusive Double-back Hint Toast */}
+      {showBackHint && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[99] bg-zinc-900/95 backdrop-blur-xs text-white text-xs font-semibold px-4 py-2 rounded-full shadow-2xl border border-zinc-700 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150">
+          Press back again to exit KFC Chakwal
         </div>
       )}
       <CustomerAuthModal />
