@@ -20,7 +20,7 @@ exports.recordCustomerOrderHistory = onDocumentCreated(
     if (!snapshot) return;
     const orderRef = snapshot.ref;
     const order = snapshot.data() || {};
-    if (typeof order.customerOrderNumber === 'number') return;
+    if (typeof order.customerOrderNumber === 'number' && order.historyRecordedAt) return;
     const uid = String(order.customer?.uid || '');
     const phone = String(order.customer?.phone || '').replace(/\s+/g, ' ').trim();
     let customerOrderNumber = 1;
@@ -28,7 +28,7 @@ exports.recordCustomerOrderHistory = onDocumentCreated(
       const customerRef = db.collection('customers').doc(uid);
       await db.runTransaction(async (transaction) => {
         const [latestOrder, customerSnapshot] = await Promise.all([transaction.get(orderRef), transaction.get(customerRef)]);
-        if (!latestOrder.exists || typeof latestOrder.data().customerOrderNumber === 'number') return;
+        if (!latestOrder.exists || latestOrder.data().historyRecordedAt) return;
         const data = latestOrder.data() || {};
         const customer = customerSnapshot.exists ? customerSnapshot.data() : {};
         customerOrderNumber = Math.max(0, Number(customer.ordersCount || customer.totalOrdersCount || 0)) + 1;
