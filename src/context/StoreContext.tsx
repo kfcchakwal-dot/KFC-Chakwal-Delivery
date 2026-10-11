@@ -74,6 +74,7 @@ import {
   query,
   where,
   orderBy,
+  runTransaction,
 } from 'firebase/firestore';
 
 let adminForegroundMessageUnsubscribe: (() => void) | null = null;
@@ -213,6 +214,7 @@ interface StoreContextType {
   allOrders: Order[];
   fetchOrders: () => Promise<void>;
   updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
+  updateOrderPaymentReceived: (orderId: string, amount: number) => Promise<void>;
   playOrderSound: () => void;
 
   // Navigation & Filtering
@@ -1135,6 +1137,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (activeOrder && activeOrder.id === orderId) {
       setActiveOrder((prev) => (prev ? { ...prev, status } : null));
     }
+  };
+
+  const updateOrderPaymentReceived = async (orderId: string, amount: number) => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error('Received amount Rs 0 se zyada hona chahiye.');
+    const orderRef = doc(db, 'orders', orderId);
+    let nextReceived = 0;
+    let nextStatus: Order['paymentStatus'] = 'unpaid';
+    await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(orderRef);
+      if (!snapshot.exists()) throw new Error('Order record nahi mila.');
+      const data = snapshot.data() as Order;
+      const total = Math.max(0, Number(data.total || 0));
+      const alreadyReceived = Math.max(0, Number(data.paymentReceived || 0));
+      if (alreadyReceived >= total) throw new Error('Is order ki full payment pehle hi receive ho chuki hai.');
+      if (amount > total - alreadyReceived) throw new Error('Received amount remaining balance se zyada nahi ho sakti.');
+      nextReceived = Math.round((alreadyReceived + amount) * 100) / 100;
+      nextStatus = nextReceived >= total ? 'paid' : 'partial';
+      transaction.set(orderRef, {
+        paymentReceived: nextReceived,
+        paymentStatus: nextStatus,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+    });
+    setAllOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentReceived: nextReceived, paymentStatus: nextStatus } : o));
+    if (activeOrder?.id === orderId) setActiveOrder((prev) => prev ? { ...prev, paymentReceived: nextReceived, paymentStatus: nextStatus } : null);
   };
 
   const loginAdmin = async (): Promise<{ success: boolean; error?: string }> => {
@@ -2761,6 +2789,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         allOrders,
         fetchOrders,
         updateOrderStatus,
+        updateOrderPaymentReceived,
         isOrdersDashboardOpen,
         setIsOrdersDashboardOpen,
         vipTiers,
