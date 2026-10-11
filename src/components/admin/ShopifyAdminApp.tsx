@@ -175,7 +175,14 @@ export const ShopifyAdminApp: React.FC = () => {
   const [newAdminUid, setNewAdminUid] = useState('');
   const [adminUserBusy, setAdminUserBusy] = useState(false);
   const [adminUserNotice, setAdminUserNotice] = useState('');
-  const [activeTab, setActiveTab] = useState<SellerTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<SellerTab>(() => {
+    try {
+      const saved = localStorage.getItem('kfc-admin-active-tab') as SellerTab | null;
+      const allowed: SellerTab[] = ['dashboard','orders','pos','abandoned','products','daily-deals','customers','vip-club','announcements','marketing','meta','delivery-methods','discounts','online-store','section-colors','reviews','policies','links','settings'];
+      return saved && allowed.includes(saved) ? saved : 'dashboard';
+    } catch { return 'dashboard'; }
+  });
+  useEffect(() => { try { localStorage.setItem('kfc-admin-active-tab', activeTab); } catch { /* storage can be disabled */ } }, [activeTab]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState<CategoryId | 'all'>('all');
@@ -1269,6 +1276,8 @@ export const ShopifyAdminApp: React.FC = () => {
                 return (
                   <button
                     key={item.id}
+                    aria-current={isActive ? "page" : undefined}
+                    aria-pressed={isActive}
                     onClick={() => {
                       setActiveTab(item.id as SellerTab);
                       setIsSidebarOpen(false);
