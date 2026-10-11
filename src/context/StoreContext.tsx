@@ -1617,14 +1617,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Rule: Users earn 10 points for every 300 Rs spent!
   // Rule: Points CANNOT be redeemed alone! Minimum Rs 500 cart order is required.
   // Rule: Points CANNOT be combined with any other discount coupon!
-  const minPointsRedemptionAmount = 500;
+  const minPointsRedemptionAmount = Math.max(0, Number(settings.loyaltyConfig?.minRedemptionAmount ?? 500));
   const userPoints = currentUser?.loyaltyPoints || 0;
   const canRedeemPoints = userPoints > 0 && cartSubtotal >= minPointsRedemptionAmount && !hasActiveDiscountCoupon;
 
   // Conversion: 2 reward points = Rs 1 discount. Keep point balance and rupee discount separate.
   const subtotalAfterCoupon = Math.max(0, cartSubtotal - discountAmount);
-  const maxRedeemablePoints = canRedeemPoints ? Math.min(userPoints, subtotalAfterCoupon * 2) : 0;
-  const loyaltyDiscountAmount = isRedeemingPoints && canRedeemPoints ? Math.floor(maxRedeemablePoints / 2) : 0;
+  const pointsPerRupee = Math.max(1, Number(settings.loyaltyConfig?.pointsPerRupee ?? 2));
+  const maxRedeemablePoints = canRedeemPoints ? Math.min(userPoints, subtotalAfterCoupon * pointsPerRupee) : 0;
+  const loyaltyDiscountAmount = isRedeemingPoints && canRedeemPoints ? Math.floor(maxRedeemablePoints / pointsPerRupee) : 0;
 
   // VIP Membership Lifetime Discount Engine (Flat 3%, 6%, or 8% OFF for approved VIPs)
   const activeVipTier = DEFAULT_VIP_TIERS.find((t) => t.id === currentUser?.vipTier);
@@ -1635,7 +1636,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Potential points to earn: 10 points for every 300 Rs spent on food
   const netFoodPaid = Math.max(0, cartSubtotal - discountAmount - loyaltyDiscountAmount - vipDiscountAmount);
-  const potentialPointsToEarn = Math.floor(netFoodPaid / 300) * 10;
+  const potentialPointsToEarn = Math.floor(netFoodPaid / Math.max(1, Number(settings.loyaltyConfig?.spendThreshold ?? 300))) * Math.max(0, Number(settings.loyaltyConfig?.pointsPerSpend ?? 10));
 
   // Effective Delivery Fee from Selected Delivery Method
   let baseDeliveryFee = selectedDeliveryMethod.price || 399;
@@ -1747,7 +1748,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const markupAmount = Math.max(0, cartSubtotal - rawKfcSubtotal);
     const requestedLoyaltyDiscount = isRedeemingPoints && canRedeemPoints ? loyaltyDiscountAmount : 0;
-    const requestedLoyaltyPoints = requestedLoyaltyDiscount * 2;
+    const requestedLoyaltyPoints = requestedLoyaltyDiscount * Math.max(1, Number(settings.loyaltyConfig?.pointsPerRupee ?? 2));
 
     const draftOrder: Order = {
       id: `CKW-${Date.now().toString().slice(-8)}`,
@@ -1821,7 +1822,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         await setDoc(customerProfileRef, {
           id: user.uid,
           ...profileUpdate,
-          loyaltyPoints: 50,
+          loyaltyPoints: Math.max(0, Number(settings.loyaltyConfig?.signupBonus ?? 50)),
           totalSpent: 0,
           ordersCount: 0,
           createdAt: new Date().toISOString(),
