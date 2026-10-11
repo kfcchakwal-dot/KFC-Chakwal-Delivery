@@ -46,6 +46,7 @@ export const OrderConfirmationModal: React.FC = () => {
 
     const slip = `🍗 KFC CHAKWAL DELIVERY - OFFICIAL RECEIPT\n` +
       `Order #: ${activeOrder.id}\n` +
+      (activeOrder.customerOrderLabel || activeOrder.customerOrderNumber ? `Customer Order: ${activeOrder.customerOrderLabel || activeOrder.customerOrderNumber}\n` : '') +
       `Date: ${new Date(activeOrder.date).toLocaleString()}\n` +
       `----------------------------------------\n` +
       `Customer: ${activeOrder.customer.fullName}\n` +
