@@ -57,6 +57,32 @@ exports.recordCustomerOrderHistory = onDocumentCreated(
   }
 );
 
+exports.syncStockAfterOrder = onDocumentCreated(
+  { document: 'orders/{orderId}', database: DATABASE_ID, region: 'us-central1', retry: true },
+  async (event) => {
+    const order = event.data?.data() || {};
+    const orderItems = Array.isArray(order.items) ? order.items : [];
+    const trackedIds = [...new Set(orderItems.filter((line) => line.menuItem?.trackInventory).map((line) => String(line.menuItem.id || '')).filter(Boolean))];
+    if (!trackedIds.length) return;
+    const productSnapshots = await Promise.all(trackedIds.map((id) => db.collection('products').doc(id).get()));
+    const stockById = new Map();
+    productSnapshots.forEach((snapshot) => {
+      if (snapshot.exists && snapshot.data().trackInventory === true) stockById.set(snapshot.id, Math.max(0, Number(snapshot.data().stockQuantity || 0)));
+    });
+    if (!stockById.size) return;
+    const publicRef = db.collection('storePublic').doc('global');
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(publicRef);
+      if (!snapshot.exists) return;
+      const publicData = snapshot.data() || {};
+      const menuItems = Array.isArray(publicData.menuItems) ? publicData.menuItems : [];
+      const nextMenuItems = menuItems.map((item) => stockById.has(String(item.id)) ? { ...item, trackInventory: true, stockQuantity: stockById.get(String(item.id)) } : item);
+      transaction.set(publicRef, { menuItems: nextMenuItems, updatedAt: new Date().toISOString() }, { merge: true });
+    });
+    logger.info('Tracked stock synchronized to storefront after order.', { orderId: event.params.orderId, productCount: stockById.size });
+  }
+);
+
 exports.awardReviewLoyaltyPoints = onDocumentCreated(
   { document: 'reviews/{reviewId}', database: DATABASE_ID, region: 'us-central1', retry: true },
   async (event) => {
