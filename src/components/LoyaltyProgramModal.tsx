@@ -24,6 +24,7 @@ export const LoyaltyProgramModal: React.FC = () => {
     loyaltyTransactions,
     formatPKR,
     themeMode,
+    settings,
     setIsVipModalOpen,
   } = useStore();
 
