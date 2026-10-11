@@ -314,6 +314,26 @@ export const AdminOrdersModal: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Mobile-first order actions: keep WhatsApp and billing visible without scrolling through the full card */}
+                <div className="grid grid-cols-2 gap-2 sm:hidden" aria-label={`Quick actions for order ${order.id}`}>
+                  <button
+                    type="button"
+                    onClick={() => handleWhatsAppText(order)}
+                    className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-center text-xs font-black text-white shadow-sm active:scale-[0.98]"
+                  >
+                    <MessageSquare className="h-4 w-4 shrink-0" />
+                    <span>Send WhatsApp</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePrintReceipt(order, defaultPrintFormat)}
+                    className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 py-2.5 text-center text-xs font-black text-zinc-950 shadow-sm active:scale-[0.98]"
+                  >
+                    <Printer className="h-4 w-4 shrink-0" />
+                    <span>Generate Bill</span>
+                  </button>
+                </div>
+
                 {/* Customer and Delivery Details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                   <div className="space-y-1 bg-[#141416] p-3 rounded-xl border border-[#24242c]">
@@ -370,7 +390,7 @@ export const AdminOrdersModal: React.FC = () => {
                 </div>
 
                 {/* Bottom Actions Row */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#25252e]">
+                <div className="hidden sm:flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#25252e]">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] text-zinc-500">Quick Actions:</span>
                     <button

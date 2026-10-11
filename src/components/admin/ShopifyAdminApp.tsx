@@ -816,11 +816,14 @@ export const ShopifyAdminApp: React.FC = () => {
   };
 
   const handleSelectAllOrders = () => {
-    if (selectedOrderIds.length === filteredOrders.length && filteredOrders.length > 0) {
-      setSelectedOrderIds([]);
-    } else {
-      setSelectedOrderIds(filteredOrders.map((o) => o.id));
-    }
+    const visibleIds = filteredOrders.map((order) => order.id);
+    if (visibleIds.length === 0) return;
+    const allVisibleSelected = visibleIds.every((id) => selectedOrderIds.includes(id));
+    setSelectedOrderIds((previous) =>
+      allVisibleSelected
+        ? previous.filter((id) => !visibleIds.includes(id))
+        : Array.from(new Set([...previous, ...visibleIds]))
+    );
   };
 
   const handleDeselectAllOrders = () => {
@@ -838,22 +841,27 @@ export const ShopifyAdminApp: React.FC = () => {
     try {
       const idsToUpdate = [...selectedOrderIds];
       let successCount = 0;
+      const failedIds: string[] = [];
       for (const id of idsToUpdate) {
         try {
           await updateOrderStatus(id, statusToApply);
           successCount++;
         } catch (err) {
+          failedIds.push(id);
           console.error(`Failed to update order #${id}:`, err);
         }
       }
       await fetchOrders();
-      setSelectedOrderIds([]);
+      setSelectedOrderIds(failedIds);
       const statusLabel = ORDER_STATUS_CONFIG[statusToApply]?.label || statusToApply;
+      const hadFailures = failedIds.length > 0;
       setBulkFeedback({
-        type: 'success',
-        message: `Successfully updated ${successCount} order(s) to "${statusLabel}".`,
+        type: hadFailures ? 'error' : 'success',
+        message: hadFailures
+          ? `Updated ${successCount} of ${idsToUpdate.length} orders to "${statusLabel}". Failed orders remain selected: ${failedIds.map((id) => `#${id}`).join(', ')}.`
+          : `Successfully updated all ${successCount} order(s) to "${statusLabel}".`,
       });
-      setTimeout(() => setBulkFeedback(null), 5000);
+      setTimeout(() => setBulkFeedback(null), 7000);
     } catch (error: any) {
       setBulkFeedback({
         type: 'error',
@@ -1792,7 +1800,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     onClick={handleSelectAllOrders}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition cursor-pointer shadow-xs"
                   >
-                    {selectedOrderIds.length === filteredOrders.length && filteredOrders.length > 0 ? (
+                    {filteredOrders.length > 0 && filteredOrders.every((order) => selectedOrderIds.includes(order.id)) ? (
                       <>
                         <CheckSquare className="w-3.5 h-3.5 text-[#e4002b]" />
                         <span>Deselect All</span>
@@ -2062,6 +2070,39 @@ export const ShopifyAdminApp: React.FC = () => {
                           </div>
                         </div>
 
+                        {/* Mobile-first order actions: visible before long order details */}
+                        <div className="grid grid-cols-2 gap-2 sm:hidden" aria-label={`Quick actions for order ${order.id}`}>
+                          {order.customer.phone ? (
+                            <a
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              href={getWhatsAppUrl(order.customer.phone, generateWhatsAppOrderMessage(order, settings))}
+                              className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-center text-xs font-black text-white shadow-sm active:scale-[0.98]"
+                            >
+                              <Send className="h-4 w-4 shrink-0" />
+                              <span>Send WhatsApp</span>
+                            </a>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              title="Customer phone number is not available"
+                              className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-100 px-3 py-2.5 text-center text-xs font-bold text-zinc-400"
+                            >
+                              <Send className="h-4 w-4 shrink-0" />
+                              <span>No phone number</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenSinglePrint(order)}
+                            className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-[#e4002b] px-3 py-2.5 text-center text-xs font-black text-white shadow-sm active:scale-[0.98]"
+                          >
+                            <Printer className="h-4 w-4 shrink-0" />
+                            <span>Generate Bill</span>
+                          </button>
+                        </div>
+
                         {/* Items Ordered */}
                         <div className="space-y-1.5 text-xs text-zinc-700 bg-zinc-50/70 rounded-xl p-3 border border-zinc-100">
                           {order.items.map((item, idx) => (
@@ -2115,7 +2156,7 @@ export const ShopifyAdminApp: React.FC = () => {
                         </div>
 
                         {/* Bottom Actions Toolbar: WhatsApp, Generate/Print Bill, Cancel */}
-                        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-zinc-100">
+                        <div className="hidden sm:flex flex-wrap items-center gap-2 pt-1 border-t border-zinc-100">
                           {/* Complete WhatsApp Order Message Button */}
                           {order.customer.phone && (
                             <a
