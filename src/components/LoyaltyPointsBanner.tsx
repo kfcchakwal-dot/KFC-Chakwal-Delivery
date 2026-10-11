@@ -20,7 +20,7 @@ export const LoyaltyPointsBanner: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 my-4 cursor-pointer" role="button" tabIndex={0} onClick={() => setCurrentView('rewards')} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setCurrentView('rewards'); }} aria-label="Open rewards program details">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 my-4 cursor-pointer" role="button" tabIndex={0} onClick={() => setCurrentView('rewards')} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) setCurrentView('rewards'); }} aria-label="Open rewards program details">
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-amber-500 via-amber-600 to-red-600 p-4 sm:p-5 text-white shadow-xl border border-amber-300/30">
         
         {/* Background decorative coin drops / sparkles effect */}
@@ -78,10 +78,10 @@ export const LoyaltyPointsBanner: React.FC = () => {
                     <span className="text-xs text-yellow-100 font-bold">New Customer Offer</span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black font-kfc tracking-tight text-white drop-shadow">
-                    Register ho aur <span className="text-yellow-200 underline decoration-white">50 Points</span> haasil karo!
+                    Register ho aur <span className="text-yellow-200 underline decoration-white">{Math.max(0, Number(settings.loyaltyConfig?.signupBonus ?? 50))} Points</span> haasil karo!
                   </h3>
                   <p className="text-[11px] text-white/90">
-                    Sign up with your mobile number to instantly claim 50 free reward points.
+                    Sign up to instantly claim {Math.max(0, Number(settings.loyaltyConfig?.signupBonus ?? 50))} free reward points.
                   </p>
                 </>
               )}
@@ -93,7 +93,7 @@ export const LoyaltyPointsBanner: React.FC = () => {
             {!currentUser && (
               <button
                 type="button"
-                onClick={() => setIsCustomerAuthModalOpen(true)}
+                onClick={(event) => { event.stopPropagation(); setIsCustomerAuthModalOpen(true); }}
                 className="bg-white/20 hover:bg-white/30 text-white font-bold text-xs px-4 py-2.5 rounded-xl border border-white/40 backdrop-blur-sm transition cursor-pointer flex items-center gap-1.5"
               >
                 <UserPlus className="w-4 h-4" />
@@ -103,7 +103,7 @@ export const LoyaltyPointsBanner: React.FC = () => {
 
             <button
               type="button"
-              onClick={handleRedeemNow}
+              onClick={(event) => { event.stopPropagation(); handleRedeemNow(); }}
               className="buy-button bg-[#e4002b] hover:bg-[#c30025] text-white font-black text-xs sm:text-sm px-6 py-2.5 rounded-xl uppercase tracking-wider shadow-xl transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
             >
               <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />
