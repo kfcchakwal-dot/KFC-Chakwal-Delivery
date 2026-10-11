@@ -1846,7 +1846,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedProfile));
     }
 
-    await setDoc(doc(db, 'orders', savedOrder.id), firestoreOrder);
+    // Create the order and decrement tracked stock atomically so concurrent checkouts cannot oversell.
+    const quantitiesByProduct = new Map<string, number>();
+    cart.forEach((cartItem) => {
+      if (cartItem.menuItem.trackInventory) quantitiesByProduct.set(cartItem.menuItem.id, (quantitiesByProduct.get(cartItem.menuItem.id) || 0) + cartItem.quantity);
+    });
+    await runTransaction(db, async (transaction) => {
+      const stockEntries = Array.from(quantitiesByProduct.entries());
+      const productRefs = stockEntries.map(([productId]) => doc(db, 'products', productId));
+      const productSnapshots = [];
+      for (const productRef of productRefs) productSnapshots.push(await transaction.get(productRef));
+      productSnapshots.forEach((snapshot, index) => {
+        const [productId, quantity] = stockEntries[index];
+        const cartProduct = cart.find((item) => item.menuItem.id === productId)?.menuItem;
+        if (!snapshot.exists()) throw new Error(`Inventory record missing for ${cartProduct?.name || productId}. Please contact the store.`);
+        const data = snapshot.data();
+        if (data.trackInventory === true) {
+          const available = Math.max(0, Number(data.stockQuantity || 0));
+          if (available < quantity) throw new Error(`${cartProduct?.name || 'Product'} ka stock sirf ${available} available hai.`);
+          transaction.update(productRefs[index], { stockQuantity: available - quantity, updatedAt: new Date().toISOString() });
+        }
+      });
+      transaction.set(doc(db, 'orders', savedOrder.id), firestoreOrder);
+    });
 
     // Only update local customer/order state after the server has accepted the order.
     const earnedPoints = Number(savedOrder.loyaltyPointsEarned || 0);
