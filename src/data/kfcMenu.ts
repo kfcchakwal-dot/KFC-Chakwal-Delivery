@@ -257,6 +257,7 @@ export const DEFAULT_DELIVERY_METHODS: DeliveryMethod[] = [
 
 export const DEFAULT_DAILY_DEAL: DailyDealConfig = {
   enabled: false,
+  popupEnabled: true,
   title: "Daily 5 Deals",
   subtitle: 'Manual daily offers — automatic midnight rotation requires a server scheduler.',
   discountPercentage: 4,
