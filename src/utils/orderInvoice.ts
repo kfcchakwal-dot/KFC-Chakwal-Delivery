@@ -92,7 +92,7 @@ export function formatPKR(val: number): string {
  */
 export function generateWhatsAppOrderMessage(
   order: Order,
-  storeSettings?: { storeName?: string; phone?: string; storeAddress?: string; whatsappTemplates?: { orderDetails?: string } }
+  storeSettings?: { storeName?: string; phone?: string; storeAddress?: string; whatsappTemplates?: { orderDetails?: string; orderStatus?: string } }
 ): string {
   const storeName = storeSettings?.storeName || 'KFC Chakwal Delivery';
   const dateFormatted = order.date
@@ -102,10 +102,11 @@ export function generateWhatsAppOrderMessage(
       })
     : 'Just now';
 
-  const customTemplate = String(storeSettings?.whatsappTemplates?.orderDetails || '').trim();
+  const templateSource = order.status !== 'confirmed' && order.status !== 'pending' ? storeSettings?.whatsappTemplates?.orderStatus : storeSettings?.whatsappTemplates?.orderDetails;
+  const customTemplate = String(templateSource || '').trim();
   if (customTemplate) {
     const itemsSummary = order.items.map((item) => `${item.quantity}x ${item.menuItem.name}`).join(', ');
-    const values: Record<string, string> = { name: order.customer.fullName || 'Customer', orderId: order.id, total: formatPKR(order.total), received: formatPKR(order.paymentReceived || 0), balance: formatPKR(Math.max(0, order.total - (order.paymentReceived || 0))), items: itemsSummary, phone: order.customer.phone || '', address: order.customer.address || '', storeName };
+    const values: Record<string, string> = { name: order.customer.fullName || 'Customer', orderId: order.id, total: formatPKR(order.total), received: formatPKR(order.paymentReceived || 0), balance: formatPKR(Math.max(0, order.total - (order.paymentReceived || 0))), items: itemsSummary, phone: order.customer.phone || '', address: order.customer.address || '', storeName, status: String(order.status || '').replace(/[-_]/g, ' ') };
     return customTemplate.replace(/\{([a-zA-Z]+)\}/g, (match, key: string) => values[key] ?? match);
   }
   const lines: string[] = [];
