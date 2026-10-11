@@ -377,6 +377,9 @@ const MainShop: React.FC = () => {
       {/* VIEW ROUTING: WISHLIST PAGE */}
       {currentView === 'wishlist' && <WishlistPage />}
 
+      {/* VIEW ROUTING: CUSTOMER REVIEWS PAGE */}
+      {currentView === 'reviews' && <ReviewsPage />}
+
       {/* VIEW ROUTING: HOME & CATEGORY COLLECTIONS */}
       {(currentView === 'home' || currentView === 'collection') && (
         <>
