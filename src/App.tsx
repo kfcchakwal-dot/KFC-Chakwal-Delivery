@@ -387,7 +387,7 @@ const MainShop: React.FC = () => {
 
           {/* Loyalty Points Balance & Quick Redeem Callout Banner */}
           <LoyaltyPointsBanner />
-          {settings.reviewWidgetConfig?.enabled !== false && settings.reviewWidgetConfig?.showOnHome !== false && reviews.filter((review) => review.isVisible !== false).length > 0 && (
+          {currentView === 'home' && settings.reviewWidgetConfig?.enabled !== false && settings.reviewWidgetConfig?.showOnHome !== false && reviews.filter((review) => review.isVisible !== false).length > 0 && (
             <section className="mx-auto my-5 w-full max-w-7xl px-3 sm:px-6 lg:px-8">
               <button type="button" onClick={() => { setCurrentView('reviews'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="w-full rounded-2xl border border-amber-200 bg-white p-4 text-left shadow-sm transition hover:border-[#e4002b] hover:shadow-md">
                 <span className="flex items-center justify-between gap-3"><span className="text-sm font-black uppercase text-zinc-900">Customer Reviews</span><span className="text-xs font-bold text-[#e4002b]">View all reviews →</span></span>
