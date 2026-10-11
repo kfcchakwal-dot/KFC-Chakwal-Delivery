@@ -625,6 +625,7 @@ export const ProductPage: React.FC = () => {
         })()}
 
         {/* CUSTOMER REVIEWS & RATINGS SECTION */}
+        {(settings.reviewWidgets?.enabled !== false && settings.reviewWidgets?.showOnProductPages !== false) && (
         <div className={`mt-16 p-6 sm:p-8 rounded-3xl border space-y-6 ${
           isDark ? 'bg-[#141417] border-[#26262e]' : 'bg-white border-zinc-200'
         }`}>
