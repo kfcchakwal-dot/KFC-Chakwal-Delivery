@@ -227,6 +227,15 @@ export interface StoreSettings {
   customDomain?: CustomDomainConfig;
   metaCommerce?: MetaCommerceConfig;
   autoReview?: AutoReviewConfig;
+  /** Storefront review widget placement and visibility controls. */
+  reviewWidgets?: {
+    enabled?: boolean;
+    showOnHomePage?: boolean;
+    showOnProductPages?: boolean;
+    showOnReviewsPage?: boolean;
+    showFormOnProductPages?: boolean;
+    maxReviewsOnWidgets?: number;
+  };
   adminUsers?: { id: string; name: string; email: string; role: 'Super Admin' | 'Manager'; addedAt: string }[];
   homepageVideo?: { enabled: boolean; videoUrl: string; title: string; subtitle: string; position: 'top' | 'middle' | 'bottom' };
   sectionColorSchemes?: Record<string, { background: string; text: string; button: string; buttonText: string; border: string }>;
