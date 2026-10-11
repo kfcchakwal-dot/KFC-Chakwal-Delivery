@@ -15,7 +15,7 @@ export const DailyDealsPopupModal: React.FC = () => {
 
   const isDark = themeMode === 'dark';
 
-  if (!isDailyDealsPopupOpen || !dailyDealConfig.enabled || dailyDealConfig.popupEnabled === false) return null;
+  if (!isDailyDealsPopupOpen || dailyDealConfig.popupEnabled === false) return null;
 
   const handleDismiss = () => {
     setIsDailyDealsPopupOpen(false);
