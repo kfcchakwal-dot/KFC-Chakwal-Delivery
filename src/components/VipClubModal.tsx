@@ -32,7 +32,7 @@ export const VipClubModal: React.FC = () => {
   if (!isVipModalOpen) return null;
 
   const selectedTier = vipTiers.find((t) => t.id === selectedTierId) || vipTiers[0];
-  const isUserVipActive = currentUser?.vipStatus === 'active';
+  const isUserVipActive = currentUser?.vipStatus === 'active' && (!currentUser.vipExpiresAt || new Date(currentUser.vipExpiresAt).getTime() > Date.now());
   const currentTier = vipTiers.find((tier) => tier.id === currentUser?.vipTier);
   const isUpgrade = Boolean(isUserVipActive && currentTier && selectedTier && selectedTier.price > currentTier.price);
   const alreadyPaid = Number(currentUser?.vipPaidAmount ?? currentTier?.price ?? 0);
@@ -117,7 +117,7 @@ export const VipClubModal: React.FC = () => {
                 Lifetime VIP Pass Active!
               </h4>
               <p className="text-xs text-zinc-700 leading-relaxed max-w-sm mx-auto">
-                Aapka <strong>{currentUser?.vipTier?.toUpperCase()} PASS</strong> kamyabi se active hai. Aapko har order par flat discount automatically mil raha hai.
+                Aapka <strong>{currentUser?.vipTier?.toUpperCase()} PASS</strong> active hai. Aapko har order par configured discount mil raha hai.{currentUser?.vipExpiresAt ? ` Valid until ${new Date(currentUser.vipExpiresAt).toLocaleDateString()}.` : ' Lifetime pass.'}
               </p>
               <div className="inline-block bg-black text-white text-xs font-bold px-4 py-1.5 rounded-full">
                 ✓ Guaranteed Discount on Every Checkout
