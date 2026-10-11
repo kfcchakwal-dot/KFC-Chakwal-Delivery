@@ -35,7 +35,8 @@ export const VipClubModal: React.FC = () => {
   const isUserVipActive = currentUser?.vipStatus === 'active';
   const currentTier = vipTiers.find((tier) => tier.id === currentUser?.vipTier);
   const isUpgrade = Boolean(isUserVipActive && currentTier && selectedTier && selectedTier.price > currentTier.price);
-  const amountDue = isUpgrade && currentTier ? Math.max(0, selectedTier.price - currentTier.price) : selectedTier?.price || 0;
+  const alreadyPaid = Number(currentUser?.vipPaidAmount ?? currentTier?.price ?? 0);
+  const amountDue = isUpgrade ? Math.max(0, selectedTier.price - alreadyPaid) : selectedTier?.price || 0;
   const isUserVipPending = currentUser?.vipStatus === 'pending' || isSent;
 
   const handleOrderOnWhatsApp = async (e: React.FormEvent) => {
@@ -62,7 +63,7 @@ export const VipClubModal: React.FC = () => {
       `Assalam o Alaikum! Mujhe KFC Chakwal Delivery ka Lifetime VIP Pass order karna hai:\n\n` +
       `👑 *Pass:* ${selectedTier.name} (Flat ${selectedTier.discountPercentage}% OFF)\n` +
       (selectedTier.durationDays && selectedTier.durationDays > 0 ? `⏳ *Validity:* ${selectedTier.durationDays} days\n` : `⏳ *Validity:* Lifetime\n`) +
-      (isUpgrade && currentTier ? `💳 *Previous pass credit:* -${formatPKR(currentTier.price)}\n💰 *Upgrade amount due:* ${formatPKR(amountDue)}\n` : `💰 *Pass Fee:* ${formatPKR(amountDue)}\n`) +
+      (isUpgrade && currentTier ? `💳 *Previous pass credit:* -${formatPKR(alreadyPaid)}\n💰 *Upgrade amount due:* ${formatPKR(amountDue)}\n` : `💰 *Pass Fee:* ${formatPKR(amountDue)}\n`) +
       `👤 *Customer Name:* ${customerName.trim()}\n` +
       `📱 *Phone:* ${phone.trim()}\n` +
       (email.trim() ? `📧 *Email:* ${email.trim()}\n` : '') +
@@ -123,7 +124,7 @@ export const VipClubModal: React.FC = () => {
               </div>
               <div className="pt-2 text-left">
                 <p className="mb-2 text-xs font-black text-zinc-800">Upgrade to a higher pass:</p>
-                <div className="flex flex-wrap justify-center gap-2">{vipTiers.filter((tier) => tier.price > (currentTier?.price || 0)).map((tier) => <button key={tier.id} type="button" onClick={() => setSelectedTierId(tier.id)} className="rounded-xl border border-[#e4002b] px-3 py-2 text-xs font-bold text-[#e4002b] hover:bg-red-50">{tier.name} · Pay only {formatPKR(tier.price - (currentTier?.price || 0))}</button>)}</div>
+                <div className="flex flex-wrap justify-center gap-2">{vipTiers.filter((tier) => tier.price > (currentTier?.price || 0)).map((tier) => <button key={tier.id} type="button" onClick={() => setSelectedTierId(tier.id)} className="rounded-xl border border-[#e4002b] px-3 py-2 text-xs font-bold text-[#e4002b] hover:bg-red-50">{tier.name} · Pay only {formatPKR(Math.max(0, tier.price - Number(currentUser?.vipPaidAmount ?? currentTier?.price ?? 0)))}</button>)}</div>
                 {vipTiers.every((tier) => tier.price <= (currentTier?.price || 0)) && <p className="text-xs text-zinc-500">Aap already highest-fee pass par hain.</p>}
               </div>
             </div>
