@@ -159,6 +159,8 @@ export const CheckoutModal: React.FC = () => {
             address: customer.address,
             storeName: settings.storeName || 'KFC Chakwal Delivery',
             status: newOrder.status,
+            reviewUrl: window.location.origin + '/?reviews=true',
+            points: String(Math.max(0, Number(settings.loyaltyConfig?.reviewBonus ?? 20))),
           } as Record<string, string>)[key] ?? _match)
         : `🍗 *NEW ORDER - KFC CHAKWAL DELIVERY*\n` +
         `Order ID: #${newOrder.id}\n` +
