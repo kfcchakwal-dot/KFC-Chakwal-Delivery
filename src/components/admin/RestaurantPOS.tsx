@@ -32,9 +32,9 @@ export const RestaurantPOS: React.FC<{ onOrderCreated?: () => void }> = ({ onOrd
   const categories = useMemo(() => [...new Set(menuItems.map((i) => i.categoryId))], [menuItems]);
   const visibleItems = useMemo(() => menuItems.filter((item) =>
     (category === 'all' || item.categoryId === category) &&
-    (!search.trim() || item.name.toLowerCase().includes(search.trim().toLowerCase()) || String(item.sku || '').toLowerCase().includes(search.trim().toLowerCase()) || String(item.barcode || '').toLowerCase().includes(search.trim().toLowerCase())) &&
+    (!search.trim() || item.name.toLowerCase().includes(search.trim().toLowerCase()) || (settings.skuBarcodeConfig?.enabled !== false && (String(item.sku || '').toLowerCase().includes(search.trim().toLowerCase()) || String(item.barcode || '').toLowerCase().includes(search.trim().toLowerCase())))) &&
     item.isAvailable !== false
-  ), [menuItems, category, search]);
+  ), [menuItems, category, search, settings.skuBarcodeConfig?.enabled]);
 
   const add = (item: MenuItem) => setCart((prev) => {
     const found = prev.find((x) => x.item.id === item.id);
