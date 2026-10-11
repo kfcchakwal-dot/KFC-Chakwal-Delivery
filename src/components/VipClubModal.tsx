@@ -23,7 +23,7 @@ export const VipClubModal: React.FC = () => {
     formatPKR,
   } = useStore();
 
-  const [selectedTierId, setSelectedTierId] = useState<VipTierId>('silver');
+  const [selectedTierId, setSelectedTierId] = useState<VipTierId>(() => currentUser?.vipTier || 'silver');
   const [customerName, setCustomerName] = useState(currentUser?.fullName || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
   const [email, setEmail] = useState(currentUser?.email || '');
@@ -85,7 +85,7 @@ export const VipClubModal: React.FC = () => {
             </div>
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider bg-black/30 px-2.5 py-0.5 rounded-full text-white inline-block">
-                One-Time Payment · Lifetime Benefit
+                Flexible Pass Benefits
               </span>
               <h3 className="font-kfc text-2xl sm:text-3xl font-black uppercase tracking-tight leading-none mt-1">
                 Lifetime VIP Pass
@@ -107,7 +107,7 @@ export const VipClubModal: React.FC = () => {
         <div className="p-5 overflow-y-auto space-y-4">
 
           {/* ACTIVE VIP MEMBER CARD */}
-          {isUserVipActive ? (
+          {isUserVipActive && !isUpgrade ? (
             <div className="p-6 rounded-3xl bg-red-50 border-2 border-[#e4002b] text-center space-y-3">
               <div className="w-16 h-16 rounded-full bg-[#e4002b] text-white flex items-center justify-center mx-auto shadow-lg">
                 <Crown className="w-8 h-8 text-amber-300" />
@@ -120,6 +120,11 @@ export const VipClubModal: React.FC = () => {
               </p>
               <div className="inline-block bg-black text-white text-xs font-bold px-4 py-1.5 rounded-full">
                 ✓ Guaranteed Discount on Every Checkout
+              </div>
+              <div className="pt-2 text-left">
+                <p className="mb-2 text-xs font-black text-zinc-800">Upgrade to a higher pass:</p>
+                <div className="flex flex-wrap justify-center gap-2">{vipTiers.filter((tier) => tier.price > (currentTier?.price || 0)).map((tier) => <button key={tier.id} type="button" onClick={() => setSelectedTierId(tier.id)} className="rounded-xl border border-[#e4002b] px-3 py-2 text-xs font-bold text-[#e4002b] hover:bg-red-50">{tier.name} · Pay only {formatPKR(tier.price - (currentTier?.price || 0))}</button>)}</div>
+                {vipTiers.every((tier) => tier.price <= (currentTier?.price || 0)) && <p className="text-xs text-zinc-500">Aap already highest-fee pass par hain.</p>}
               </div>
             </div>
           ) : isUserVipPending ? (
@@ -151,7 +156,7 @@ export const VipClubModal: React.FC = () => {
               {/* TIER SELECTION CARDS */}
               <div>
                 <label className="text-xs font-black uppercase tracking-wider text-black block mb-2">
-                  Select Your Pass Tier (One-Time Payment):
+                  Select Your Pass Tier:
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   {vipTiers.map((tier) => {
@@ -270,7 +275,7 @@ export const VipClubModal: React.FC = () => {
                   className="w-full bg-[#e4002b] hover:bg-[#c30025] text-white font-kfc uppercase text-xl font-black py-3.5 px-4 rounded-2xl shadow-xl flex items-center justify-center gap-2.5 cursor-pointer transition active:scale-98"
                 >
                   <MessageCircle className="w-6 h-6 fill-white text-[#e4002b]" />
-                  <span>Order {selectedTier.name} on WhatsApp ({formatPKR(selectedTier.price)})</span>
+                  <span>{isUpgrade ? `Upgrade to ${selectedTier.name} · Pay ${formatPKR(amountDue)}` : `Order ${selectedTier.name} on WhatsApp (${formatPKR(amountDue)})`}</span>
                 </button>
               </form>
             </>
