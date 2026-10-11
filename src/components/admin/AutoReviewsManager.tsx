@@ -16,6 +16,7 @@ import {
 export const AutoReviewsManager: React.FC = () => {
   const {
     settings,
+    updateSettings,
     updateAutoReview,
     reviews,
     addReview,
@@ -102,6 +103,36 @@ export const AutoReviewsManager: React.FC = () => {
           ✓ Review automation settings successfully saved!
         </div>
       )}
+
+      {/* Storefront Review Widget Placement Controls */}
+      <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
+        <div>
+          <h3 className="font-bold text-sm text-zinc-900 uppercase tracking-wider">Storefront Review Widgets</h3>
+          <p className="mt-1 text-xs text-zinc-500">Choose where published reviews appear. Changes save immediately.</p>
+        </div>
+        {([
+          ['enabled', 'Enable reviews across storefront'],
+          ['showOnHomePage', 'Show review widget on homepage'],
+          ['showOnProductPages', 'Show reviews on product pages'],
+          ['showFormOnProductPages', 'Allow review form on product pages'],
+          ['showOnReviewsPage', 'Enable dedicated Customer Reviews page'],
+        ] as const).map(([key, label]) => {
+          const widgetSettings = settings.reviewWidgets || {};
+          const checked = widgetSettings[key] !== false && (key !== 'showOnHomePage' || widgetSettings[key] === true);
+          return <label key={key} className="flex items-center justify-between gap-4 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3">
+            <span className="text-xs font-bold text-zinc-800">{label}</span>
+            <input type="checkbox" checked={checked} onChange={(event) => {
+              updateSettings({ reviewWidgets: { ...widgetSettings, [key]: event.target.checked } });
+            }} className="h-4 w-4 accent-[#e4002b]" />
+          </label>;
+        })}
+        <label className="block text-xs font-bold text-zinc-700">
+          Reviews shown in homepage widget
+          <select value={settings.reviewWidgets?.maxReviewsOnWidgets || 3} onChange={(event) => updateSettings({ reviewWidgets: { ...(settings.reviewWidgets || {}), maxReviewsOnWidgets: Number(event.target.value) } })} className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5">
+            <option value={1}>1 review</option><option value={2}>2 reviews</option><option value={3}>3 reviews</option><option value={4}>4 reviews</option><option value={6}>6 reviews</option><option value={8}>8 reviews</option>
+          </select>
+        </label>
+      </div>
 
       {/* Auto Review Automation Configuration Card */}
       <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm space-y-5">
