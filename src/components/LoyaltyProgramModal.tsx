@@ -346,3 +346,27 @@ export const LoyaltyProgramModal: React.FC = () => {
     </div>
   );
 };
+
+
+export const RewardsPage: React.FC = () => {
+  const { currentUser, settings, themeMode, goHome, loyaltyTransactions } = useStore();
+  const points = Math.max(0, Number(currentUser?.loyaltyPoints || 0));
+  const pointsPerRupee = Math.max(1, Number(settings.loyaltyConfig?.pointsPerRupee ?? 2));
+  const isDark = themeMode === 'dark';
+  return <main className={`mx-auto min-h-[60vh] w-full max-w-4xl flex-1 px-4 py-8 sm:px-6 ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+    <button type="button" onClick={goHome} className="mb-6 rounded-xl border px-3 py-2 text-xs font-bold hover:border-[#e4002b]">← Back to menu</button>
+    <header className="rounded-3xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 p-6 text-white sm:p-8">
+      <p className="text-xs font-black uppercase tracking-widest">KFC Chakwal Delivery</p>
+      <h1 className="mt-2 text-3xl font-black">Rewards Program</h1>
+      <p className="mt-2 max-w-xl text-sm">Order your favourite meals, earn points, and redeem them for bill discounts.</p>
+      <div className="mt-5 grid grid-cols-2 gap-3"><div className="rounded-2xl bg-white/15 p-4"><p className="text-xs">Your points</p><p className="mt-1 text-3xl font-black">{points.toLocaleString()}</p></div><div className="rounded-2xl bg-white/15 p-4"><p className="text-xs">Discount value</p><p className="mt-1 text-3xl font-black">{formatPKR(Math.floor(points / pointsPerRupee))}</p></div></div>
+    </header>
+    <section className={`mt-5 rounded-2xl border p-5 ${isDark?'border-zinc-700 bg-zinc-900':'border-zinc-200 bg-white'}`}>
+      <h2 className="text-lg font-black">How to earn points</h2><p className="mt-2 text-sm text-zinc-500">Earn {Math.max(0, Number(settings.loyaltyConfig?.pointsPerSpend ?? 10))} points for every {formatPKR(Math.max(1, Number(settings.loyaltyConfig?.spendThreshold ?? 300)))} eligible spend.</p><p className="mt-2 text-sm text-zinc-500">Eligible approved reviews may earn {Math.max(0, Number(settings.loyaltyConfig?.reviewBonus ?? 20))} bonus points when signed in.</p><p className="mt-2 text-sm text-zinc-500">New customer bonus: {Math.max(0, Number(settings.loyaltyConfig?.signupBonus ?? 50))} points.</p>
+    </section>
+    <section className={`mt-4 rounded-2xl border p-5 ${isDark?'border-zinc-700 bg-zinc-900':'border-zinc-200 bg-white'}`}>
+      <h2 className="text-lg font-black">How to redeem</h2><p className="mt-2 text-sm text-zinc-500"><strong>{pointsPerRupee} points = Rs. 1 discount.</strong> At checkout, choose Redeem Points. Minimum eligible cart is {formatPKR(Math.max(0, Number(settings.loyaltyConfig?.minRedemptionAmount ?? 500)))}.</p><p className="mt-2 text-sm text-zinc-500">{settings.loyaltyConfig?.combineWithCoupons ? 'Points may be combined with eligible coupons.' : 'Points cannot be combined with discount coupons.'}</p><p className="mt-2 text-sm text-zinc-500">Discount cannot exceed the eligible cart subtotal or your available points.</p>
+    </section>
+    {loyaltyTransactions.length>0 && <section className={`mt-4 rounded-2xl border p-5 ${isDark?'border-zinc-700 bg-zinc-900':'border-zinc-200 bg-white'}`}><h2 className="text-lg font-black">Recent points activity</h2><div className="mt-3 space-y-2">{loyaltyTransactions.slice(0,10).map((item:any)=><div key={item.id} className="flex justify-between gap-3 border-b border-zinc-100 py-2 text-xs"><span>{item.description || item.type || 'Rewards activity'}</span><strong className={Number(item.points)>=0?'text-emerald-500':'text-red-500'}>{Number(item.points)>0?'+':''}{item.points} pts</strong></div>)}</div></section>}
+  </main>;
+};
