@@ -24,7 +24,7 @@ import { DailyDealsSection } from './components/DailyDealsSection';
 import { LoyaltyPointsBanner } from './components/LoyaltyPointsBanner';
 import { PoliciesModal } from './components/PoliciesModal';
 import { DailyDealsPopupModal } from './components/DailyDealsPopupModal';
-import { LoyaltyProgramModal } from './components/LoyaltyProgramModal';
+import { LoyaltyProgramModal, RewardsPage } from './components/LoyaltyProgramModal';
 import { VipClubModal } from './components/VipClubModal';
 import { PointsEarnedNotification } from './components/PointsEarnedNotification';
 import { AppUpdatePrompt } from './components/AppUpdatePrompt';
@@ -378,6 +378,7 @@ const MainShop: React.FC = () => {
       {/* VIEW ROUTING: WISHLIST PAGE */}
       {currentView === 'wishlist' && <WishlistPage />}
       {currentView === 'reviews' && <ReviewsPage />}
+      {currentView === 'rewards' && <RewardsPage />}
 
       {/* VIEW ROUTING: HOME & CATEGORY COLLECTIONS */}
       {(currentView === 'home' || currentView === 'collection') && (
