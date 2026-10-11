@@ -1602,10 +1602,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const userPoints = currentUser?.loyaltyPoints || 0;
   const canRedeemPoints = userPoints > 0 && cartSubtotal >= minPointsRedemptionAmount && !hasActiveDiscountCoupon;
 
-  // 1 Point = 1 PKR
+  // Conversion: 2 reward points = Rs 1 discount. Keep point balance and rupee discount separate.
   const subtotalAfterCoupon = Math.max(0, cartSubtotal - discountAmount);
-  const maxRedeemablePoints = canRedeemPoints ? Math.min(userPoints, subtotalAfterCoupon) : 0;
-  const loyaltyDiscountAmount = isRedeemingPoints && canRedeemPoints ? maxRedeemablePoints : 0;
+  const maxRedeemablePoints = canRedeemPoints ? Math.min(userPoints, subtotalAfterCoupon * 2) : 0;
+  const loyaltyDiscountAmount = isRedeemingPoints && canRedeemPoints ? Math.floor(maxRedeemablePoints / 2) : 0;
 
   // VIP Membership Lifetime Discount Engine (Flat 3%, 6%, or 8% OFF for approved VIPs)
   const activeVipTier = DEFAULT_VIP_TIERS.find((t) => t.id === currentUser?.vipTier);
@@ -1728,6 +1728,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const markupAmount = Math.max(0, cartSubtotal - rawKfcSubtotal);
     const requestedLoyaltyDiscount = isRedeemingPoints && canRedeemPoints ? loyaltyDiscountAmount : 0;
+    const requestedLoyaltyPoints = requestedLoyaltyDiscount * 2;
 
     const draftOrder: Order = {
       id: `CKW-${Date.now().toString().slice(-8)}`,
@@ -1739,7 +1740,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deliveryFee: effectiveDeliveryFee,
       discount: discountAmount,
       loyaltyPointsEarned: potentialPointsToEarn,
-      loyaltyPointsRedeemed: requestedLoyaltyDiscount,
+      loyaltyPointsRedeemed: requestedLoyaltyPoints,
       loyaltyDiscount: requestedLoyaltyDiscount,
       vipDiscount: vipDiscountAmount,
       vipTierApplied: isVipActive && currentUser?.vipTier ? currentUser.vipTier : undefined,
@@ -1767,6 +1768,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deliveryMethodId: selectedDeliveryMethodId,
       discountCode: appliedDiscountCode || null,
       redeemLoyaltyPoints: requestedLoyaltyDiscount > 0,
+      loyaltyPointsRedeemed: requestedLoyaltyPoints,
     }));
     // Persist delivery contact details against the authenticated Google account before accepting the order.
     // If this write fails, stop checkout rather than silently losing the customer's phone/address.
