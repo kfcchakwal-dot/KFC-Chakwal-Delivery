@@ -632,6 +632,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             loyaltyPoints: Number(data.loyaltyPoints || 50),
             vipTier: data.vipTier,
             vipStatus: data.vipStatus,
+            vipPaidAmount: Number(data.vipPaidAmount || 0),
+            vipExpiresAt: data.vipExpiresAt || null,
             totalSpent: Number(data.totalSpent || 0),
             ordersCount: Number(data.totalOrdersCount || 0),
             createdAt: data.createdAt || new Date().toISOString(),
@@ -681,6 +683,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             createdAt: String(cached?.createdAt || new Date().toISOString()),
             ...(cached?.vipTier !== undefined ? { vipTier: cached.vipTier } : {}),
             ...(cached?.vipStatus !== undefined ? { vipStatus: cached.vipStatus } : {}),
+          ...(cached?.vipPaidAmount !== undefined ? { vipPaidAmount: cached.vipPaidAmount } : {}),
+          ...(cached?.vipExpiresAt !== undefined ? { vipExpiresAt: cached.vipExpiresAt } : {}),
+            ...(cached?.vipPaidAmount !== undefined ? { vipPaidAmount: cached.vipPaidAmount } : {}),
+            ...(cached?.vipExpiresAt !== undefined ? { vipExpiresAt: cached.vipExpiresAt } : {}),
           };
           setCurrentUser(fallbackProfile);
           localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(fallbackProfile));
@@ -1636,8 +1642,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loyaltyDiscountAmount = isRedeemingPoints && canRedeemPoints ? Math.floor(maxRedeemablePoints / pointsPerRupee) : 0;
 
   // VIP Membership Lifetime Discount Engine (Flat 3%, 6%, or 8% OFF for approved VIPs)
-  const activeVipTier = DEFAULT_VIP_TIERS.find((t) => t.id === currentUser?.vipTier);
-  const isVipActive = Boolean(currentUser?.vipStatus === 'active' && activeVipTier);
+  const activeVipTier = vipTiers.find((t) => t.id === currentUser?.vipTier) || DEFAULT_VIP_TIERS.find((t) => t.id === currentUser?.vipTier);
+  const isVipActive = Boolean(currentUser?.vipStatus === 'active' && activeVipTier && (!currentUser.vipExpiresAt || new Date(currentUser.vipExpiresAt).getTime() > Date.now()));
   const vipDiscountAmount = isVipActive && cartSubtotal > 0 && activeVipTier
     ? Math.round((cartSubtotal * activeVipTier.discountPercentage) / 100)
     : 0;
@@ -2028,6 +2034,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       loyaltyPoints: Number(data.loyaltyPoints ?? 50),
       ...(data.vipTier !== undefined ? { vipTier: data.vipTier } : {}),
       ...(data.vipStatus !== undefined ? { vipStatus: data.vipStatus } : {}),
+      ...(data.vipPaidAmount !== undefined ? { vipPaidAmount: data.vipPaidAmount } : {}),
+      ...(data.vipExpiresAt !== undefined ? { vipExpiresAt: data.vipExpiresAt } : {}),
       totalSpent: Number(data.totalSpent || 0),
       ordersCount: Number(data.totalOrdersCount || 0),
       ...(typeof data.emailMarketingConsent === 'boolean' ? { emailMarketingConsent: data.emailMarketingConsent } : {}),
@@ -2354,17 +2362,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const currentTier = vipTiers.find((item) => item.id === request.tierId) || DEFAULT_VIP_TIERS.find((item) => item.id === request.tierId);
     const restoredTier = status === 'rejected' ? request.previousTierId : undefined;
     const restoredStatus = status === 'rejected' ? request.previousVipStatus : undefined;
+    const expiresAt = currentTier?.durationDays && currentTier.durationDays > 0 ? new Date(Date.now() + currentTier.durationDays * 86400000).toISOString() : null;
     await setDoc(doc(db, 'customers', request.customerId), {
       vipTier: status === 'approved' ? request.tierId : (restoredTier || null),
       vipStatus: status === 'approved' ? 'active' : (restoredStatus || 'rejected'),
       vipPaidAmount: status === 'approved' ? Number(currentTier?.price || request.amount) : (request.previousPaidAmount ?? null),
+      vipExpiresAt: status === 'approved' ? expiresAt : (request.previousVipExpiresAt ?? null),
       updatedAt: new Date().toISOString(),
     }, { merge: true });
     setVipRequests((prev) => prev.map((item) => item.id === requestId ? updated : item));
     if (currentUser?.id === request.customerId) {
       setCurrentUser((prev) => prev ? {
         ...prev, vipStatus: status === 'approved' ? 'active' : 'rejected',
-        ...(status === 'approved' ? { vipTier: request.tierId, vipPaidAmount: Number(currentTier?.price || request.amount) } : { vipTier: request.previousTierId, vipPaidAmount: request.previousPaidAmount }),
+        ...(status === 'approved' ? { vipTier: request.tierId, vipPaidAmount: Number(currentTier?.price || request.amount), vipExpiresAt: expiresAt } : { vipTier: request.previousTierId, vipPaidAmount: request.previousPaidAmount, vipExpiresAt: request.previousVipExpiresAt }),
       } : prev);
     }
   };
@@ -2379,7 +2389,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const tier = vipTiers.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS.find((t) => t.id === tierId) || DEFAULT_VIP_TIERS[0];
     const saved: VipMembershipRequest & { uid: string } = {
       id: `vip-req-${Date.now()}`, customerId: user.uid, uid: user.uid,
-      previousTierId: currentUser?.vipTier, previousVipStatus: currentUser?.vipStatus, previousPaidAmount: currentUser?.vipPaidAmount,
+      previousTierId: currentUser?.vipTier, previousVipStatus: currentUser?.vipStatus, previousPaidAmount: currentUser?.vipPaidAmount, previousVipExpiresAt: currentUser?.vipExpiresAt,
       customerName: customerName.trim(), phone: phone.trim(), email: email?.trim() || '',
       tierId, amount: Math.max(0, Number(amountOverride ?? tier.price)), paymentMethod: 'whatsapp', transactionId: '',
       requestedAt: new Date().toISOString(), status: 'pending',
@@ -2408,7 +2418,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await setDoc(doc(db, 'vipRequests', request.id), request);
     }
     await setDoc(doc(db, 'vipRequests', request.id), { status: 'approved', reviewedAt: new Date().toISOString(), tierId }, { merge: true });
-    await setDoc(doc(db, 'customers', target.id), { vipTier: tierId, vipStatus: 'active', updatedAt: new Date().toISOString() }, { merge: true });
+    const grantedTier = vipTiers.find((tier) => tier.id === tierId) || DEFAULT_VIP_TIERS.find((tier) => tier.id === tierId);
+    const vipExpiresAt = grantedTier?.durationDays && grantedTier.durationDays > 0 ? new Date(Date.now() + grantedTier.durationDays * 86400000).toISOString() : null;
+    await setDoc(doc(db, 'customers', target.id), { vipTier: tierId, vipStatus: 'active', vipPaidAmount: grantedTier?.price || 0, vipExpiresAt, updatedAt: new Date().toISOString() }, { merge: true });
     setVipRequests((prev) => [{ ...request!, status: 'approved', tierId }, ...prev.filter((item) => item.id !== request!.id)]);
     setCustomerRecords((prev) => prev.map((customer) => customer.id === target.id ? { ...customer, vipTier: tierId } : customer));
   };
