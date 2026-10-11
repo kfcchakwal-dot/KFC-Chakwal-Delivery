@@ -61,11 +61,11 @@ export const LoyaltyPointsBanner: React.FC = () => {
                       {currentUser.loyaltyPoints || 0} Points Available
                     </h3>
                     <span className="text-xs text-yellow-200 font-bold font-mono">
-                      (= Rs. {currentUser.loyaltyPoints || 0} Discount)
+                      (= Rs. {Math.floor((currentUser.loyaltyPoints || 0) / 2)} Discount)
                     </span>
                   </div>
                   <p className="text-[11px] text-white/90">
-                    Use your points on checkout to get direct instant discount on any meal.
+                    Har 2 points par Rs. 1 discount milega. Checkout par points redeem karein.
                   </p>
                 </>
               ) : (
