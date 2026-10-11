@@ -33,6 +33,9 @@ export const VipClubModal: React.FC = () => {
 
   const selectedTier = vipTiers.find((t) => t.id === selectedTierId) || vipTiers[0];
   const isUserVipActive = currentUser?.vipStatus === 'active';
+  const currentTier = vipTiers.find((tier) => tier.id === currentUser?.vipTier);
+  const isUpgrade = Boolean(isUserVipActive && currentTier && selectedTier && selectedTier.price > currentTier.price);
+  const amountDue = isUpgrade && currentTier ? Math.max(0, selectedTier.price - currentTier.price) : selectedTier?.price || 0;
   const isUserVipPending = currentUser?.vipStatus === 'pending' || isSent;
 
   const handleOrderOnWhatsApp = async (e: React.FormEvent) => {
@@ -47,7 +50,7 @@ export const VipClubModal: React.FC = () => {
     }
 
     try {
-      await requestVipMembershipWhatsApp(selectedTierId, customerName, phone, email);
+      await requestVipMembershipWhatsApp(selectedTierId, customerName, phone, email, amountDue);
       setIsSent(true);
     } catch (error: any) {
       alert(error?.message || 'VIP request create nahi ho saki.');
@@ -57,8 +60,9 @@ export const VipClubModal: React.FC = () => {
     // Format WhatsApp message to 0325-2777574
     const message = 
       `Assalam o Alaikum! Mujhe KFC Chakwal Delivery ka Lifetime VIP Pass order karna hai:\n\n` +
-      `👑 *Pass:* ${selectedTier.name} (Flat ${selectedTier.discountPercentage}% Lifetime OFF)\n` +
-      `💰 *One-Time Fee:* ${formatPKR(selectedTier.price)}\n` +
+      `👑 *Pass:* ${selectedTier.name} (Flat ${selectedTier.discountPercentage}% OFF)\n` +
+      (selectedTier.durationDays && selectedTier.durationDays > 0 ? `⏳ *Validity:* ${selectedTier.durationDays} days\n` : `⏳ *Validity:* Lifetime\n`) +
+      (isUpgrade && currentTier ? `💳 *Previous pass credit:* -${formatPKR(currentTier.price)}\n💰 *Upgrade amount due:* ${formatPKR(amountDue)}\n` : `💰 *Pass Fee:* ${formatPKR(amountDue)}\n`) +
       `👤 *Customer Name:* ${customerName.trim()}\n` +
       `📱 *Phone:* ${phone.trim()}\n` +
       (email.trim() ? `📧 *Email:* ${email.trim()}\n` : '') +
@@ -277,7 +281,7 @@ export const VipClubModal: React.FC = () => {
         {/* Footer */}
         <div className="p-4 border-t border-zinc-200 bg-zinc-50 flex items-center justify-between shrink-0">
           <span className="text-[11px] text-zinc-600 font-bold">
-            Helpline: +92 325 2777574 · Valid for lifetime orders
+            Helpline: +92 325 2777574 · Pass validity selected tier ke mutabiq
           </span>
 
           <button
