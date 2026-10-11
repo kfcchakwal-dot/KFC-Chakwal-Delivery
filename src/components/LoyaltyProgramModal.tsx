@@ -137,7 +137,7 @@ export const LoyaltyProgramModal: React.FC = () => {
                 </div>
 
                 <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                  Worth <strong className="text-emerald-500 font-mono text-sm">{formatPKR(Math.floor(points / 2))} Discount</strong> on your next Chakwal order!
+                  Worth <strong className="text-emerald-500 font-mono text-sm">{formatPKR(Math.floor(points / Math.max(1, Number(settings.loyaltyConfig?.pointsPerRupee ?? 2))))} Discount</strong> on your next Chakwal order!
                 </p>
 
                 {currentUser ? (
@@ -255,7 +255,7 @@ export const LoyaltyProgramModal: React.FC = () => {
                 <div>
                   <h4 className="font-bold text-xs">Redeem on Checkout for Instant Cash OFF</h4>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    At checkout, check the "Redeem Points" box to reduce your bill. 2 reward points = Rs. 1 discount.
+                    At checkout, check the "Redeem Points" box to reduce your bill. {Math.max(1, Number(settings.loyaltyConfig?.pointsPerRupee ?? 2))} reward points = Rs. 1 discount.
                   </p>
                 </div>
               </div>
