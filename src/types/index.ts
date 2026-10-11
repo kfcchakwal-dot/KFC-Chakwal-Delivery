@@ -432,6 +432,10 @@ export interface Order {
   vipDiscount?: number;
   vipTierApplied?: VipTierId;
   total: number;
+  /** Cumulative amount received from the customer; old orders default to zero. */
+  paymentReceived?: number;
+  /** Derived payment state for quick admin visibility. */
+  paymentStatus?: 'unpaid' | 'partial' | 'paid';
   customer: CustomerDetails;
   specialInstructions?: string; // Kitchen notes
   paymentMethod: PaymentMethod;
