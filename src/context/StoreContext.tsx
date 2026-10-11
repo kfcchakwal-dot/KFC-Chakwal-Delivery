@@ -1806,63 +1806,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       redeemLoyaltyPoints: requestedLoyaltyDiscount > 0,
       loyaltyPointsRedeemed: requestedLoyaltyPoints,
     }));
-    // Persist delivery contact details against the authenticated Google account before accepting the order.
-    // If this write fails, stop checkout rather than silently losing the customer's phone/address.
-    if (user) {
-      const phone = String(customer.phone || currentUser?.phone || user.phoneNumber || '').trim();
-      const address = String(customer.address || currentUser?.defaultAddress || currentUser?.address || '').trim();
-      const fullName = String(customer.fullName || currentUser?.fullName || user.displayName || 'Customer').trim();
-      const email = String(user.email || currentUser?.email || '').trim();
-      const customerProfileRef = doc(db, 'customers', user.uid);
-      const existingCustomerProfile = await getDoc(customerProfileRef);
-      const savedProfile: Record<string, any> = existingCustomerProfile.exists() ? existingCustomerProfile.data() : {};
-      const existingAddresses = Array.isArray(savedProfile.savedAddresses)
-        ? savedProfile.savedAddresses as CustomerAddress[]
-        : (currentUser?.savedAddresses || []);
-      const addressExists = address && existingAddresses.some((saved) => String(saved.address || '').trim().toLowerCase() === address.toLowerCase());
-      const savedAddresses = address && !addressExists
-        ? [...existingAddresses, { id: `addr-${Date.now()}`, label: 'Recent Order', address }]
-        : existingAddresses;
-      const profileUpdate = {
-        fullName,
-        email,
-        phone,
-        address,
-        defaultAddress: address,
-        savedAddresses,
-        updatedAt: new Date().toISOString(),
-      };
-      if (existingCustomerProfile.exists()) {
-        await setDoc(customerProfileRef, profileUpdate, { merge: true });
-      } else {
-        await setDoc(customerProfileRef, {
-          id: user.uid,
-          ...profileUpdate,
-          loyaltyPoints: Math.max(0, Number(settings.loyaltyConfig?.signupBonus ?? 50)),
-          totalSpent: 0,
-          ordersCount: 0,
-          createdAt: new Date().toISOString(),
-        }, { merge: true });
-      }
-      const updatedProfile: CustomerUser = {
-        id: user.uid,
-        fullName,
-        email,
-        phone,
-        address,
-        defaultAddress: address,
-        savedAddresses,
-        loyaltyPoints: Number(currentUser?.loyaltyPoints || 0),
-        createdAt: currentUser?.createdAt || new Date().toISOString(),
-        totalSpent: Number(currentUser?.totalSpent || 0),
-        ordersCount: Number(currentUser?.ordersCount || 0),
-        ...(currentUser?.vipTier ? { vipTier: currentUser.vipTier } : {}),
-        ...(currentUser?.vipStatus ? { vipStatus: currentUser.vipStatus } : {}),
-      };
-      setCurrentUser(updatedProfile);
-      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedProfile));
-    }
-
     // Create the order and decrement tracked stock atomically so concurrent checkouts cannot oversell.
     const quantitiesByProduct = new Map<string, number>();
     cart.forEach((cartItem) => {
@@ -1886,6 +1829,68 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       transaction.set(doc(db, 'orders', savedOrder.id), firestoreOrder);
     });
+
+    // Save profile/address in the background so the successful order confirmation is not delayed.
+    if (user) {
+      void (async () => {
+      if (user) {
+        const phone = String(customer.phone || currentUser?.phone || user.phoneNumber || '').trim();
+        const address = String(customer.address || currentUser?.defaultAddress || currentUser?.address || '').trim();
+        const fullName = String(customer.fullName || currentUser?.fullName || user.displayName || 'Customer').trim();
+        const email = String(user.email || currentUser?.email || '').trim();
+        const customerProfileRef = doc(db, 'customers', user.uid);
+        const existingCustomerProfile = await getDoc(customerProfileRef);
+        const savedProfile: Record<string, any> = existingCustomerProfile.exists() ? existingCustomerProfile.data() : {};
+        const existingAddresses = Array.isArray(savedProfile.savedAddresses)
+          ? savedProfile.savedAddresses as CustomerAddress[]
+          : (currentUser?.savedAddresses || []);
+        const addressExists = address && existingAddresses.some((saved) => String(saved.address || '').trim().toLowerCase() === address.toLowerCase());
+        const savedAddresses = address && !addressExists
+          ? [...existingAddresses, { id: `addr-${Date.now()}`, label: 'Recent Order', address }]
+          : existingAddresses;
+        const profileUpdate = {
+          fullName,
+          email,
+          phone,
+          address,
+          defaultAddress: address,
+          savedAddresses,
+          updatedAt: new Date().toISOString(),
+        };
+        if (existingCustomerProfile.exists()) {
+          await setDoc(customerProfileRef, profileUpdate, { merge: true });
+        } else {
+          await setDoc(customerProfileRef, {
+            id: user.uid,
+            ...profileUpdate,
+            loyaltyPoints: Math.max(0, Number(settings.loyaltyConfig?.signupBonus ?? 50)),
+            totalSpent: 0,
+            ordersCount: 0,
+            createdAt: new Date().toISOString(),
+          }, { merge: true });
+        }
+        const updatedProfile: CustomerUser = {
+          id: user.uid,
+          fullName,
+          email,
+          phone,
+          address,
+          defaultAddress: address,
+          savedAddresses,
+          loyaltyPoints: Number(currentUser?.loyaltyPoints || 0),
+          createdAt: currentUser?.createdAt || new Date().toISOString(),
+          totalSpent: Number(currentUser?.totalSpent || 0),
+          ordersCount: Number(currentUser?.ordersCount || 0),
+          ...(currentUser?.vipTier ? { vipTier: currentUser.vipTier } : {}),
+          ...(currentUser?.vipStatus ? { vipStatus: currentUser.vipStatus } : {}),
+        };
+        setCurrentUser(updatedProfile);
+        localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(updatedProfile));
+      }
+  
+  
+      })().catch((error) => console.warn('Customer profile background save notice:', error));
+    }
 
     // Only update local customer/order state after the server has accepted the order.
     const earnedPoints = Number(savedOrder.loyaltyPointsEarned || 0);
