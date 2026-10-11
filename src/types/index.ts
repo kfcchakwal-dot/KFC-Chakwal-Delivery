@@ -127,7 +127,8 @@ export type SectionType =
   | 'delivery-info' 
   | 'banner' 
   | 'features' 
-  | 'custom-notice';
+  | 'custom-notice'
+  | 'reviews-widget';
 
 export interface PageSection {
   id: string;
