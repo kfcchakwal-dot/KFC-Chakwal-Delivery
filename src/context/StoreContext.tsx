@@ -222,7 +222,7 @@ interface StoreContextType {
   setActiveCategory: (cat: CategoryId) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  currentView: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews';
+  currentView: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews' | 'rewards';
   setCurrentView: (view: 'home' | 'product' | 'wishlist' | 'collection' | 'reviews') => void;
   selectedProduct: MenuItem | null;
   viewProduct: (item: MenuItem) => void;
@@ -513,8 +513,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const params = new URLSearchParams(window.location.search);
       if (params.get('reviews') === 'true') return 'reviews';
+      if (params.get('rewards') === 'true') return 'rewards';
       const saved = localStorage.getItem('kfc-current-view');
-      return saved === 'product' || saved === 'wishlist' || saved === 'collection' || saved === 'reviews' ? saved : 'home';
+      return saved === 'product' || saved === 'wishlist' || saved === 'collection' || saved === 'reviews' || saved === 'rewards' ? saved : 'home';
     } catch { return 'home'; }
   });
   const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
