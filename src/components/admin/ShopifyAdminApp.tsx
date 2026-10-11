@@ -3041,6 +3041,11 @@ export const ShopifyAdminApp: React.FC = () => {
                   />
                 </div>
 
+                <div className="flex items-center justify-between border-t border-zinc-100 pt-4">
+                  <div><h3 className="font-bold text-sm text-zinc-900">Show popup when app opens</h3><p className="text-xs text-zinc-500">Popup ko alag se ON/OFF karein. Daily Deals section ki setting alag rahegi.</p></div>
+                  <input type="checkbox" checked={dailyDealConfig.popupEnabled !== false} onChange={(event) => updateDailyDealConfig({ popupEnabled: event.target.checked })} className="h-5 w-5 cursor-pointer accent-[#e4002b]"/>
+                </div>
+
                 {/* Offer Selection Mode: Random vs Specific Collection vs Manual */}
                 <div className="pt-4 border-t border-zinc-100 space-y-3">
                   <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700">
