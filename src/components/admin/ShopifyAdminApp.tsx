@@ -3929,6 +3929,18 @@ export const ShopifyAdminApp: React.FC = () => {
               </div>
 
               <div className="bg-white border border-zinc-200 p-6 rounded-2xl space-y-4 shadow-sm">
+                <div><h3 className="font-bold text-sm text-zinc-900">Rewards & Loyalty Rules</h3><p className="mt-1 text-[11px] text-zinc-500">Points earning, redemption aur signup bonus admin yahan edit kar sakta hai.</p></div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {([
+                    ['pointsPerRupee','Points per Rs 1 discount',2],
+                    ['pointsPerSpend','Points earned per spend step',10],
+                    ['spendThreshold','Spend step amount (Rs)',300],
+                    ['minRedemptionAmount','Minimum cart to redeem (Rs)',500],
+                    ['signupBonus','New customer signup bonus',50],
+                    ['reviewBonus','Review bonus points',20],
+                  ] as const).map(([key,label,fallback]) => <label key={key} className="text-xs font-bold text-zinc-700">{label}<input type="number" min="0" step="1" value={settings.loyaltyConfig?.[key] ?? fallback} onChange={(event) => updateSettings({ loyaltyConfig: { pointsPerRupee: settings.loyaltyConfig?.pointsPerRupee ?? 2, pointsPerSpend: settings.loyaltyConfig?.pointsPerSpend ?? 10, spendThreshold: settings.loyaltyConfig?.spendThreshold ?? 300, minRedemptionAmount: settings.loyaltyConfig?.minRedemptionAmount ?? 500, signupBonus: settings.loyaltyConfig?.signupBonus ?? 50, reviewBonus: settings.loyaltyConfig?.reviewBonus ?? 20, combineWithCoupons: settings.loyaltyConfig?.combineWithCoupons ?? false, [key]: Math.max(0, Number(event.target.value) || 0) } })} className="mt-1 w-full rounded-xl border border-zinc-200 bg-zinc-50 p-2.5 text-sm"/></label>)}
+                </div>
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>Allow reward points with coupon codes</span><input type="checkbox" checked={settings.loyaltyConfig?.combineWithCoupons === true} onChange={(event) => updateSettings({ loyaltyConfig: { pointsPerRupee: settings.loyaltyConfig?.pointsPerRupee ?? 2, pointsPerSpend: settings.loyaltyConfig?.pointsPerSpend ?? 10, spendThreshold: settings.loyaltyConfig?.spendThreshold ?? 300, minRedemptionAmount: settings.loyaltyConfig?.minRedemptionAmount ?? 500, signupBonus: settings.loyaltyConfig?.signupBonus ?? 50, reviewBonus: settings.loyaltyConfig?.reviewBonus ?? 20, combineWithCoupons: event.target.checked } })} className="h-4 w-4 accent-red-600"/></label>
                 <div><h3 className="font-bold text-sm text-zinc-900">SKU & Barcode Settings</h3><p className="mt-1 text-[11px] text-zinc-500">Enable/disable SKU and barcode fields and bulk generation.</p></div>
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>Enable SKU / Barcode features</span><input type="checkbox" checked={settings.skuBarcodeConfig?.enabled !== false} onChange={(event) => updateSettings({ skuBarcodeConfig: { enabled: event.target.checked, autoGenerateSku: settings.skuBarcodeConfig?.autoGenerateSku !== false, autoGenerateBarcode: settings.skuBarcodeConfig?.autoGenerateBarcode !== false } })} className="h-4 w-4 accent-red-600" /></label>
                 <p className="text-[11px] text-zinc-500">Manual SKU/barcode edit fields Products cards mein hain. Bulk generator sirf missing values generate karta hai.</p>
