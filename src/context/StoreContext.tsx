@@ -1823,24 +1823,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     cart.forEach((cartItem) => {
       if (cartItem.menuItem.trackInventory) quantitiesByProduct.set(cartItem.menuItem.id, (quantitiesByProduct.get(cartItem.menuItem.id) || 0) + cartItem.quantity);
     });
-    await runTransaction(db, async (transaction) => {
-      const stockEntries = Array.from(quantitiesByProduct.entries());
-      const productRefs = stockEntries.map(([productId]) => doc(db, 'products', productId));
-      const productSnapshots = [];
-      for (const productRef of productRefs) productSnapshots.push(await transaction.get(productRef));
-      productSnapshots.forEach((snapshot, index) => {
-        const [productId, quantity] = stockEntries[index];
-        const cartProduct = cart.find((item) => item.menuItem.id === productId)?.menuItem;
-        const data = snapshot.exists() ? snapshot.data() : (cartProduct as any);
-        if (data?.trackInventory === true) {
-          const available = Math.max(0, Number(data.stockQuantity || 0));
-          if (available < quantity) throw new Error(`${cartProduct?.name || 'Product'} ka stock sirf ${available} available hai.`);
-          if (snapshot.exists()) transaction.update(productRefs[index], { stockQuantity: available - quantity, updatedAt: new Date().toISOString() });
-          else transaction.set(productRefs[index], { ...cartProduct, stockQuantity: available - quantity, updatedAt: new Date().toISOString() }, { merge: true });
-        }
+    let isQuotaFallback = false;
+    try {
+      await runTransaction(db, async (transaction) => {
+        const stockEntries = Array.from(quantitiesByProduct.entries());
+        const productRefs = stockEntries.map(([productId]) => doc(db, 'products', productId));
+        const productSnapshots = [];
+        for (const productRef of productRefs) productSnapshots.push(await transaction.get(productRef));
+        productSnapshots.forEach((snapshot, index) => {
+          const [productId, quantity] = stockEntries[index];
+          const cartProduct = cart.find((item) => item.menuItem.id === productId)?.menuItem;
+          const data = snapshot.exists() ? snapshot.data() : (cartProduct as any);
+          if (data?.trackInventory === true) {
+            const available = Math.max(0, Number(data.stockQuantity || 0));
+            if (available < quantity) throw new Error(`${cartProduct?.name || 'Product'} ka stock sirf ${available} available hai.`);
+            if (snapshot.exists()) transaction.update(productRefs[index], { stockQuantity: available - quantity, updatedAt: new Date().toISOString() });
+            else transaction.set(productRefs[index], { ...cartProduct, stockQuantity: available - quantity, updatedAt: new Date().toISOString() }, { merge: true });
+          }
+        });
+        transaction.set(doc(db, 'orders', savedOrder.id), firestoreOrder);
       });
-      transaction.set(doc(db, 'orders', savedOrder.id), firestoreOrder);
-    });
+    } catch (dbError: any) {
+      const errMessage = String(dbError?.message || dbError?.code || dbError || '').toLowerCase();
+      if (errMessage.includes('quota') || errMessage.includes('resource_exhausted') || errMessage.includes('limit exceeded')) {
+        console.warn('Firestore daily write quota reached (Free tier). Order saved locally and confirmed via WhatsApp fallback:', dbError);
+        isQuotaFallback = true;
+        savedOrder.isQuotaFallback = true;
+      } else {
+        throw dbError;
+      }
+    }
 
     // Save profile/address in the background so the successful order confirmation is not delayed.
     if (user) {

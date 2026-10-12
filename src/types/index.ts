@@ -454,6 +454,7 @@ export interface Order {
   paymentStatus?: 'unpaid' | 'partial' | 'paid';
   customerOrderNumber?: number;
   customerOrderLabel?: string;
+  isQuotaFallback?: boolean;
   customer: CustomerDetails;
   specialInstructions?: string; // Kitchen notes
   paymentMethod: PaymentMethod;

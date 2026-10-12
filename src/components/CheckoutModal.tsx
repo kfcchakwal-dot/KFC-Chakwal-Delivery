@@ -183,7 +183,9 @@ export const CheckoutModal: React.FC = () => {
         (specialInstructions.trim() ? `*Special Kitchen Instructions:* ${specialInstructions.trim()}\n` : '') +
         `Coverage: Within 3 KM of Chakwal City\n`;
 
-      if (isWhatsApp) {
+      setIsCheckoutOpen(false);
+
+      if (isWhatsApp || newOrder.isQuotaFallback) {
         const encodedMessage = encodeURIComponent(message);
         const cleanPhone = settings.whatsappNumber.replace(/[^0-9]/g, '');
         window.location.href = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
