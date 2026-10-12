@@ -65,7 +65,9 @@ import {
   CheckSquare,
   Square,
   Edit3,
-  DownloadCloud
+  DownloadCloud,
+  Save,
+  Loader2
 } from 'lucide-react';
 import { DiscountsManager } from './DiscountsManager';
 import { PageSectionsBuilder } from '../PageSectionsBuilder';
@@ -115,6 +117,73 @@ const KFC_IMAGE_PRESETS = [
   { label: 'Hot Wings Platter', url: '/src/assets/images/kfc_hot_wings_platter_1791015846233.jpg' },
 ];
 
+const SectionSaveButton: React.FC<{
+  onSave?: () => Promise<void> | void;
+  label?: string;
+  className?: string;
+}> = ({ onSave, label = 'Save Changes', className = '' }) => {
+  const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  const handleClick = async () => {
+    setStatus('saving');
+    try {
+      if (onSave) {
+        await onSave();
+      }
+      setStatus('success');
+      setMessage('Changes successfully save ho gaye! ✓');
+      setTimeout(() => {
+        setStatus('idle');
+        setMessage('');
+      }, 3500);
+    } catch (e: any) {
+      setStatus('error');
+      setMessage(e?.message || 'Save failed. Dobara try karein.');
+      setTimeout(() => {
+        setStatus('idle');
+        setMessage('');
+      }, 4500);
+    }
+  };
+
+  return (
+    <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 border-t border-zinc-100 ${className}`}>
+      {status === 'success' && (
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <span>{message}</span>
+        </span>
+      )}
+      {status === 'error' && (
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl">
+          <AlertCircle className="w-4 h-4 text-red-600" />
+          <span>{message}</span>
+        </span>
+      )}
+      {status !== 'success' && status !== 'error' && <div />}
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={status === 'saving'}
+        className="self-end inline-flex items-center gap-2 rounded-xl bg-[#e4002b] hover:bg-[#c30025] text-white px-4 py-2 text-xs font-black shadow-sm disabled:opacity-50 cursor-pointer transition active:scale-95"
+      >
+        {status === 'saving' ? (
+          <>
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <span>Saving...</span>
+          </>
+        ) : (
+          <>
+            <Save className="w-3.5 h-3.5" />
+            <span>{label}</span>
+          </>
+        )}
+      </button>
+    </div>
+  );
+};
+
 export const ShopifyAdminApp: React.FC = () => {
   const {
     settings,
@@ -133,6 +202,7 @@ export const ShopifyAdminApp: React.FC = () => {
     allOrders,
     updateOrderStatus,
     updateOrderPaymentReceived,
+    bulkDeleteOrders,
     fetchOrders,
     reviews,
     addReview,
@@ -344,6 +414,7 @@ export const ShopifyAdminApp: React.FC = () => {
   const [newProdName, setNewProdName] = useState('');
   const [newProdCat, setNewProdCat] = useState<CategoryId>('everyday-value');
   const [newProdBasePrice, setNewProdBasePrice] = useState(400);
+  const [newProdCostPrice, setNewProdCostPrice] = useState<number | ''>('');
   const [newProdSellingPrice, setNewProdSellingPrice] = useState<number | ''>('');
   const [newProdComparePrice, setNewProdComparePrice] = useState<number | ''>('');
   const [newProdDesc, setNewProdDesc] = useState('');
@@ -355,6 +426,7 @@ export const ShopifyAdminApp: React.FC = () => {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState<Order['status']>('kitchen');
   const [isUpdatingBulkStatus, setIsUpdatingBulkStatus] = useState(false);
+  const [isDeletingBulkOrders, setIsDeletingBulkOrders] = useState(false);
   const [bulkFeedback, setBulkFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [ordersToPrint, setOrdersToPrint] = useState<Order[]>([]);
@@ -686,10 +758,10 @@ export const ShopifyAdminApp: React.FC = () => {
     let succeeded = 0;
     const failed: string[] = [];
     try {
-      for (const id of selectedProductIds) {
-        const item = menuItems.find((candidate) => candidate.id === id);
-        if (!item) { failed.push(id); continue; }
-        try {
+      const results = await Promise.allSettled(
+        selectedProductIds.map(async (id) => {
+          const item = menuItems.find((candidate) => candidate.id === id);
+          if (!item) throw new Error('Not found');
           const currentCategories = Array.from(new Set([item.categoryId, ...(item.categoryIds || [])]));
           let nextCategories: CategoryId[];
           let nextPrimary = item.categoryId;
@@ -701,14 +773,26 @@ export const ShopifyAdminApp: React.FC = () => {
             if (nextPrimary === bulkCategoryTarget) nextPrimary = nextCategories[0];
           }
           await updateMenuItem({ ...item, categoryId: nextPrimary, categoryIds: nextCategories });
+          return id;
+        })
+      );
+      results.forEach((res, index) => {
+        if (res.status === 'fulfilled') {
           succeeded += 1;
-        } catch { failed.push(id); }
-      }
-      setProductActionFeedback({ type: failed.length ? 'error' : 'success', message: `${succeeded} products ke liye category ${mode === 'add' ? 'add' : 'remove'} hui.${failed.length ? ` Failed: ${failed.join(', ')}` : ''}` });
-      if (!failed.length) setSelectedProductIds([]);
+        } else {
+          failed.push(selectedProductIds[index]);
+        }
+      });
+      setProductActionFeedback({
+        type: failed.length ? 'error' : 'success',
+        message: `${succeeded} products ke liye category ${mode === 'add' ? 'add' : 'remove'} hui.${failed.length ? ` Failed: ${failed.join(', ')}` : ''}`,
+      });
+      setSelectedProductIds(failed);
     } catch (error: any) {
       setProductActionFeedback({ type: 'error', message: error?.message || 'Bulk category update fail hui.' });
-    } finally { setIsApplyingBulkProductAction(false); }
+    } finally {
+      setIsApplyingBulkProductAction(false);
+    }
   };
 
   const handleToggleSelectProduct = (productId: string) => {
@@ -887,17 +971,19 @@ export const ShopifyAdminApp: React.FC = () => {
     setBulkFeedback(null);
     try {
       const idsToUpdate = [...selectedOrderIds];
-      let successCount = 0;
       const failedIds: string[] = [];
-      for (const id of idsToUpdate) {
-        try {
-          await updateOrderStatus(id, statusToApply);
+      let successCount = 0;
+      const results = await Promise.allSettled(
+        idsToUpdate.map((id) => updateOrderStatus(id, statusToApply))
+      );
+      results.forEach((res, index) => {
+        if (res.status === 'fulfilled') {
           successCount++;
-        } catch (err) {
-          failedIds.push(id);
-          console.error(`Failed to update order #${id}:`, err);
+        } else {
+          failedIds.push(idsToUpdate[index]);
+          console.error(`Failed to update order #${idsToUpdate[index]}:`, res.reason);
         }
-      }
+      });
       await fetchOrders();
       setSelectedOrderIds(failedIds);
       const statusLabel = ORDER_STATUS_CONFIG[statusToApply]?.label || statusToApply;
@@ -916,6 +1002,41 @@ export const ShopifyAdminApp: React.FC = () => {
       });
     } finally {
       setIsUpdatingBulkStatus(false);
+    }
+  };
+
+  const handleBulkDeleteOrders = async () => {
+    if (selectedOrderIds.length === 0) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete ${selectedOrderIds.length} selected orders? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setIsDeletingBulkOrders(true);
+    setBulkFeedback(null);
+    try {
+      const res = await bulkDeleteOrders(selectedOrderIds);
+      if (res.success) {
+        setBulkFeedback({
+          type: 'success',
+          message: `Successfully deleted all ${res.deletedCount} selected orders.`,
+        });
+        setSelectedOrderIds([]);
+      } else {
+        setBulkFeedback({
+          type: 'error',
+          message: `Deleted ${res.deletedCount} orders. ${res.failedIds.length} orders failed to delete.`,
+        });
+        setSelectedOrderIds(res.failedIds);
+      }
+      setTimeout(() => setBulkFeedback(null), 6000);
+    } catch (err: any) {
+      setBulkFeedback({
+        type: 'error',
+        message: err?.message || 'Bulk order deletion failed.',
+      });
+    } finally {
+      setIsDeletingBulkOrders(false);
     }
   };
 
@@ -964,6 +1085,7 @@ export const ShopifyAdminApp: React.FC = () => {
       categoryId: newProdCat,
       description: newProdDesc.trim() || 'Fresh crispy KFC favorite delivered hot in Chakwal.',
       baseKfcPrice: Number(newProdBasePrice) || 300,
+      costPrice: newProdCostPrice ? Number(newProdCostPrice) : undefined,
       sellingPrice: newProdSellingPrice ? Number(newProdSellingPrice) : undefined,
       compareAtPrice: newProdComparePrice ? Number(newProdComparePrice) : undefined,
       image: newProdImage.trim(), // Can be empty or URL
@@ -978,6 +1100,7 @@ export const ShopifyAdminApp: React.FC = () => {
     setIsAddingProduct(false);
     setNewProdName('');
     setNewProdDesc('');
+    setNewProdCostPrice('');
     setNewProdSellingPrice('');
     setNewProdComparePrice('');
     setNewProdBadge('');
@@ -1861,6 +1984,17 @@ export const ShopifyAdminApp: React.FC = () => {
                     >
                       <Printer className="w-3.5 h-3.5" />
                       <span>Print Selected Bills ({selectedOrderIds.length})</span>
+                    </button>
+
+                    {/* Bulk Delete Selected Orders */}
+                    <button
+                      type="button"
+                      onClick={() => void handleBulkDeleteOrders()}
+                      disabled={isDeletingBulkOrders}
+                      className="px-3.5 py-2 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{isDeletingBulkOrders ? 'Deleting...' : `Delete Orders (${selectedOrderIds.length})`}</span>
                     </button>
 
                     {/* Deselect All */}
@@ -3916,6 +4050,7 @@ export const ShopifyAdminApp: React.FC = () => {
                   <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>Auto-generate barcode</span><input type="checkbox" checked={settings.skuBarcodeConfig?.autoGenerateBarcode !== false} onChange={(event) => updateSettings({ skuBarcodeConfig: { enabled: settings.skuBarcodeConfig?.enabled !== false, autoGenerateSku: settings.skuBarcodeConfig?.autoGenerateSku !== false, autoGenerateBarcode: event.target.checked } })} className="h-4 w-4 accent-red-600"/></label>
                 </div>
                 <p className="text-[11px] text-zinc-500">Manual SKU/barcode edit fields Products cards mein hain. Bulk generator sirf missing enabled values generate karta hai.</p>
+                <SectionSaveButton onSave={() => updateSettings(settings)} label="Save Rules & Templates" />
               </div>
 
               {/* Reviews widget placement and visibility */}
@@ -3927,6 +4062,7 @@ export const ShopifyAdminApp: React.FC = () => {
                   ['showOnProductPages', 'Show reviews on product pages'],
                   ['showOnReviewsPage', 'Enable dedicated reviews page'],
                 ] as const).map(([key, label]) => <label key={key} className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 text-xs font-bold text-zinc-700"><span>{label}</span><input type="checkbox" checked={settings.reviewWidgetConfig?.[key] !== false} onChange={(event) => updateSettings({ reviewWidgetConfig: { enabled: settings.reviewWidgetConfig?.enabled !== false, showOnHome: settings.reviewWidgetConfig?.showOnHome !== false, showOnProductPages: settings.reviewWidgetConfig?.showOnProductPages !== false, showOnReviewsPage: settings.reviewWidgetConfig?.showOnReviewsPage !== false, [key]: event.target.checked } })} className="h-4 w-4 accent-red-600" /></label>)}
+                <SectionSaveButton onSave={() => updateSettings(settings)} label="Save Review Widget Settings" />
               </div>
 
               {/* Homepage collection navigation controls */}
@@ -3961,6 +4097,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     <button type="button" disabled={index === list.length - 1} onClick={() => move(1)} className="rounded border px-2 py-1 text-[10px] disabled:opacity-30" aria-label={`Move ${category.name} down`}>↓</button>
                   </div>;
                 })}
+                <SectionSaveButton onSave={() => updateSettings(settings)} label="Save Collection Bar Settings" />
               </div>
 
               {/* Editable multi-announcement bars */}
@@ -3988,6 +4125,7 @@ export const ShopifyAdminApp: React.FC = () => {
                   </div>
                 ))}
                 {(settings.announcementBars || []).length === 0 && <p className="text-xs text-zinc-500">Koi announcement bar nahi. “Add Bar” se naya bar banayein.</p>}
+                <SectionSaveButton onSave={() => updateSettings(settings)} label="Save Announcements" />
               </div>
 
               {/* Logo, App Icon & Hero Banner Uploads (Device File Upload Supported) */}
@@ -4065,6 +4203,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                <SectionSaveButton onSave={() => updateSettings(settings)} label="Save Brand Images & Text" />
               </div>
 
               {/* Customer Login Popup Content */}
@@ -4099,6 +4238,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     </div>
                   ))}
                 </div>
+                <SectionSaveButton onSave={() => updateSettings(settings)} label="Save Login Popup Settings" />
               </div>
 
               {/* Admin Team Access */}
@@ -4240,6 +4380,7 @@ export const ShopifyAdminApp: React.FC = () => {
                     />
                   </div>
                 </div>
+                <SectionSaveButton onSave={() => updateSettings(settings)} label="Save Contact & Social Info" />
               </div>
             </div>
           )}
@@ -4299,7 +4440,7 @@ export const ShopifyAdminApp: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-zinc-700 font-bold mb-1">Base KFC Price (PKR)</label>
                   <input
@@ -4307,6 +4448,17 @@ export const ShopifyAdminApp: React.FC = () => {
                     value={editingItem.baseKfcPrice}
                     onChange={(e) => setEditingItem({ ...editingItem, baseKfcPrice: Number(e.target.value) })}
                     className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-blue-700 font-bold mb-1">Cost Price (Optional)</label>
+                  <input
+                    type="number"
+                    value={editingItem.costPrice || ''}
+                    onChange={(e) => setEditingItem({ ...editingItem, costPrice: e.target.value ? Number(e.target.value) : undefined })}
+                    placeholder="e.g. 250 (purchase cost)"
+                    className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-blue-800 font-bold"
                   />
                 </div>
 
@@ -4491,7 +4643,7 @@ export const ShopifyAdminApp: React.FC = () => {
                   <p className="text-[11px] text-zinc-500">Sirf yahan add kiye gaye items is product ke Customize section mein nazar aayenge.</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-emerald-700 font-bold mb-1">Custom Selling Price (PKR)</label>
                   <input
@@ -4500,6 +4652,17 @@ export const ShopifyAdminApp: React.FC = () => {
                     onChange={(e) => setNewProdSellingPrice(e.target.value ? Number(e.target.value) : '')}
                     placeholder="Blank = auto markup"
                     className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-emerald-700 font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-blue-700 font-bold mb-1">Cost Price (Optional)</label>
+                  <input
+                    type="number"
+                    value={newProdCostPrice}
+                    onChange={(e) => setNewProdCostPrice(e.target.value ? Number(e.target.value) : '')}
+                    placeholder="e.g. 250 (purchase cost)"
+                    className="w-full bg-zinc-50 border border-zinc-300 rounded-xl px-3 py-2 text-blue-800 font-bold"
                   />
                 </div>
 

@@ -215,6 +215,8 @@ interface StoreContextType {
   fetchOrders: () => Promise<void>;
   updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
   updateOrderPaymentReceived: (orderId: string, amount: number) => Promise<void>;
+  deleteOrder: (orderId: string) => Promise<void>;
+  bulkDeleteOrders: (orderIds: string[]) => Promise<{ success: boolean; deletedCount: number; failedIds: string[] }>;
   playOrderSound: () => void;
 
   // Navigation & Filtering
@@ -1210,6 +1212,43 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (activeOrder?.id === orderId) setActiveOrder((prev) => prev ? { ...prev, paymentReceived: nextReceived, paymentStatus: nextStatus } : null);
   };
 
+  const deleteOrder = async (orderId: string): Promise<void> => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    await deleteDoc(doc(db, 'orders', orderId));
+    setAllOrders((prev) => prev.filter((o) => o.id !== orderId));
+    if (activeOrder?.id === orderId) setActiveOrder(null);
+  };
+
+  const bulkDeleteOrders = async (
+    orderIds: string[]
+  ): Promise<{ success: boolean; deletedCount: number; failedIds: string[] }> => {
+    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
+    const failedIds: string[] = [];
+    let deletedCount = 0;
+
+    await Promise.allSettled(
+      orderIds.map(async (id) => {
+        try {
+          await deleteDoc(doc(db, 'orders', id));
+          deletedCount++;
+        } catch {
+          failedIds.push(id);
+        }
+      })
+    );
+
+    const successfullyDeleted = new Set(orderIds.filter((id) => !failedIds.includes(id)));
+    setAllOrders((prev) => prev.filter((o) => !successfullyDeleted.has(o.id)));
+    if (activeOrder && successfullyDeleted.has(activeOrder.id)) {
+      setActiveOrder(null);
+    }
+    return {
+      success: failedIds.length === 0,
+      deletedCount,
+      failedIds,
+    };
+  };
+
   const loginAdmin = async (): Promise<{ success: boolean; error?: string }> => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
@@ -1755,8 +1794,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     paymentMethod: PaymentMethod,
     specialInstructions?: string
   ): Promise<Order> => {
-    // Wait for Firebase to restore any saved Google/email session before choosing guest vs signed-in order rules.
-    await auth.authStateReady();
+    // Quick user check without blocking network ready call
     const user = auth.currentUser;
 
     if (paymentMethod !== 'cod') {
@@ -1818,31 +1856,41 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       redeemLoyaltyPoints: requestedLoyaltyDiscount > 0,
       loyaltyPointsRedeemed: requestedLoyaltyPoints,
     }));
-    // Create the order and decrement tracked stock atomically so concurrent checkouts cannot oversell.
+
+    // Check tracked products for stock decrement
     const quantitiesByProduct = new Map<string, number>();
     cart.forEach((cartItem) => {
-      if (cartItem.menuItem.trackInventory) quantitiesByProduct.set(cartItem.menuItem.id, (quantitiesByProduct.get(cartItem.menuItem.id) || 0) + cartItem.quantity);
+      if (cartItem.menuItem.trackInventory) {
+        quantitiesByProduct.set(cartItem.menuItem.id, (quantitiesByProduct.get(cartItem.menuItem.id) || 0) + cartItem.quantity);
+      }
     });
+
     let isQuotaFallback = false;
     try {
-      await runTransaction(db, async (transaction) => {
-        const stockEntries = Array.from(quantitiesByProduct.entries());
-        const productRefs = stockEntries.map(([productId]) => doc(db, 'products', productId));
-        const productSnapshots = [];
-        for (const productRef of productRefs) productSnapshots.push(await transaction.get(productRef));
-        productSnapshots.forEach((snapshot, index) => {
-          const [productId, quantity] = stockEntries[index];
-          const cartProduct = cart.find((item) => item.menuItem.id === productId)?.menuItem;
-          const data = snapshot.exists() ? snapshot.data() : (cartProduct as any);
-          if (data?.trackInventory === true) {
-            const available = Math.max(0, Number(data.stockQuantity || 0));
-            if (available < quantity) throw new Error(`${cartProduct?.name || 'Product'} ka stock sirf ${available} available hai.`);
-            if (snapshot.exists()) transaction.update(productRefs[index], { stockQuantity: available - quantity, updatedAt: new Date().toISOString() });
-            else transaction.set(productRefs[index], { ...cartProduct, stockQuantity: available - quantity, updatedAt: new Date().toISOString() }, { merge: true });
-          }
+      if (quantitiesByProduct.size === 0) {
+        // Fast-path: instant write when no items have tracked inventory
+        await setDoc(doc(db, 'orders', savedOrder.id), firestoreOrder);
+      } else {
+        // Transactional path only for tracked items
+        await runTransaction(db, async (transaction) => {
+          const stockEntries = Array.from(quantitiesByProduct.entries());
+          const productRefs = stockEntries.map(([productId]) => doc(db, 'products', productId));
+          const productSnapshots = [];
+          for (const productRef of productRefs) productSnapshots.push(await transaction.get(productRef));
+          productSnapshots.forEach((snapshot, index) => {
+            const [productId, quantity] = stockEntries[index];
+            const cartProduct = cart.find((item) => item.menuItem.id === productId)?.menuItem;
+            const data = snapshot.exists() ? snapshot.data() : (cartProduct as any);
+            if (data?.trackInventory === true) {
+              const available = Math.max(0, Number(data.stockQuantity || 0));
+              if (available < quantity) throw new Error(`${cartProduct?.name || 'Product'} ka stock sirf ${available} available hai.`);
+              if (snapshot.exists()) transaction.update(productRefs[index], { stockQuantity: available - quantity, updatedAt: new Date().toISOString() });
+              else transaction.set(productRefs[index], { ...cartProduct, stockQuantity: available - quantity, updatedAt: new Date().toISOString() }, { merge: true });
+            }
+          });
+          transaction.set(doc(db, 'orders', savedOrder.id), firestoreOrder);
         });
-        transaction.set(doc(db, 'orders', savedOrder.id), firestoreOrder);
-      });
+      }
     } catch (dbError: any) {
       const errMessage = String(dbError?.message || dbError?.code || dbError || '').toLowerCase();
       if (errMessage.includes('quota') || errMessage.includes('resource_exhausted') || errMessage.includes('limit exceeded')) {
@@ -2893,6 +2941,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchOrders,
         updateOrderStatus,
         updateOrderPaymentReceived,
+        deleteOrder,
+        bulkDeleteOrders,
         isOrdersDashboardOpen,
         setIsOrdersDashboardOpen,
         vipTiers,

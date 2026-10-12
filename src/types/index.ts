@@ -40,6 +40,7 @@ export interface MenuItem {
   categoryIds?: CategoryId[];
   description: string;
   baseKfcPrice: number; // Authentic KFC Pakistan original price in PKR
+  costPrice?: number; // Optional purchase/production cost price in PKR
   sellingPrice?: number; // Custom direct selling price (overrides base price + markup if provided)
   compareAtPrice?: number; // Original strike-through price (e.g. Rs 1200)
   image: string;
@@ -448,6 +449,10 @@ export interface Order {
   vipDiscount?: number;
   vipTierApplied?: VipTierId;
   total: number;
+  /** Extra surcharge / custom add-on amount from POS or admin billing */
+  extraAmount?: number;
+  /** Reason or description for extra amount (e.g. Packing, Delivery surcharge, Custom item) */
+  extraAmountReason?: string;
   /** Cumulative amount received from the customer; old orders default to zero. */
   paymentReceived?: number;
   /** Derived payment state for quick admin visibility. */

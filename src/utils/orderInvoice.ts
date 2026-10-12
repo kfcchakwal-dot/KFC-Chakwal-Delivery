@@ -104,75 +104,93 @@ export function generateWhatsAppOrderMessage(
 
   const templateSource = order.status !== 'confirmed' ? storeSettings?.whatsappTemplates?.orderStatus : storeSettings?.whatsappTemplates?.orderDetails;
   const customTemplate = String(templateSource || '').trim();
+  const reviewUrl = (typeof window !== 'undefined' ? window.location.origin : '') + '/?reviews=true';
   if (customTemplate) {
-    const itemsSummary = order.items.map((item) => `${item.quantity}x ${item.menuItem.name}`).join(', ');
-    const values: Record<string, string> = { name: order.customer.fullName || 'Customer', orderId: order.id, total: formatPKR(order.total), received: formatPKR(order.paymentReceived || 0), balance: formatPKR(Math.max(0, order.total - (order.paymentReceived || 0))), items: itemsSummary, phone: order.customer.phone || '', address: order.customer.address || '', reviewUrl: (typeof window !== 'undefined' ? window.location.origin : '') + '/?reviews=true', points: String(Math.max(0, Number((storeSettings as any)?.loyaltyConfig?.reviewBonus ?? 20))), storeName, status: String(order.status || '').replace(/[-_]/g, ' ') };
+    const itemsSummary = order.items
+      .map((item, idx) => `${idx + 1}. ${item.quantity}x ${item.menuItem.name} (${formatPKR(item.unitPrice)})`)
+      .join('\n');
+    const values: Record<string, string> = {
+      name: order.customer.fullName || 'Customer',
+      orderId: order.id,
+      total: formatPKR(order.total),
+      received: formatPKR(order.paymentReceived || 0),
+      balance: formatPKR(Math.max(0, order.total - (order.paymentReceived || 0))),
+      items: itemsSummary,
+      phone: order.customer.phone || '',
+      address: order.customer.address || '',
+      reviewUrl,
+      points: String(Math.max(0, Number((storeSettings as any)?.loyaltyConfig?.reviewBonus ?? 20))),
+      storeName,
+      status: String(order.status || '').replace(/[-_]/g, ' '),
+    };
     return customTemplate.replace(/\{([a-zA-Z]+)\}/g, (match, key: string) => values[key] ?? match);
   }
   const lines: string[] = [];
 
   // Customer greeting
-  lines.push(`Assalam-o-Alaikum ${order.customer.fullName?.trim() || 'Valued Customer'}!`);
+  lines.push(`Assalam-o-Alaikum ${order.customer.fullName?.trim() || 'Valued Customer'}! 👋`);
   lines.push('');
   lines.push(`🍗 *${storeName}*`);
-  lines.push(`*Order #${order.id}*`);
-  if (order.customerOrderLabel || order.customerOrderNumber) lines.push(`Customer Order: ${order.customerOrderLabel || order.customerOrderNumber}`);
+  lines.push(`🧾 *Order #${order.id}*`);
+  if (order.customerOrderLabel || order.customerOrderNumber) {
+    lines.push(`🏷️ Customer Order: ${order.customerOrderLabel || order.customerOrderNumber}`);
+  }
   lines.push(`📅 Date & Time: ${dateFormatted}`);
-  lines.push(`🛵 Order Type: ${order.orderType === 'self_pickup' ? 'Self Pickup' : 'Delivery'}`);
+  lines.push(`🛵 Order Type: ${order.orderType === 'self_pickup' ? 'Self Pickup (Tehsil Chowk)' : 'Doorstep Delivery'}`);
   lines.push('');
 
   // Customer & Delivery Information
-  lines.push('📋 *CUSTOMER & DELIVERY DETAILS*');
+  lines.push('👤 *CUSTOMER & DELIVERY DETAILS*');
   lines.push(`• Name: ${order.customer.fullName || 'Customer'}`);
   lines.push(`• Phone: ${order.customer.phone || 'N/A'}`);
   if (order.customer.address) {
-    lines.push(`• Delivery Address: ${order.customer.address}`);
+    lines.push(`• Address: ${order.customer.address}`);
   }
   if (order.customer.area) {
     lines.push(`• Area: ${order.customer.area}`);
   }
   if (order.customer.landmark) {
-    lines.push(`• Landmark: ${order.customer.landmark}`);
+    lines.push(`• Landmark: Near ${order.customer.landmark}`);
   }
   if (order.customer.notes) {
-    lines.push(`• Delivery Instructions: ${order.customer.notes}`);
+    lines.push(`• Delivery Notes: ${order.customer.notes}`);
   }
   if (order.specialInstructions) {
     lines.push(`• Kitchen Notes: ${order.specialInstructions}`);
   }
   lines.push('');
 
-  // Itemized Order Details
-  lines.push('🍔 *ORDER ITEMS*');
+  // Itemized Order Details (Line by line, perfectly formatted)
+  lines.push('🍔 *ITEMS ORDERED:*');
   order.items.forEach((item, idx) => {
     const itemTotal = Math.round(item.unitPrice * item.quantity);
     lines.push(`${idx + 1}. *${item.quantity}x ${item.menuItem.name}*`);
-    lines.push(`   Price: ${formatPKR(item.unitPrice)} each | Line Total: ${formatPKR(itemTotal)}`);
+    lines.push(`   Price: ${formatPKR(item.unitPrice)} | Total: ${formatPKR(itemTotal)}`);
 
     if (item.options?.spiceLevel) {
-      lines.push(`   - Recipe / Flavor: ${item.options.spiceLevel}`);
+      lines.push(`   └ Recipe: ${item.options.spiceLevel}`);
     }
     if (item.options?.drink) {
-      lines.push(`   - Drink Selection: ${item.options.drink}`);
+      lines.push(`   └ Drink: ${item.options.drink}`);
     }
     if (item.options?.specialInstructions) {
-      lines.push(`   - Customization: ${item.options.specialInstructions}`);
+      lines.push(`   └ Note: ${item.options.specialInstructions}`);
     }
     if (item.options?.addons && item.options.addons.length > 0) {
       const addonsStr = item.options.addons
         .map((a) => `${a.name}${a.price > 0 ? ` (+${formatPKR(a.price)})` : ''}`)
         .join(', ');
-      lines.push(`   - Add-ons / Extras: ${addonsStr}`);
+      lines.push(`   └ Add-ons: ${addonsStr}`);
     }
   });
   lines.push('');
 
   // Bill Summary
-  lines.push('💰 *BILL SUMMARY*');
+  lines.push('💰 *BILL BREAKDOWN:*');
   lines.push(`• Subtotal: ${formatPKR(order.subtotal)}`);
 
   if (order.discount && order.discount > 0) {
-    lines.push(`• Coupon / Discount: -${formatPKR(order.discount)}`);
+    lines.push(`• Coupon Discount: -${formatPKR(order.discount)}`);
   }
   if (order.vipDiscount && order.vipDiscount > 0) {
     const tier = order.vipTierApplied ? order.vipTierApplied.toUpperCase() : 'VIP';
@@ -185,12 +203,15 @@ export function generateWhatsAppOrderMessage(
     lines.push(`• Tax (${order.taxPercentage || 0}%): ${formatPKR(order.taxAmount)}`);
   }
   if (order.serviceChargeAmount && order.serviceChargeAmount > 0) {
-    lines.push(`• Service Charge: ${formatPKR(order.serviceChargeAmount)}`);
+    lines.push(`• Service Charge (${order.serviceChargePercentage || 0}%): ${formatPKR(order.serviceChargeAmount)}`);
+  }
+  if (order.extraAmount && order.extraAmount > 0) {
+    lines.push(`• Extra Charges (${order.extraAmountReason || 'Additional Charge'}): +${formatPKR(order.extraAmount)}`);
   }
 
   lines.push(`• Delivery Charges: ${formatPKR(order.deliveryFee || 0)}`);
   lines.push('----------------------------------------');
-  lines.push(`*TOTAL BILL: ${formatPKR(order.total)}*`);
+  lines.push(`*TOTAL PAYABLE: ${formatPKR(order.total)}*`);
   lines.push(`💵 Amount Received: ${formatPKR(order.paymentReceived || 0)}`);
   lines.push(`*BALANCE DUE: ${formatPKR(Math.max(0, order.total - (order.paymentReceived || 0)))}*`);
 
@@ -206,7 +227,12 @@ export function generateWhatsAppOrderMessage(
   const statusInfo = ORDER_STATUS_CONFIG[order.status] || { label: order.status };
   lines.push(`📌 Order Status: ${statusInfo.label}`);
   lines.push('');
-  lines.push('Thank you for ordering with KFC Chakwal Delivery!');
+
+  // Review URL
+  lines.push('⭐ *Apna Feedback & Rating Share Karein:*');
+  lines.push(`👉 Review Link: ${reviewUrl}`);
+  lines.push('');
+  lines.push('Shukriya for choosing KFC Chakwal Delivery! ❤️');
 
   return lines.join('\n');
 }
@@ -388,6 +414,12 @@ export function generateInvoiceHtml(
                   <span>${formatPKR(order.serviceChargeAmount)}</span>
                 </div>
               ` : ''}
+              ${order.extraAmount ? `
+                <div class="totals-row">
+                  <span>Extra Charges (${order.extraAmountReason || 'Additional Service'}):</span>
+                  <span>+${formatPKR(order.extraAmount)}</span>
+                </div>
+              ` : ''}
               <div class="totals-row">
                 <span>Delivery Charges:</span>
                 <span>${formatPKR(order.deliveryFee || 0)}</span>
@@ -468,6 +500,7 @@ export function generateInvoiceHtml(
           ${order.loyaltyDiscount ? `<div class="t-row"><span>Loyalty Discount:</span> <span>-${formatPKR(order.loyaltyDiscount)}</span></div>` : ''}
           ${order.taxAmount ? `<div class="t-row"><span>Tax (${order.taxPercentage}%):</span> <span>${formatPKR(order.taxAmount)}</span></div>` : ''}
           ${order.serviceChargeAmount ? `<div class="t-row"><span>Service Charge:</span> <span>${formatPKR(order.serviceChargeAmount)}</span></div>` : ''}
+          ${order.extraAmount ? `<div class="t-row"><span>Extra (${order.extraAmountReason || 'Extra'}):</span> <span>+${formatPKR(order.extraAmount)}</span></div>` : ''}
           <div class="t-row"><span>Delivery Fee:</span> <span>${formatPKR(order.deliveryFee || 0)}</span></div>
           <div class="solid-hr"></div>
           <div class="t-row grand"><span>TOTAL BILL:</span> <span>${formatPKR(order.total)}</span></div>

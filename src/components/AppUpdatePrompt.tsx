@@ -53,11 +53,27 @@ export const AppUpdatePrompt: React.FC = () => {
 
   const handleApplyUpdate = () => {
     setIsUpdating(true);
-    if (waitingWorker) {
-      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-    } else {
-      window.location.reload();
+    try {
+      if (waitingWorker) {
+        waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+      }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then((regs) => {
+          regs.forEach((reg) => {
+            if (reg.waiting) {
+              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('SW update postMessage:', e);
     }
+
+    // Never hang indefinitely: enforce fast hard reload in 400ms max
+    setTimeout(() => {
+      window.location.reload();
+    }, 400);
   };
 
   return (

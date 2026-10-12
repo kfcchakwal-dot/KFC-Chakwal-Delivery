@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
-import { VipTierId } from '../../types';
+import { VipTierId, VipTier } from '../../types';
 import { ImageUploadPicker } from '../ImageUploadPicker';
 import { 
   Crown, 
@@ -19,6 +19,119 @@ import {
   Send,
   UserCheck
 } from 'lucide-react';
+
+const VipTierCardEditor: React.FC<{
+  tier: VipTier;
+  updateVipTier: (id: VipTierId, patch: Partial<VipTier>) => Promise<void>;
+  updateVipTierImage: (id: VipTierId, url: string) => Promise<void>;
+  formatPKR: (n: number) => string;
+}> = ({ tier, updateVipTier, updateVipTierImage, formatPKR }) => {
+  const [name, setName] = useState(tier.name);
+  const [price, setPrice] = useState(tier.price);
+  const [discountPercentage, setDiscountPercentage] = useState(tier.discountPercentage);
+  const [durationDays, setDurationDays] = useState(tier.durationDays ?? 0);
+  const [description, setDescription] = useState(tier.description);
+  const [perksText, setPerksText] = useState(tier.perks.join('\n'));
+  const [status, setStatus] = useState<{ type: 'saving' | 'success' | 'error'; message: string } | null>(null);
+
+  const handleSave = async () => {
+    setStatus({ type: 'saving', message: 'Saving...' });
+    try {
+      const perks = perksText.split('\n').map((l) => l.trim()).filter(Boolean);
+      await updateVipTier(tier.id, {
+        name: name.trim(),
+        price: Math.max(0, Number(price) || 0),
+        discountPercentage: Math.max(0, Math.min(100, Number(discountPercentage) || 0)),
+        durationDays: Math.max(0, Math.floor(Number(durationDays) || 0)),
+        description: description.trim(),
+        perks,
+      });
+      setStatus({ type: 'success', message: `${name} changes successfully save ho gaye! ✓` });
+      setTimeout(() => setStatus(null), 3500);
+    } catch (e: any) {
+      setStatus({ type: 'error', message: e?.message || 'Save failed. Dobara try karein.' });
+      setTimeout(() => setStatus(null), 4500);
+    }
+  };
+
+  return (
+    <div className="p-4 bg-white rounded-2xl border border-zinc-200 shadow-sm flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between">
+          <span className="font-kfc text-lg font-black uppercase text-zinc-900">{name}</span>
+          <span className="bg-red-50 text-[#e4002b] text-[10px] font-black px-2 py-0.5 rounded-full border border-red-100">
+            {discountPercentage}% OFF
+          </span>
+        </div>
+        <p className="text-base font-black text-black font-mono mt-1">
+          {formatPKR(price)} <span className="text-xs text-zinc-400 font-normal">One-Time Fee</span>
+        </p>
+        <p className="text-xs text-zinc-500 mt-1">{description}</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label className="text-[10px] font-bold text-zinc-500">
+            Pass name
+            <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900 font-bold" />
+          </label>
+          <label className="text-[10px] font-bold text-zinc-500">
+            Fee (Rs)
+            <input type="number" min="0" value={price} onChange={(e) => setPrice(Number(e.target.value))} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900 font-mono font-bold" />
+          </label>
+          <label className="text-[10px] font-bold text-zinc-500">
+            Discount %
+            <input type="number" min="0" max="100" value={discountPercentage} onChange={(e) => setDiscountPercentage(Number(e.target.value))} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900 font-bold" />
+          </label>
+          <label className="text-[10px] font-bold text-zinc-500">
+            Validity (days; 0=lifetime)
+            <input type="number" min="0" value={durationDays} onChange={(e) => setDurationDays(Number(e.target.value))} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900 font-bold" />
+          </label>
+          <label className="col-span-2 text-[10px] font-bold text-zinc-500">
+            Description
+            <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900" />
+          </label>
+          <label className="col-span-2 text-[10px] font-bold text-zinc-500">
+            Perks (one per line)
+            <textarea rows={3} value={perksText} onChange={(e) => setPerksText(e.target.value)} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900" />
+          </label>
+        </div>
+        <div className="mt-3">
+          <ImageUploadPicker
+            label={`${name} image`}
+            value={tier.imageUrl || ''}
+            onChange={(imageUrl) => {
+              void updateVipTierImage(tier.id, imageUrl).catch((error: any) => alert(error?.message || 'VIP image save nahi hui.'));
+            }}
+            aspectRatio="wide"
+            allowPresets={false}
+            helperText="Image 600 KB se chhoti rakhein taa-ke fast load ho aur save ho sake."
+          />
+        </div>
+      </div>
+
+      <div className="pt-3 border-t border-zinc-100 mt-3 space-y-2">
+        {status?.type === 'success' && (
+          <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-800 flex items-center gap-1.5 animate-in fade-in">
+            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>{status.message}</span>
+          </div>
+        )}
+        {status?.type === 'error' && (
+          <div className="p-2 rounded-xl bg-red-50 border border-red-200 text-[11px] font-bold text-red-800 flex items-center gap-1.5 animate-in fade-in">
+            <X className="w-3.5 h-3.5 text-red-600 shrink-0" />
+            <span>{status.message}</span>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={status?.type === 'saving'}
+          className="w-full rounded-xl bg-[#e4002b] hover:bg-[#c30025] text-white py-2.5 text-xs font-black shadow-sm disabled:opacity-50 cursor-pointer transition active:scale-95"
+        >
+          {status?.type === 'saving' ? 'Saving Changes...' : `Save ${name} Changes`}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export const VipClubManager: React.FC = () => {
   const {
@@ -146,38 +259,13 @@ export const VipClubManager: React.FC = () => {
       {/* Tier Rules Reference */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {vipTiers.map((t) => (
-          <div key={t.id} className="p-4 bg-white rounded-2xl border border-zinc-200 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="font-kfc text-lg font-black uppercase text-zinc-900">{t.name}</span>
-              <span className="bg-red-50 text-[#e4002b] text-[10px] font-black px-2 py-0.5 rounded-full border border-red-100">
-                {t.discountPercentage}% OFF
-              </span>
-            </div>
-            <p className="text-base font-black text-black font-mono mt-1">
-              {formatPKR(t.price)} <span className="text-xs text-zinc-400 font-normal">One-Time Fee</span>
-            </p>
-            <p className="text-xs text-zinc-500 mt-1">{t.description}</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <label className="text-[10px] font-bold text-zinc-500">Pass name<input defaultValue={t.name} onBlur={(event) => { const value = event.currentTarget.value.trim(); if (value && value !== t.name) void updateVipTier(t.id, { name: value }).catch((error: any) => alert(error?.message || 'VIP name save nahi hua.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
-              <label className="text-[10px] font-bold text-zinc-500">Fee (Rs)<input type="number" min="0" defaultValue={t.price} onBlur={(event) => { const value = Math.max(0, Number(event.currentTarget.value)||0); if (value !== t.price) void updateVipTier(t.id, { price: value }).catch((error: any) => alert(error?.message || 'VIP fee save nahi hui.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
-              <label className="text-[10px] font-bold text-zinc-500">Discount %<input type="number" min="0" max="100" defaultValue={t.discountPercentage} onBlur={(event) => { const value = Math.max(0, Math.min(100, Number(event.currentTarget.value)||0)); if (value !== t.discountPercentage) void updateVipTier(t.id, { discountPercentage: value }).catch((error: any) => alert(error?.message || 'VIP discount save nahi hua.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
-              <label className="text-[10px] font-bold text-zinc-500">Validity (days; 0=lifetime)<input type="number" min="0" defaultValue={t.durationDays ?? 0} onBlur={(event) => { const value = Math.max(0, Math.floor(Number(event.currentTarget.value)||0)); if (value !== (t.durationDays ?? 0)) void updateVipTier(t.id, { durationDays: value }).catch((error: any) => alert(error?.message || 'VIP validity save nahi hui.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
-              <label className="col-span-2 text-[10px] font-bold text-zinc-500">Description<textarea defaultValue={t.description} onBlur={(event) => { const value = event.currentTarget.value.trim(); if (value !== t.description) void updateVipTier(t.id, { description: value }).catch((error: any) => alert(error?.message || 'VIP description save nahi hui.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
-              <label className="col-span-2 text-[10px] font-bold text-zinc-500">Perks (one per line)<textarea defaultValue={t.perks.join('\n')} onBlur={(event) => { const value = event.currentTarget.value.split('\n').map((line) => line.trim()).filter(Boolean); if (JSON.stringify(value) !== JSON.stringify(t.perks)) void updateVipTier(t.id, { perks: value }).catch((error: any) => alert(error?.message || 'VIP perks save nahi hue.')); }} className="mt-1 w-full rounded-lg border p-2 text-xs text-zinc-900"/></label>
-            </div>
-            <div className="mt-3">
-              <ImageUploadPicker
-                label={`${t.name} image`}
-                value={t.imageUrl || ''}
-                onChange={(imageUrl) => {
-                  void updateVipTierImage(t.id, imageUrl).catch((error: any) => alert(error?.message || 'VIP image save nahi hui.'));
-                }}
-                aspectRatio="wide"
-                allowPresets={false}
-                helperText="Image 600 KB se chhoti rakhein taa-ke fast load ho aur save ho sake."
-              />
-            </div>
-          </div>
+          <VipTierCardEditor
+            key={t.id}
+            tier={t}
+            updateVipTier={updateVipTier}
+            updateVipTierImage={updateVipTierImage}
+            formatPKR={formatPKR}
+          />
         ))}
       </div>
 

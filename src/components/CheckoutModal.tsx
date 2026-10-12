@@ -298,16 +298,17 @@ export const CheckoutModal: React.FC = () => {
                   onClick={handleSelectDoorstep}
                   className={`p-3 rounded-2xl border text-left transition cursor-pointer flex items-start gap-2.5 ${
                     deliveryMode === 'doorstep'
-                      ? 'border-[#e4002b] bg-red-50/70 text-black shadow-sm ring-1 ring-[#e4002b]'
-                      : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-zinc-300'
+                      ? 'border-2 border-[#e4002b] bg-[#e4002b] text-white shadow-md ring-2 ring-[#e4002b]/40 font-black'
+                      : 'border-zinc-200 bg-white text-zinc-800 hover:border-zinc-400'
                   }`}
                 >
-                  <Bike className={`w-4 h-4 mt-0.5 shrink-0 ${deliveryMode === 'doorstep' ? 'text-[#e4002b]' : 'text-zinc-500'}`} />
-                  <div>
-                    <p className="text-xs font-black text-black">Doorstep Delivery</p>
-                    <p className="text-[11px] text-zinc-600 mt-0.5">Rider delivers to your home/office address in Chakwal.</p>
-                    <span className="text-[10px] font-bold text-[#e4002b] block mt-1">Delivery Charges: Rs. {settings.deliveryFee}</span>
+                  <Bike className={`w-4 h-4 mt-0.5 shrink-0 ${deliveryMode === 'doorstep' ? 'text-white' : 'text-[#e4002b]'}`} />
+                  <div className="flex-1">
+                    <p className={`text-xs font-black ${deliveryMode === 'doorstep' ? 'text-white' : 'text-black'}`}>Doorstep Delivery</p>
+                    <p className={`text-[11px] mt-0.5 ${deliveryMode === 'doorstep' ? 'text-red-100' : 'text-zinc-600'}`}>Rider delivers to your home/office in Chakwal.</p>
+                    <span className={`text-[10px] font-bold block mt-1 ${deliveryMode === 'doorstep' ? 'text-amber-200' : 'text-[#e4002b]'}`}>Delivery Charges: Rs. {settings.deliveryFee}</span>
                   </div>
+                  {deliveryMode === 'doorstep' && <Check className="w-4 h-4 text-white shrink-0 mt-0.5" />}
                 </button>
 
                 <button
@@ -315,16 +316,17 @@ export const CheckoutModal: React.FC = () => {
                   onClick={handleSelectPickup}
                   className={`p-3 rounded-2xl border text-left transition cursor-pointer flex items-start gap-2.5 ${
                     deliveryMode === 'pickup'
-                      ? 'border-[#e4002b] bg-red-50/70 text-black shadow-sm ring-1 ring-[#e4002b]'
-                      : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-zinc-300'
+                      ? 'border-2 border-[#e4002b] bg-[#e4002b] text-white shadow-md ring-2 ring-[#e4002b]/40 font-black'
+                      : 'border-zinc-200 bg-white text-zinc-800 hover:border-zinc-400'
                   }`}
                 >
-                  <MapPin className={`w-4 h-4 mt-0.5 shrink-0 ${deliveryMode === 'pickup' ? 'text-[#e4002b]' : 'text-zinc-500'}`} />
-                  <div>
-                    <p className="text-xs font-black text-black">Self Pickup (Tehsil Chowk)</p>
-                    <p className="text-[11px] text-zinc-600 mt-0.5">Collect order yourself from rider at Tehsil Chowk, Chakwal.</p>
-                    <span className="text-[10px] font-bold text-[#e4002b] block mt-1">Charges: Rs. {settings.deliveryFee} (Same as delivery)</span>
+                  <MapPin className={`w-4 h-4 mt-0.5 shrink-0 ${deliveryMode === 'pickup' ? 'text-white' : 'text-[#e4002b]'}`} />
+                  <div className="flex-1">
+                    <p className={`text-xs font-black ${deliveryMode === 'pickup' ? 'text-white' : 'text-black'}`}>Self Pickup (Tehsil Chowk)</p>
+                    <p className={`text-[11px] mt-0.5 ${deliveryMode === 'pickup' ? 'text-red-100' : 'text-zinc-600'}`}>Collect order yourself at Tehsil Chowk, Chakwal.</p>
+                    <span className={`text-[10px] font-bold block mt-1 ${deliveryMode === 'pickup' ? 'text-amber-200' : 'text-[#e4002b]'}`}>Charges: Rs. {settings.deliveryFee}</span>
                   </div>
+                  {deliveryMode === 'pickup' && <Check className="w-4 h-4 text-white shrink-0 mt-0.5" />}
                 </button>
               </div>
             </div>
@@ -473,18 +475,21 @@ export const CheckoutModal: React.FC = () => {
                     key={pm.id}
                     type="button"
                     onClick={() => setPaymentMethod(pm.id as PaymentMethod)}
-                    className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                    className={`p-3 rounded-xl border text-left cursor-pointer transition-all flex items-start justify-between ${
                       isSelected
-                        ? 'border-[#e4002b] bg-red-50 text-black font-bold ring-1 ring-[#e4002b]'
-                        : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-zinc-300'
+                        ? 'border-2 border-[#e4002b] bg-[#e4002b] text-white font-black shadow-md ring-2 ring-[#e4002b]/40'
+                        : 'border-zinc-200 bg-white text-zinc-800 hover:border-zinc-400 font-medium'
                     }`}
                   >
-                    <p className="text-xs font-black text-black">{pm.name}</p>
-                    {pm.accountNumber && (
-                      <p className="text-[10px] text-zinc-600 font-mono mt-0.5">
-                        {pm.accountNumber} {pm.accountTitle ? `(${pm.accountTitle})` : ''}
-                      </p>
-                    )}
+                    <div>
+                      <p className={`text-xs font-black ${isSelected ? 'text-white' : 'text-black'}`}>{pm.name}</p>
+                      {pm.accountNumber && (
+                        <p className={`text-[10px] font-mono mt-0.5 ${isSelected ? 'text-red-100' : 'text-zinc-600'}`}>
+                          {pm.accountNumber} {pm.accountTitle ? `(${pm.accountTitle})` : ''}
+                        </p>
+                      )}
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 text-white shrink-0 mt-0.5" />}
                   </button>
                 );
               })}
@@ -612,6 +617,32 @@ export const CheckoutModal: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Engaging Live Food Order Placement Overlay */}
+      {isPlacingOrder && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white animate-in fade-in duration-200">
+          <div className="relative mb-5">
+            <div className="w-24 h-24 rounded-3xl bg-[#e4002b] flex items-center justify-center shadow-2xl shadow-red-900/50 animate-pulse border-2 border-red-400">
+              <span className="text-5xl animate-bounce">🍗</span>
+            </div>
+            <span className="absolute -top-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full bg-amber-400 text-black text-sm font-black animate-ping">
+              🔥
+            </span>
+          </div>
+          <h3 className="font-kfc text-3xl font-black uppercase tracking-tight text-white drop-shadow">
+            Order Kitchen Tak Bheja Ja Raha Hai!
+          </h3>
+          <p className="text-xs text-zinc-300 mt-2 max-w-sm leading-relaxed">
+            Aap ka crispy KFC meal express kitchen queue mein enter ho raha hai. Ek lamha intizaar farmaiye...
+          </p>
+          <div className="mt-6 w-64 bg-zinc-800 rounded-full h-2.5 overflow-hidden border border-zinc-700">
+            <div className="bg-gradient-to-r from-amber-400 via-red-500 to-[#e4002b] h-full w-full animate-pulse" />
+          </div>
+          <p className="mt-3 text-[11px] text-amber-300 font-bold">
+            ⚡ Fast Chakwal Delivery · Preparing Order
+          </p>
+        </div>
+      )}
     </div>
   );
 };
