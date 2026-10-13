@@ -32,6 +32,9 @@ import {
   MarketingCampaign,
   Category,
   ProductVariant,
+  NavigationMenuItem,
+  CustomPage,
+  StoreBranch,
 } from '../types';
 import {
   INITIAL_KFC_ITEMS,
@@ -45,6 +48,9 @@ import {
   DEFAULT_CUSTOM_DOMAIN_CONFIG,
   DEFAULT_META_COMMERCE_CONFIG,
   DEFAULT_AUTO_REVIEW_CONFIG,
+  DEFAULT_NAVIGATION_MENU_ITEMS,
+  DEFAULT_CUSTOM_PAGES,
+  DEFAULT_BRANCHES,
   KFC_CATEGORIES,
 } from '../data/kfcMenu';
 import { playNewOrderChime } from '../utils/audioNotification';
@@ -315,7 +321,14 @@ interface StoreContextType {
   // Automated 12-Hour Review Collection Flow
   updateAutoReview: (config: Partial<AutoReviewConfig>) => void;
   sendReviewCollectionWhatsapp: (order: Order) => void;
+  getReviewWhatsAppUrl: (order: Order) => string;
   createReviewRequest: (order: Order, reviewUrl: string) => Promise<void>;
+  sendTestReviewWhatsApp: (phone: string, customerName?: string) => string;
+
+  // Navigation Menus & Custom Pages
+  updateNavigationMenuItems: (items: NavigationMenuItem[]) => void;
+  saveCustomPage: (page: CustomPage) => void;
+  deleteCustomPage: (pageId: string) => void;
 
   // Bulk Marketing Broadcast Center
   marketingCampaigns: MarketingCampaign[];
@@ -350,6 +363,18 @@ interface StoreContextType {
   setCustomerNotificationAllowed: (allowed: boolean) => void;
   requestNotificationPermission: () => Promise<boolean>;
   registerAdminPushNotifications: () => Promise<boolean>;
+
+  // Multiple Companies & Branches Architecture
+  branches: StoreBranch[];
+  activeBranch: StoreBranch;
+  setActiveBranch: (branchId: string) => void;
+  addBranch: (branch: Omit<StoreBranch, 'id' | 'createdAt' | 'updatedAt'>) => Promise<boolean>;
+  updateBranch: (branchId: string, updates: Partial<StoreBranch>) => Promise<boolean>;
+  deleteBranch: (branchId: string) => Promise<boolean>;
+
+  // Real-time Multi-Device Cloud Sync
+  pushAllSettingsToCloud: () => Promise<boolean>;
+  lastCloudSyncTimestamp: string;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -407,6 +432,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           themeMode: parsed.themeMode === 'dark' ? 'dark' : 'light',
           deliveryMethods: parsed.deliveryMethods || DEFAULT_DELIVERY_METHODS,
           dailyDeal: parsed.dailyDeal || DEFAULT_DAILY_DEAL,
+          isHeaderSticky: parsed.isHeaderSticky !== false,
+          navigationMenuItems: (parsed.navigationMenuItems && parsed.navigationMenuItems.length > 0) ? parsed.navigationMenuItems : DEFAULT_NAVIGATION_MENU_ITEMS,
+          customPages: (parsed.customPages && parsed.customPages.length > 0) ? parsed.customPages : DEFAULT_CUSTOM_PAGES,
         };
       }
     } catch {}
@@ -514,13 +542,45 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [currentView, setCurrentView] = useState<'home' | 'product' | 'wishlist' | 'collection' | 'reviews' | 'rewards'>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+      let prod = params.get('product');
+      if (!prod && window.location.hash.includes('product=')) {
+        const hashSearch = window.location.hash.split('?')[1];
+        if (hashSearch) prod = new URLSearchParams(hashSearch).get('product');
+      }
+      if (prod) return 'product';
       if (params.get('reviews') === 'true') return 'reviews';
       if (params.get('rewards') === 'true') return 'rewards';
       const saved = localStorage.getItem('kfc-current-view');
       return saved === 'product' || saved === 'wishlist' || saved === 'collection' || saved === 'reviews' || saved === 'rewards' ? saved : 'home';
     } catch { return 'home'; }
   });
-  const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(null);
+
+  const [selectedProduct, setSelectedProduct] = useState<MenuItem | null>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      let prodId = params.get('product');
+      if (!prodId && window.location.hash.includes('product=')) {
+        const hashSearch = window.location.hash.split('?')[1];
+        if (hashSearch) prodId = new URLSearchParams(hashSearch).get('product');
+      }
+      if (prodId) {
+        const normalized = prodId.trim().toLowerCase();
+        const found = INITIAL_KFC_ITEMS.find((item) =>
+          item.id.toLowerCase() === normalized ||
+          encodeURIComponent(item.id).toLowerCase() === normalized ||
+          item.id.toLowerCase().replace(/\s+/g, '-') === normalized
+        );
+        if (found) return found;
+      }
+      const savedId = localStorage.getItem('kfc-selected-product-id');
+      if (savedId) {
+        const found = INITIAL_KFC_ITEMS.find((item) => item.id === savedId);
+        if (found) return found;
+      }
+    } catch {}
+    return null;
+  });
+
   useEffect(() => {
     try { localStorage.setItem('kfc-current-view', currentView); } catch { /* storage can be disabled */ }
     try {
@@ -534,9 +594,63 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch { /* URL state is optional */ }
   }, [currentView]);
+
+  // Keep selectedProduct in sync when menu items load or URL changes
+  useEffect(() => {
+    const handleUrlRoute = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        let prodId = params.get('product');
+        if (!prodId && window.location.hash.includes('product=')) {
+          const hashSearch = window.location.hash.split('?')[1];
+          if (hashSearch) prodId = new URLSearchParams(hashSearch).get('product');
+        }
+        if (prodId && menuItems.length > 0) {
+          const normalized = prodId.trim().toLowerCase();
+          const found = menuItems.find((item) =>
+            item.id.toLowerCase() === normalized ||
+            encodeURIComponent(item.id).toLowerCase() === normalized ||
+            item.id.toLowerCase().replace(/\s+/g, '-') === normalized
+          );
+          if (found) {
+            setSelectedProduct(found);
+            setCurrentView('product');
+            return;
+          }
+        }
+        if (params.get('reviews') === 'true') {
+          setCurrentView('reviews');
+          return;
+        }
+        if (params.get('rewards') === 'true') {
+          setCurrentView('rewards');
+          return;
+        }
+      } catch {}
+    };
+
+    handleUrlRoute();
+    window.addEventListener('popstate', handleUrlRoute);
+    return () => window.removeEventListener('popstate', handleUrlRoute);
+  }, [menuItems]);
+
   useEffect(() => {
     if (currentView !== 'product' || selectedProduct) return;
     try {
+      const params = new URLSearchParams(window.location.search);
+      const prodId = params.get('product');
+      if (prodId) {
+        const normalized = prodId.trim().toLowerCase();
+        const found = menuItems.find((item) =>
+          item.id.toLowerCase() === normalized ||
+          encodeURIComponent(item.id).toLowerCase() === normalized ||
+          item.id.toLowerCase().replace(/\s+/g, '-') === normalized
+        );
+        if (found) {
+          setSelectedProduct(found);
+          return;
+        }
+      }
       const savedId = localStorage.getItem('kfc-selected-product-id');
       if (savedId) {
         const savedProduct = menuItems.find((item) => item.id === savedId);
@@ -2054,11 +2168,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     setSelectedProduct(item);
     try { localStorage.setItem('kfc-selected-product-id', item.id); } catch { /* storage can be disabled */ }
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('product', item.id);
+      window.history.replaceState({ ...(window.history.state || {}), kfcProduct: item.id }, '', url.toString());
+    } catch {}
     setCurrentView('product');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goHome = () => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('product');
+      window.history.replaceState({ ...(window.history.state || {}), kfcProduct: null }, '', url.toString());
+    } catch {}
     setCurrentView('home');
     try { localStorage.removeItem('kfc-selected-product-id'); } catch { /* storage can be disabled */ }
     setSelectedProduct(null);
@@ -2671,28 +2795,128 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const createReviewRequest = async (order: Order, reviewUrl: string): Promise<void> => {
-    if (!auth.currentUser || !isAdmin) throw new Error('Admin authentication required.');
-    await setDoc(doc(db, 'reviewRequests', order.id), {
-      orderId: order.id,
-      customerUid: (order.customer as CustomerDetails & { uid?: string }).uid || null,
-      customerName: order.customer.fullName || 'Customer',
-      phone: order.customer.phone || '',
-      reviewUrl,
-      channel: 'whatsapp',
-      status: 'opened_whatsapp',
-      requestedAt: new Date().toISOString(),
-      requestedBy: auth.currentUser.uid,
-    }, { merge: true });
+    try {
+      if (!auth.currentUser || !isAdmin) return;
+      await setDoc(doc(db, 'reviewRequests', order.id), {
+        orderId: order.id,
+        customerUid: (order.customer as CustomerDetails & { uid?: string }).uid || null,
+        customerName: order.customer.fullName || 'Customer',
+        phone: order.customer.phone || '',
+        reviewUrl,
+        channel: 'whatsapp',
+        status: 'opened_whatsapp',
+        requestedAt: new Date().toISOString(),
+        requestedBy: auth.currentUser?.uid || 'admin',
+      }, { merge: true });
+    } catch (err) {
+      console.warn('createReviewRequest warning:', err);
+    }
+  };
+
+  const getCleanReviewUrl = (orderId?: string, customerName?: string): string => {
+    const origin = window.location.origin;
+    const path = window.location.pathname.replace(/\/index\.html$/i, '').replace(/\/+$/, '');
+    const base = `${origin}${path || ''}/?reviews=true`;
+    const params = new URLSearchParams();
+    if (orderId) params.set('order', orderId);
+    if (customerName) params.set('customer', customerName);
+    const qs = params.toString();
+    return qs ? `${base}&${qs}` : base;
+  };
+
+  const getReviewWhatsAppUrl = (order: Order): string => {
+    let cleanPhone = (order.customer?.phone || '').replace(/[^0-9]/g, '');
+    if (cleanPhone.startsWith('0')) cleanPhone = '92' + cleanPhone.slice(1);
+    if (!cleanPhone.startsWith('92') && cleanPhone.length > 0) cleanPhone = '92' + cleanPhone;
+    const reviewUrl = getCleanReviewUrl(order.id, order.customer?.fullName);
+    const template = String(
+      settings.whatsappTemplates?.reviewRequest ||
+      settings.autoReview?.whatsappTemplate ||
+      'Assalam o Alaikum {customer_name}! Umeed hai aap ka KFC meal bohot crispy aur piping hot tha. Baraye mehrbani 1 minute nikaal kar apna star rating aur review dein: {review_link}. Review submit karny par aapko 20 FREE Loyalty Points milenge!'
+    );
+    const bonus = String(Math.max(0, Number(settings.loyaltyConfig?.reviewBonus ?? settings.autoReview?.rewardPoints ?? 20)));
+    const message = template
+      .replace(/\{name\}/g, order.customer?.fullName || 'Customer')
+      .replace(/\{customer_name\}/g, order.customer?.fullName || 'Customer')
+      .replace(/\{orderId\}/g, order.id)
+      .replace(/\{order_id\}/g, order.id)
+      .replace(/\{reviewUrl\}/g, reviewUrl)
+      .replace(/\{review_link\}/g, reviewUrl)
+      .replace(/\{phone\}/g, order.customer?.phone || '')
+      .replace(/\{points\}/g, bonus);
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
   const sendReviewCollectionWhatsapp = (order: Order) => {
-    const cleanPhone = order.customer.phone.replace(/[^0-9]/g, '');
-    const intlPhone = cleanPhone.startsWith('0') ? '92' + cleanPhone.slice(1) : cleanPhone;
-    const reviewUrl = `${window.location.origin}/?reviews=true`;
-    const template = String(settings.whatsappTemplates?.reviewRequest || settings.autoReview?.whatsappTemplate || 'Assalam o Alaikum {name}! Order #{orderId} ke liye shukriya. Apna review yahan share karein: {reviewUrl}');
-    const message = template.replace(/\{name\}/g, order.customer.fullName || 'Customer').replace(/\{orderId\}/g, order.id).replace(/\{reviewUrl\}/g, reviewUrl).replace(/\{phone\}/g, order.customer.phone || '').replace(/\{points\}/g, String(Math.max(0, Number(settings.loyaltyConfig?.reviewBonus ?? 20))));
-    const text = encodeURIComponent(message);
-    window.open(`https://wa.me/${intlPhone}?text=${text}`, '_blank');
+    const url = getReviewWhatsAppUrl(order);
+    try {
+      const reviewUrl = getCleanReviewUrl(order.id, order.customer?.fullName);
+      createReviewRequest(order, reviewUrl).catch((err) => {
+        console.warn('Review request log notice:', err);
+      });
+    } catch {}
+    const win = window.open(url, '_blank');
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+
+  const sendTestReviewWhatsApp = (phone: string, customerName = 'Valued Customer'): string => {
+    let cleanPhone = phone.replace(/[^0-9]/g, '');
+    if (cleanPhone.startsWith('0')) cleanPhone = '92' + cleanPhone.slice(1);
+    if (!cleanPhone.startsWith('92') && cleanPhone.length > 0) cleanPhone = '92' + cleanPhone;
+    const reviewUrl = getCleanReviewUrl('TEST-ORDER', customerName);
+    const template = String(
+      settings.whatsappTemplates?.reviewRequest ||
+      settings.autoReview?.whatsappTemplate ||
+      'Assalam o Alaikum {customer_name}! Umeed hai aap ka KFC meal bohot crispy aur piping hot tha. Baraye mehrbani 1 minute nikaal kar apna star rating aur review dein: {review_link}. Review submit karny par aapko 20 FREE Loyalty Points milenge!'
+    );
+    const bonus = String(Math.max(0, Number(settings.loyaltyConfig?.reviewBonus ?? settings.autoReview?.rewardPoints ?? 20)));
+    const message = template
+      .replace(/\{name\}/g, customerName)
+      .replace(/\{customer_name\}/g, customerName)
+      .replace(/\{orderId\}/g, 'TEST-ORDER')
+      .replace(/\{order_id\}/g, 'TEST-ORDER')
+      .replace(/\{reviewUrl\}/g, reviewUrl)
+      .replace(/\{review_link\}/g, reviewUrl)
+      .replace(/\{phone\}/g, phone)
+      .replace(/\{points\}/g, bonus);
+    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    const win = window.open(url, '_blank');
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+    return url;
+  };
+
+  // Navigation Menus & Custom Pages
+  const updateNavigationMenuItems = (items: NavigationMenuItem[]) => {
+    updateSettings({ navigationMenuItems: items });
+  };
+
+  const saveCustomPage = (page: CustomPage) => {
+    const currentPages = settings.customPages || DEFAULT_CUSTOM_PAGES;
+    const exists = currentPages.some((p) => p.id === page.id);
+    const updated = exists ? currentPages.map((p) => (p.id === page.id ? page : p)) : [...currentPages, page];
+    updateSettings({ customPages: updated });
+  };
+
+  const deleteCustomPage = (pageId: string) => {
+    const currentPages = settings.customPages || DEFAULT_CUSTOM_PAGES;
+    const updated = currentPages.filter((p) => p.id !== pageId);
+    updateSettings({ customPages: updated });
   };
 
   // Abandoned Checkouts
@@ -2971,7 +3195,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sendAbandonedRecoveryWhatsapp,
         updateAutoReview,
         sendReviewCollectionWhatsapp,
+        getReviewWhatsAppUrl,
         createReviewRequest,
+        sendTestReviewWhatsApp,
+        updateNavigationMenuItems,
+        saveCustomPage,
+        deleteCustomPage,
         marketingCampaigns,
         createMarketingBroadcast,
         exportCustomersCSV,

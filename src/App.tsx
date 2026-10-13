@@ -107,25 +107,50 @@ const MainShop: React.FC = () => {
       selector + ' button, ' + selector + ' a { border-color: ' + scheme.border + ' !important; }';
   }).join('\n');
 
-  // Open a product directly when a shared product link is opened.
+  // Open a product or view directly when a shared product or review link is opened.
   useEffect(() => {
-    if (initialProductHandled.current) return;
-    const productId = new URLSearchParams(window.location.search).get('product');
-    if (!productId) {
-      initialProductHandled.current = true;
-      return;
-    }
-    if (menuItems.length === 0) return;
-    const sharedProduct = menuItems.find((item) => item.id === productId);
-    if (sharedProduct) {
-      if (sharedProduct.status === 'draft') {
-        initialProductHandled.current = true;
+    const handleUrlProduct = () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      let productId = searchParams.get('product');
+      if (!productId && window.location.hash.includes('product=')) {
+        const hashSearch = window.location.hash.split('?')[1];
+        if (hashSearch) productId = new URLSearchParams(hashSearch).get('product');
+      }
+
+      if (productId && menuItems.length > 0) {
+        const normalizedId = productId.trim().toLowerCase();
+        const sharedProduct = menuItems.find(
+          (item) =>
+            item.id.toLowerCase() === normalizedId ||
+            encodeURIComponent(item.id).toLowerCase() === normalizedId ||
+            item.id.toLowerCase().replace(/\s+/g, '-') === normalizedId
+        );
+        if (sharedProduct) {
+          if (sharedProduct.status === 'draft' && !isAdmin) return;
+          viewProduct(sharedProduct);
+          return;
+        }
+      }
+
+      // Check for review link (?reviews=true)
+      if (searchParams.get('reviews') === 'true' || window.location.hash.includes('reviews=true')) {
+        setCurrentView('reviews');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
-      viewProduct(sharedProduct);
-      initialProductHandled.current = true;
-    }
-  }, [menuItems, viewProduct]);
+
+      // Check for rewards link (?rewards=true)
+      if (searchParams.get('rewards') === 'true' || window.location.hash.includes('rewards=true')) {
+        setCurrentView('rewards');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+    };
+
+    handleUrlProduct();
+    window.addEventListener('popstate', handleUrlProduct);
+    return () => window.removeEventListener('popstate', handleUrlProduct);
+  }, [menuItems, viewProduct, isAdmin, setCurrentView]);
 
   // Keep the sticky collection bar in sync with the category currently visible while browsing all products.
   useEffect(() => {
@@ -151,11 +176,11 @@ const MainShop: React.FC = () => {
     return () => observer.disconnect();
   }, [currentView, selectedCategory, searchQuery, storefrontCategories, settings.collectionNavHidden, menuItems, setActiveCategory]);
 
-  // Initialize history guard once on mount
+  // Initialize history guard once on mount without wiping current URL query
   useEffect(() => {
     try {
-      window.history.replaceState({ kfcRoot: true }, '');
-      window.history.pushState({ kfcGuard: true }, '');
+      window.history.replaceState({ ...(window.history.state || {}), kfcRoot: true }, '', window.location.href);
+      window.history.pushState({ ...(window.history.state || {}), kfcGuard: true }, '', window.location.href);
     } catch {}
   }, []);
 

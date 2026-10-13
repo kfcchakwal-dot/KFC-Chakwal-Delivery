@@ -17,6 +17,9 @@ import {
   CustomDomainConfig,
   MetaCommerceConfig,
   AutoReviewConfig,
+  NavigationMenuItem,
+  CustomPage,
+  StoreBranch,
 } from '../types';
 
 export const KFC_CATEGORIES: Category[] = [
@@ -267,7 +270,135 @@ export const DEFAULT_DAILY_DEAL: DailyDealConfig = {
   autoMidnightRotate: false,
 };
 
+export const DEFAULT_NAVIGATION_MENU_ITEMS: NavigationMenuItem[] = [
+  { id: 'nav-home', label: 'Home', link: '/', isEnabled: true, order: 1, icon: 'home' },
+  { id: 'nav-menu', label: 'All Menu Items', link: '#kfc-menu-section', isEnabled: true, order: 2, icon: 'utensils' },
+  { id: 'nav-deals', label: 'Daily Deals (4% OFF)', link: '#daily-deals-section', badge: 'Special', isEnabled: true, order: 3, icon: 'flame' },
+  { id: 'nav-reviews', label: 'Customer Reviews', link: 'view:reviews', isEnabled: true, order: 4, icon: 'star' },
+  { id: 'nav-rewards', label: 'Loyalty Rewards Program', link: 'view:rewards', isEnabled: true, order: 5, icon: 'gift' },
+  { id: 'nav-vip', label: "Colonel's VIP Club", link: 'action:vip', badge: 'VIP Pass', isEnabled: true, order: 6, icon: 'crown' },
+  { id: 'nav-policies', label: 'Delivery & Store Policies', link: 'action:policies', isEnabled: true, order: 7, icon: 'file' },
+  { id: 'nav-whatsapp', label: 'WhatsApp Order Support', link: 'https://wa.me/923252777574', target: '_blank', isEnabled: true, order: 8, icon: 'phone' },
+];
+
+export const DEFAULT_CUSTOM_PAGES: CustomPage[] = [
+  {
+    id: 'page-about',
+    slug: 'about-us',
+    title: 'About KFC Chakwal Delivery',
+    content: `<h3>Authentic KFC Delivery in Chakwal City</h3>
+<p>KFC Chakwal Delivery ek dedicated independent delivery service hai. Hum Kallar Kahar Motorway branch se rozana authentic, piping hot sealed KFC food pick kar ke Chakwal city (within 3 KM) ke bashindo tak deliver karte hain.</p>
+<h4>Delivery Timings & Schedule:</h4>
+<ul>
+  <li><strong>Orders Open:</strong> 10:00 AM se sham 04:00 PM tak</li>
+  <li><strong>Daily Delivery:</strong> Sham 08:00 PM tak doorstep par</li>
+  <li><strong>Delivery Fee:</strong> Flat Rs. 399 within 3 KM coverage</li>
+</ul>
+<p>Tamam packaging food-grade sealed aur insulated bags mein transport ki jati hai taa ke KFC ka crisp aur swad 100% barkarar rahe.</p>`,
+    isPublished: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'page-coverage',
+    slug: 'delivery-coverage',
+    title: 'Delivery Coverage & Locations (3 KM Radius)',
+    content: `<h3>Coverage Area: Within 3 KM of Chakwal City</h3>
+<p>Hamari delivery team in areas mein rozana sham 8 baje tak orders deliver karti hai:</p>
+<ul>
+  <li>Bhaun Road & Rawalpindi Road</li>
+  <li>Talagang Road & Tehsil Chowk</li>
+  <li>Main Bazar, City Center & Hospital Road</li>
+  <li>Line Park, Mohallah Chhappar & Satellite Town</li>
+</ul>
+<p>Agar aap ka address 3 KM radius se bahar hai to order karne se pehle hamare WhatsApp number <strong>+92 325 2777574</strong> par confirm farma lein.</p>`,
+    isPublished: true,
+    createdAt: new Date().toISOString(),
+  },
+];
+
+export const DEFAULT_BRANCHES: StoreBranch[] = [
+  {
+    id: 'branch-chakwal-main',
+    code: 'KCD-01',
+    name: 'Main City Branch (Bhaun Road)',
+    companyName: 'KFC Chakwal Delivery Enterprise',
+    tagline: 'Fresh KFC Hub & Fast Chakwal City Doorstep Delivery',
+    city: 'Chakwal',
+    address: 'Near City Center, Main Bhaun Road, Chakwal City, Punjab',
+    phone: '+92 325 2777574',
+    whatsappNumber: '+92 325 2777574',
+    email: 'kfcchakwal@gmail.com',
+    managerName: 'Muhammad Rizwan',
+    managerPhone: '+92 325 2777574',
+    deliveryRadiusKm: 5,
+    deliveryRadiusText: 'Within 5 KM of Chakwal City',
+    openingTime: '10:00 AM',
+    closingTime: '08:00 PM',
+    orderCutoffTime: '04:00 PM',
+    sameDayDeliveryBy: '08:00 PM',
+    deliveryFee: 399,
+    minOrderAmount: 500,
+    taxRegistrationNumber: 'NTN-7392811-4',
+    coverageAreas: [
+      'Chakwal City',
+      'Bhaun Road',
+      'Rawalpindi Road',
+      'Tehsil Chowk',
+      'Line Park',
+      'Main Bazar',
+      'Satellite Town',
+      'Hospital Road',
+    ],
+    isAvailable: true,
+    isDefault: true,
+    notes: 'Headquarters & primary delivery hub picked daily from Kallar Kahar Motorway branch.',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'branch-kallar-kahar-hub',
+    code: 'KCD-02',
+    name: 'Kallar Kahar Motorway Branch',
+    companyName: 'KFC Chakwal Delivery Enterprise',
+    tagline: 'Direct Motorway Pickup & Rural Corridor Route',
+    city: 'Kallar Kahar',
+    address: 'M-2 Motorway Interchange, Service Area Kallar Kahar',
+    phone: '+92 325 2777574',
+    whatsappNumber: '+92 325 2777574',
+    email: 'kfcchakwal@gmail.com',
+    managerName: 'Tariq Mehmood',
+    managerPhone: '+92 325 2777574',
+    deliveryRadiusKm: 12,
+    deliveryRadiusText: 'Motorway Interchange & Kallar Kahar Lake Hub',
+    openingTime: '11:00 AM',
+    closingTime: '09:00 PM',
+    orderCutoffTime: '05:00 PM',
+    sameDayDeliveryBy: '08:30 PM',
+    deliveryFee: 499,
+    minOrderAmount: 700,
+    taxRegistrationNumber: 'NTN-7392811-5',
+    coverageAreas: [
+      'Kallar Kahar City',
+      'Motorway Service Area',
+      'Kallar Kahar Lake',
+      'Cadet College Route',
+    ],
+    isAvailable: true,
+    isDefault: false,
+    notes: 'Direct pickup point at M-2 Motorway Interchange with hot thermal transit cases.',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
 export const DEFAULT_STORE_SETTINGS: StoreSettings = {
+  isHeaderSticky: true,
+  navigationMenuItems: DEFAULT_NAVIGATION_MENU_ITEMS,
+  customPages: DEFAULT_CUSTOM_PAGES,
+  companies: DEFAULT_BRANCHES,
+  activeBranchId: 'branch-chakwal-main',
+  settingsVersion: 2026101306,
+  lastSyncedAt: new Date().toISOString(),
   storeName: 'KFC Chakwal Delivery',
   tagline: "Authentic KFC Picked from Kallar Kahar Motorway & Delivered to Chakwal",
   markupPercentage: 12, // 12% higher than KFC PK original prices

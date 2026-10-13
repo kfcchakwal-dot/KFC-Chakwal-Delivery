@@ -16,9 +16,19 @@ export const ReviewsPage: React.FC = () => {
   const visibleReviews = reviews.filter((review) => review.isVisible !== false);
   const isDark = themeMode === 'dark';
   
-  // Review form state
-  const [customerName, setCustomerName] = useState(currentUser?.fullName || '');
-  const [phoneOrOrder, setPhoneOrOrder] = useState(currentUser?.phone || '');
+  // Review form state with URL parameter pre-filling
+  const [customerName, setCustomerName] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('customer') || currentUser?.fullName || '';
+    } catch { return currentUser?.fullName || ''; }
+  });
+  const [phoneOrOrder, setPhoneOrOrder] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('order') || p.get('phone') || currentUser?.phone || '';
+    } catch { return currentUser?.phone || ''; }
+  });
   const [selectedProductId, setSelectedProductId] = useState<string>('overall');
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);

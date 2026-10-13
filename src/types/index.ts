@@ -233,6 +233,17 @@ export interface StoreSettings {
   orderNotificationSound?: boolean;
   customDomain?: CustomDomainConfig;
   metaCommerce?: MetaCommerceConfig;
+  /** Admin toggle for sticky header: true keeps header pinned at top on scroll, false lets it scroll naturally */
+  isHeaderSticky?: boolean;
+  /** Customizable header left navigation menu items */
+  navigationMenuItems?: NavigationMenuItem[];
+  /** Custom storefront pages managed by admin */
+  customPages?: CustomPage[];
+  /** Multiple companies and store branches */
+  companies?: StoreBranch[];
+  activeBranchId?: string;
+  lastSyncedAt?: string;
+  settingsVersion?: number;
   autoReview?: AutoReviewConfig;
   reviewWidgetConfig?: { enabled: boolean; showOnProductPages: boolean; showOnHome: boolean; showOnReviewsPage: boolean };
   skuBarcodeConfig?: { enabled: boolean; autoGenerateSku: boolean; autoGenerateBarcode: boolean };
@@ -277,6 +288,57 @@ export interface MetaCommerceConfig {
   trackAddToCart: boolean;
   trackInitiateCheckout: boolean;
   trackPurchase: boolean;
+}
+
+export interface NavigationMenuItem {
+  id: string;
+  label: string;
+  link: string; // e.g. '/', '#kfc-menu-section', 'category:krunch-burger', 'view:reviews', 'view:rewards', 'action:vip', 'action:policies', 'action:auth', 'page:about-us', or 'https://...'
+  target?: '_self' | '_blank';
+  badge?: string; // e.g. "HOT", "NEW", "4% OFF"
+  icon?: string; // e.g. 'home', 'utensils', 'flame', 'star', 'gift', 'crown', 'file', 'phone', 'compass', 'link'
+  isEnabled: boolean;
+  order: number;
+}
+
+export interface CustomPage {
+  id: string;
+  slug: string;
+  title: string;
+  content: string;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface StoreBranch {
+  id: string;
+  code: string;
+  name: string;
+  companyName: string;
+  tagline?: string;
+  city: string;
+  address: string;
+  phone: string;
+  whatsappNumber: string;
+  email?: string;
+  managerName?: string;
+  managerPhone?: string;
+  deliveryRadiusKm: number;
+  deliveryRadiusText: string;
+  openingTime: string;
+  closingTime: string;
+  orderCutoffTime: string;
+  sameDayDeliveryBy: string;
+  deliveryFee: number;
+  minOrderAmount: number;
+  taxRegistrationNumber?: string;
+  coverageAreas: string[];
+  isAvailable: boolean;
+  isDefault?: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type VipTierId = 'silver' | 'gold' | 'platinum';

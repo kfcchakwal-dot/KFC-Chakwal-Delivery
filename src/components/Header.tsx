@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
-import { KFC_CATEGORIES } from '../data/kfcMenu';
-import { CategoryId, MenuItem } from '../types';
+import { KFC_CATEGORIES, DEFAULT_NAVIGATION_MENU_ITEMS } from '../data/kfcMenu';
+import { CategoryId, MenuItem, NavigationMenuItem, CustomPage } from '../types';
 import {
   ShoppingBag,
   Search,
@@ -19,7 +19,15 @@ import {
   FileText,
   Flame,
   ArrowRight,
-  Store
+  Store,
+  Home,
+  UtensilsCrossed,
+  Star,
+  Gift,
+  Crown,
+  ExternalLink,
+  Compass,
+  ChevronDown,
 } from 'lucide-react';
 import { CustomerNotificationToggle } from './CustomerNotificationToggle';
 
@@ -54,14 +62,34 @@ export const Header: React.FC = () => {
     openPolicyModal,
     setIsLoyaltyModalOpen,
     setIsVipModalOpen,
+    currentView,
+    setCurrentView,
+    isAdmin,
+    setIsAdmin,
   } = useStore();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDesktopSearchFocused, setIsDesktopSearchFocused] = useState(false);
   const [desktopSuggestionIndex, setDesktopSuggestionIndex] = useState(0);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isDesktopMenuDropdownOpen, setIsDesktopMenuDropdownOpen] = useState(false);
+  const desktopMenuRef = useRef<HTMLDivElement>(null);
+  const [selectedCustomPage, setSelectedCustomPage] = useState<CustomPage | null>(null);
 
   const isDark = themeMode === 'dark';
+  const isHeaderSticky = settings.isHeaderSticky !== false;
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (desktopMenuRef.current && !desktopMenuRef.current.contains(e.target as Node)) {
+        setIsDesktopMenuDropdownOpen(false);
+      }
+    };
+    if (isDesktopMenuDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDesktopMenuDropdownOpen]);
 
   const handleSelectCategory = (catId: CategoryId) => {
     setActiveCategory(catId);
@@ -83,9 +111,103 @@ export const Header: React.FC = () => {
     : [];
   const desktopSuggestions = normalizedSearch ? matchingItems : activeItems.slice(0, 5);
 
+  const renderNavIcon = (icon?: string) => {
+    switch (icon) {
+      case 'home':
+        return <Home className="w-4 h-4 text-[#e4002b]" />;
+      case 'utensils':
+        return <UtensilsCrossed className="w-4 h-4 text-[#e4002b]" />;
+      case 'flame':
+        return <Flame className="w-4 h-4 text-[#e4002b]" />;
+      case 'star':
+        return <Star className="w-4 h-4 text-amber-500 fill-amber-500" />;
+      case 'gift':
+        return <Gift className="w-4 h-4 text-purple-500" />;
+      case 'crown':
+        return <Crown className="w-4 h-4 text-amber-500" />;
+      case 'file':
+        return <FileText className="w-4 h-4 text-blue-500" />;
+      case 'phone':
+        return <Phone className="w-4 h-4 text-emerald-500" />;
+      default:
+        return <Compass className="w-4 h-4 text-[#e4002b]" />;
+    }
+  };
+
+  const handleNavigationClick = (item: NavigationMenuItem) => {
+    setIsMobileDrawerOpen(false);
+    setIsDesktopMenuDropdownOpen(false);
+    const link = (item.link || '/').trim();
+    if (link === '/' || link === '#home') {
+      goHome();
+      return;
+    }
+    if (link.startsWith('#')) {
+      if (currentView !== 'home') {
+        goHome();
+        setTimeout(() => {
+          const el = document.querySelector(link);
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 120);
+      } else {
+        const el = document.querySelector(link);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }
+      return;
+    }
+    if (link.startsWith('category:')) {
+      const catId = link.replace('category:', '') as CategoryId;
+      handleSelectCategory(catId);
+      return;
+    }
+    if (link === 'view:reviews') {
+      setCurrentView('reviews');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (link === 'view:rewards') {
+      setCurrentView('rewards');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (link === 'action:vip') {
+      setIsVipModalOpen(true);
+      return;
+    }
+    if (link === 'action:loyalty') {
+      setIsLoyaltyModalOpen(true);
+      return;
+    }
+    if (link === 'action:policies') {
+      openPolicyModal();
+      return;
+    }
+    if (link === 'action:auth') {
+      setIsCustomerAuthModalOpen(true);
+      return;
+    }
+    if (link.startsWith('page:')) {
+      const slug = link.replace('page:', '');
+      const page = (settings.customPages || []).find((p) => p.slug === slug || p.id === slug);
+      if (page) {
+        setSelectedCustomPage(page);
+      }
+      return;
+    }
+    if (link.startsWith('http') || link.startsWith('//') || link.startsWith('https://wa.me')) {
+      if (item.target === '_blank') {
+        window.open(link, '_blank');
+      } else {
+        window.location.href = link;
+      }
+      return;
+    }
+    window.location.href = link;
+  };
+
   return (
     <>
-      <header className={`sticky top-0 z-40 border-b transition-colors shadow-md w-full overflow-visible ${
+      <header className={`${isHeaderSticky ? 'sticky top-0 z-40' : 'relative z-40'} border-b transition-colors shadow-md w-full overflow-visible ${
         isDark ? 'bg-[#121214] border-[#27272a] text-white' : 'bg-white border-zinc-200 text-zinc-900 shadow-sm'
       }`}>
         {/* ========================================================================= */}
@@ -308,10 +430,86 @@ export const Header: React.FC = () => {
               />
             </button>
 
-            {/* Desktop header keeps the brand and actions compact; search is on its own full-width row below. */}
-            <div className="hidden xl:flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold shrink-0 bg-zinc-50 border-zinc-200 text-zinc-800">
-              <MapPin className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />
-              <span>Coverage: Within 3 KM (Chakwal)</span>
+            {/* Desktop Left: Navigation Menu Dropdown (Editable items) + Coverage */}
+            <div ref={desktopMenuRef} className="relative flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsDesktopMenuDropdownOpen((prev) => !prev)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer active:scale-95 ${
+                  isDark ? 'bg-[#1b1b20] border-[#2c2c34] text-white hover:bg-[#25252d]' : 'bg-zinc-100 border-zinc-300 text-zinc-800 hover:bg-zinc-200'
+                }`}
+                title="Navigation Menu Dropdown"
+                aria-label="Open navigation menu dropdown"
+                aria-expanded={isDesktopMenuDropdownOpen}
+              >
+                <Menu className="w-4 h-4 text-[#e4002b]" />
+                <span>Menu</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${isDesktopMenuDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Desktop Menu Dropdown Popover */}
+              {isDesktopMenuDropdownOpen && (
+                <div className={`absolute top-full left-0 mt-2 w-72 rounded-2xl border shadow-2xl p-2.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 ${
+                  isDark ? 'bg-[#18181d] border-[#2a2a34] text-white shadow-black/60' : 'bg-white border-zinc-200 text-zinc-900 shadow-xl'
+                }`}>
+                  <div className="px-2.5 py-1.5 flex items-center justify-between border-b border-zinc-700/15 mb-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Navigation Menu</span>
+                    <span className="text-[10px] text-[#e4002b] font-bold">KFC Chakwal</span>
+                  </div>
+
+                  <div className="space-y-0.5 max-h-80 overflow-y-auto no-scrollbar">
+                    {((settings.navigationMenuItems && settings.navigationMenuItems.length > 0)
+                      ? settings.navigationMenuItems.filter((i) => i.isEnabled !== false)
+                      : DEFAULT_NAVIGATION_MENU_ITEMS
+                    )
+                      .sort((a, b) => (a.order || 0) - (b.order || 0))
+                      .map((navItem) => (
+                        <button
+                          key={navItem.id}
+                          type="button"
+                          onClick={() => handleNavigationClick(navItem)}
+                          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-between cursor-pointer group ${
+                            isDark ? 'hover:bg-[#22222a] text-zinc-200' : 'hover:bg-zinc-100 text-zinc-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {renderNavIcon(navItem.icon)}
+                            <span className="truncate">{navItem.label}</span>
+                            {navItem.badge && (
+                              <span className="bg-[#e4002b] text-white text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md">
+                                {navItem.badge}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-zinc-400 group-hover:translate-x-0.5 transition-transform">
+                            {navItem.target === '_blank' ? <ExternalLink className="w-3.5 h-3.5" /> : '→'}
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+
+                  {isAdmin && (
+                    <div className="pt-2 mt-2 border-t border-zinc-700/15">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsDesktopMenuDropdownOpen(false);
+                          setIsAdmin(true);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-black bg-red-50 text-[#e4002b] hover:bg-red-100 flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <Compass className="w-3.5 h-3.5" />
+                        <span>⚙️ Edit Navigation Menu (Admin)</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="hidden xl:flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold shrink-0 bg-zinc-50 border-zinc-200 text-zinc-800">
+                <MapPin className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />
+                <span>Coverage: Within 3 KM (Chakwal)</span>
+              </div>
             </div>
 
             {/* Desktop Right Actions */}
@@ -498,13 +696,13 @@ export const Header: React.FC = () => {
       {/* MOBILE SLIDE-OUT DRAWER */}
       {/* ========================================================================= */}
       {isMobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
+        <div className="fixed inset-0 z-50 flex">
           <div
             className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
             onClick={() => setIsMobileDrawerOpen(false)}
           />
 
-          <div className={`relative w-4/5 max-w-xs h-full shadow-2xl flex flex-col justify-between overflow-y-auto ${
+          <div className={`relative w-4/5 max-w-sm h-full shadow-2xl flex flex-col justify-between overflow-y-auto ${
             isDark ? 'bg-[#151518] text-white border-r border-[#26262e]' : 'bg-white text-zinc-900 border-r border-zinc-200'
           }`}>
             <div className="p-4 space-y-4">
@@ -543,23 +741,74 @@ export const Header: React.FC = () => {
                 </div>
               )}
 
-              {/* Menu Categories */}
+              {/* Editable Navigation Menu Items */}
               <div className="space-y-1">
                 <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
-                  Menu Categories
+                  Navigation Menu
                 </p>
-                {KFC_CATEGORIES.map((cat) => (
+                {((settings.navigationMenuItems && settings.navigationMenuItems.length > 0)
+                  ? settings.navigationMenuItems.filter((i) => i.isEnabled !== false)
+                  : DEFAULT_NAVIGATION_MENU_ITEMS
+                )
+                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                  .map((navItem) => (
+                    <button
+                      key={navItem.id}
+                      type="button"
+                      onClick={() => handleNavigationClick(navItem)}
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-between cursor-pointer group ${
+                        isDark ? 'hover:bg-[#202026] text-zinc-200' : 'hover:bg-zinc-100 text-zinc-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {renderNavIcon(navItem.icon)}
+                        <span className="truncate">{navItem.label}</span>
+                        {navItem.badge && (
+                          <span className="bg-[#e4002b] text-white text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md shadow-2xs">
+                            {navItem.badge}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-zinc-400 group-hover:translate-x-0.5 transition-transform">
+                        {navItem.target === '_blank' ? <ExternalLink className="w-3.5 h-3.5" /> : '→'}
+                      </span>
+                    </button>
+                  ))}
+
+                {isAdmin && (
                   <button
-                    key={cat.id}
-                    onClick={() => handleSelectCategory(cat.id)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-between cursor-pointer ${
-                      isDark ? 'hover:bg-[#202026] text-zinc-200' : 'hover:bg-zinc-100 text-zinc-800'
-                    }`}
+                    type="button"
+                    onClick={() => {
+                      setIsMobileDrawerOpen(false);
+                      setIsAdmin(true);
+                    }}
+                    className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-black bg-red-50 text-[#e4002b] hover:bg-red-100 flex items-center gap-2 transition cursor-pointer mt-1"
                   >
-                    <span>{cat.name}</span>
-                    <span className="text-[10px] text-zinc-500 font-normal">→</span>
+                    <Compass className="w-3.5 h-3.5" />
+                    <span>⚙️ Edit Navigation Menu (Admin)</span>
                   </button>
-                ))}
+                )}
+              </div>
+
+              {/* Menu Categories Shortcuts */}
+              <div className="pt-2 border-t border-zinc-700/20 space-y-1">
+                <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
+                  Food Categories
+                </p>
+                <div className="grid grid-cols-2 gap-1.5 pt-1">
+                  {KFC_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => handleSelectCategory(cat.id)}
+                      className={`text-left px-2.5 py-2 rounded-xl text-[11px] font-bold transition truncate cursor-pointer ${
+                        isDark ? 'bg-[#1b1b20] hover:bg-[#25252c] text-zinc-300' : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Customer Account / Policies / WhatsApp Action */}
@@ -662,6 +911,44 @@ export const Header: React.FC = () => {
             }`}>
               <p className={`font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>KFC Chakwal Delivery</p>
               <p className="text-[10px] mt-0.5">Phone: +92 325 2777574</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Page Viewer Modal */}
+      {selectedCustomPage && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`max-w-2xl w-full max-h-[85vh] flex flex-col rounded-3xl shadow-2xl border overflow-hidden ${
+            isDark ? 'bg-[#18181c] border-zinc-800 text-white' : 'bg-white border-zinc-200 text-zinc-900'
+          }`}>
+            <div className="p-5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black uppercase text-zinc-900 dark:text-white">
+                  {selectedCustomPage.title}
+                </h3>
+                <span className="text-[11px] text-zinc-400">/{selectedCustomPage.slug}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCustomPage(null)}
+                className="p-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div
+              className="p-6 overflow-y-auto max-w-none text-xs sm:text-sm leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: selectedCustomPage.content }}
+            />
+            <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedCustomPage(null)}
+                className="px-5 py-2.5 rounded-xl bg-[#e4002b] hover:bg-[#c30025] text-white font-bold text-xs cursor-pointer shadow-md"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

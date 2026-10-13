@@ -77,20 +77,26 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const shareUrl = `https://us-central1-gen-lang-client-0313861453.cloudfunctions.net/productShare?product=${encodeURIComponent(item.id)}`;
-    const descriptionWords = (item.description || 'Fresh KFC meal from KFC Chakwal Delivery.').trim().split(/\s+/);
-    const shortDescription = descriptionWords.slice(0, 28).join(' ') + (descriptionWords.length > 28 ? '...' : '');
+    const origin = window.location.origin;
+    const path = window.location.pathname.replace(/\/index\.html$/i, '').replace(/\/+$/, '');
+    const shareUrl = `${origin}${path || ''}/?product=${encodeURIComponent(item.id)}`;
+    const descriptionWords = (item.description || '').trim().split(/\s+/).filter(Boolean);
+    const shortDescription = descriptionWords.length > 0
+      ? descriptionWords.slice(0, 24).join(' ') + (descriptionWords.length > 24 ? '...' : '')
+      : '';
     const imageUrl = item.image || '';
-    const shareText = `${item.name}\n${shortDescription}\nSelling Price: ${formatPKR(effectivePrice)}\nOrder: ${shareUrl}${imageUrl ? `\nProduct image: ${imageUrl}` : ''}`;
+    const shareText = `🍗 *${item.name}*${shortDescription ? `\n${shortDescription}` : ''}\n💰 Price: ${formatPKR(effectivePrice)}\n\n👉 Order directly on app:\n${shareUrl}`;
+
     if (navigator.share) {
       try {
-        if (imageUrl && navigator.canShare && navigator.canShare({ files: [new File([], 'product.jpg', { type: 'image/jpeg' })] })) {
+        if (imageUrl) {
           try {
             const response = await fetch(imageUrl, { mode: 'cors' });
             if (response.ok) {
               const blob = await response.blob();
-              const file = new File([blob], `${item.name.replace(/[^a-z0-9-_]/gi, '-').slice(0, 50) || 'product'}.jpg`, { type: blob.type || 'image/jpeg' });
-              if (navigator.canShare({ files: [file] })) {
+              const ext = blob.type.includes('png') ? 'png' : 'jpg';
+              const file = new File([blob], `${item.name.replace(/[^a-z0-9-_]/gi, '-').slice(0, 50) || 'product'}.${ext}`, { type: blob.type || 'image/jpeg' });
+              if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({ title: item.name, text: shareText, files: [file] });
                 return;
               }
@@ -105,12 +111,13 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({ item }) => {
         if (error?.name === 'AbortError') return;
       }
     }
+
     try {
       await navigator.clipboard.writeText(shareText);
       setCopiedShare(true);
       setTimeout(() => setCopiedShare(false), 2500);
     } catch {
-      window.prompt('Copy product details and link:', shareText);
+      window.prompt('Product details aur link copy karein:', shareText);
     }
   };
 

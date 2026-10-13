@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { KFC_CATEGORIES } from '../data/kfcMenu';
 import { CategoryId } from '../types';
@@ -15,8 +15,11 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
 }) => {
   const { menuItems, themeMode, settings } = useStore();
   const isDark = themeMode === 'dark';
+  const containerRef = useRef<HTMLDivElement>(null);
   const [scrollingUp, setScrollingUp] = useState(true);
   const stickyOnScrollUp = settings.collectionNavStickyOnScrollUp !== false;
+  const isHeaderSticky = settings.isHeaderSticky !== false;
+
   useEffect(() => {
     let previousY = window.scrollY;
     let lastUpdate = 0;
@@ -32,6 +35,21 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // Auto-scroll the horizontal collection bar to keep the highlighted collection button visible and centered in viewport
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+    const activeBtn = container.querySelector<HTMLElement>(`[data-category-nav-id="${selectedCategoryId}"]`);
+    if (activeBtn) {
+      const containerRect = container.getBoundingClientRect();
+      const btnRect = activeBtn.getBoundingClientRect();
+      const relativeLeft = btnRect.left - containerRect.left;
+      const targetScrollLeft = container.scrollLeft + relativeLeft - (container.clientWidth / 2) + (btnRect.width / 2);
+      container.scrollTo({ left: Math.max(0, targetScrollLeft), behavior: 'smooth' });
+    }
+  }, [selectedCategoryId]);
+
   const categories = useMemo(() => {
     const knownIds = new Set(KFC_CATEGORIES.map((category) => category.id as string));
     const extraIds = Array.from(new Set(menuItems.flatMap((item) => [String(item.categoryId), ...(item.categoryIds || []).map(String)]).filter((id) => id && !knownIds.has(id))));
@@ -54,16 +72,21 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
     return active.filter((item) => item.categoryId === id || (item.categoryIds || []).includes(id as CategoryId)).length;
   };
 
+  const stickyPositionClass = isHeaderSticky
+    ? `sticky top-14 md:top-20 z-30 ${scrollingUp ? 'translate-y-0' : '-translate-y-[115%]'}`
+    : `sticky top-0 z-30 ${scrollingUp ? 'translate-y-0' : '-translate-y-[115%]'}`;
+
   return (
-    <div className={`${stickyOnScrollUp ? 'sticky top-14 md:top-20 z-30 ' + (scrollingUp ? 'translate-y-0' : '-translate-y-[115%]') : 'relative'} backdrop-blur-md border-b shadow-sm py-2.5 transition-all duration-200 ${
+    <div className={`${stickyOnScrollUp ? stickyPositionClass : 'relative'} backdrop-blur-md border-b shadow-sm py-2.5 transition-all duration-200 ${
       isDark ? 'bg-[#121215]/95 border-[#26262d]' : 'bg-white/95 border-zinc-200'
     }`}>
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1">
+        <div ref={containerRef} className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-1">
           
           {/* "All Items" button */}
           <button
             type="button"
+            data-category-nav-id="all"
             onClick={() => onSelectCategory('all')}
             className={`min-h-[40px] whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all duration-150 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95 ${selectedCategoryId === 'all' ? 'buy-button' : ''} ${
               selectedCategoryId === 'all'
@@ -94,6 +117,7 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
               <button
                 key={cat.id}
                 type="button"
+                data-category-nav-id={cat.id}
                 onClick={() => onSelectCategory(cat.id)}
                 className={`min-h-[40px] whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all duration-150 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95 ${(isSelected || isFeaturedShortcut) ? 'buy-button' : ''} ${
                   isSelected || isFeaturedShortcut
