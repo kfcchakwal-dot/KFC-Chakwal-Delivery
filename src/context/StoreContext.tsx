@@ -935,13 +935,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!active || !snapshot.exists()) return;
       const data: any = snapshot.data() || {};
       if (data.settings) {
-        setSettings((prev) => ({
-          ...prev, ...data.settings,
+        const remoteSettings = data.settings as Partial<StoreSettings>;
+        let effectiveSettings: StoreSettings = {
+          ...DEFAULT_STORE_SETTINGS,
+          ...remoteSettings,
           phone: '+92 325 2777574',
           whatsappNumber: '+92 325 2777574',
           deliveryRadiusText: 'Within 3 KM of Chakwal City',
-        }));
-        if (Array.isArray(data.settings.deliveryMethods)) setDeliveryMethods(data.settings.deliveryMethods);
+        };
+
+        // Preserve a timestamped local admin edit if it is newer than the server snapshot.
+        if (isAdmin) {
+          try {
+            const rawLocal = localStorage.getItem(SETTINGS_KEY);
+            const localSettings = rawLocal ? JSON.parse(rawLocal) as Partial<StoreSettings> : null;
+            const localTime = Date.parse(String(localSettings?.lastSyncedAt || ''));
+            const remoteTime = Date.parse(String(remoteSettings.lastSyncedAt || data.updatedAt || ''));
+            if (localSettings && Number.isFinite(localTime) && localTime > 0 && localTime > (Number.isFinite(remoteTime) ? remoteTime : 0)) {
+              effectiveSettings = {
+                ...effectiveSettings,
+                ...localSettings,
+                phone: '+92 325 2777574',
+                whatsappNumber: '+92 325 2777574',
+                deliveryRadiusText: 'Within 3 KM of Chakwal City',
+              };
+              void syncStoreToServer({ settings: effectiveSettings });
+            }
+          } catch (error) {
+            console.warn('Local admin settings reconciliation notice:', error);
+          }
+        }
+
+        setSettings(effectiveSettings);
+        if (Array.isArray(effectiveSettings.deliveryMethods)) setDeliveryMethods(effectiveSettings.deliveryMethods);
       }
       if (Array.isArray(data.menuItems) && data.menuItems.length) setMenuItems(data.menuItems);
       if (Array.isArray(data.discounts) && data.discounts.length) setDiscounts(data.discounts);
@@ -1480,8 +1506,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateSettings = (newSettings: Partial<StoreSettings>) => {
     setSettings((prev) => {
-      const updated = { ...prev, ...newSettings };
-      syncStoreToServer({ settings: updated });
+      const updated: StoreSettings = {
+        ...prev,
+        ...newSettings,
+        lastSyncedAt: new Date().toISOString(),
+        settingsVersion: Math.max(Number(prev.settingsVersion || 0) + 1, Date.now()),
+      };
+      // Persist every admin settings edit centrally; Firestore onSnapshot distributes it to open devices.
+      void syncStoreToServer({ settings: updated });
       return updated;
     });
   };
