@@ -34,7 +34,6 @@ import {
   ProductVariant,
   NavigationMenuItem,
   CustomPage,
-  StoreBranch,
 } from '../types';
 import {
   INITIAL_KFC_ITEMS,
@@ -50,7 +49,6 @@ import {
   DEFAULT_AUTO_REVIEW_CONFIG,
   DEFAULT_NAVIGATION_MENU_ITEMS,
   DEFAULT_CUSTOM_PAGES,
-  DEFAULT_BRANCHES,
   KFC_CATEGORIES,
 } from '../data/kfcMenu';
 import { playNewOrderChime } from '../utils/audioNotification';
@@ -364,17 +362,6 @@ interface StoreContextType {
   requestNotificationPermission: () => Promise<boolean>;
   registerAdminPushNotifications: () => Promise<boolean>;
 
-  // Multiple Companies & Branches Architecture
-  branches: StoreBranch[];
-  activeBranch: StoreBranch;
-  setActiveBranch: (branchId: string) => void;
-  addBranch: (branch: Omit<StoreBranch, 'id' | 'createdAt' | 'updatedAt'>) => Promise<boolean>;
-  updateBranch: (branchId: string, updates: Partial<StoreBranch>) => Promise<boolean>;
-  deleteBranch: (branchId: string) => Promise<boolean>;
-
-  // Real-time Multi-Device Cloud Sync
-  pushAllSettingsToCloud: () => Promise<boolean>;
-  lastCloudSyncTimestamp: string;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
