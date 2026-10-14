@@ -26,10 +26,10 @@ service cloud.firestore {
     match /categories/{id} { allow read: if true; allow write: if admin(); }
     match /collections/{id} { allow read: if true; allow write: if admin(); }
     match /deliveryMethods/{id} { allow read: if true; allow write: if admin(); }
-    match /storeSettings/{id} { allow read, write: if true; }
-    // Sanitized storefront-only data; secrets stay out of this public document.
-    match /storePublic/{id} { allow read, write: if true; }
-    match /branches/{id} { allow read, write: if true; }
+    // Public storefront data is readable by customers, but only authorized admins may change it.
+    match /storeSettings/{id} { allow read, write: if admin(); }
+    match /storePublic/{id} { allow read: if true; allow write: if admin(); }
+    match /branches/{id} { allow read: if true; allow write: if admin(); }
     match /themeSettings/{id} { allow read: if true; allow write: if admin(); }
     match /policies/{id} { allow read: if true; allow write: if admin(); }
     match /discounts/{id} { allow read: if true; allow write: if admin(); }
