@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "package.json"
+      - "package-lock.json"
       - ".github/workflows/sync-npm-lockfile.yml"
   workflow_dispatch:
 
