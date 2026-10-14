@@ -364,17 +364,6 @@ interface StoreContextType {
   requestNotificationPermission: () => Promise<boolean>;
   registerAdminPushNotifications: () => Promise<boolean>;
 
-  // Multiple Companies & Branches Architecture
-  branches: StoreBranch[];
-  activeBranch: StoreBranch;
-  setActiveBranch: (branchId: string) => void;
-  addBranch: (branch: Omit<StoreBranch, 'id' | 'createdAt' | 'updatedAt'>) => Promise<boolean>;
-  updateBranch: (branchId: string, updates: Partial<StoreBranch>) => Promise<boolean>;
-  deleteBranch: (branchId: string) => Promise<boolean>;
-
-  // Real-time Multi-Device Cloud Sync
-  pushAllSettingsToCloud: () => Promise<boolean>;
-  lastCloudSyncTimestamp: string;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
