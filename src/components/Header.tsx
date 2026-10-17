@@ -30,6 +30,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { CustomerNotificationToggle } from './CustomerNotificationToggle';
+import { BranchSelector } from './BranchSelector';
 
 const MEAL_BOX_SUGGESTIONS = [
   'Krunch Combo',
@@ -506,10 +507,7 @@ export const Header: React.FC = () => {
                 </div>
               )}
 
-              <div className="hidden xl:flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold shrink-0 bg-zinc-50 border-zinc-200 text-zinc-800">
-                <MapPin className="w-3.5 h-3.5 text-[#e4002b] shrink-0" />
-                <span>Coverage: Within 3 KM (Chakwal)</span>
-              </div>
+              <BranchSelector variant="header" className="hidden lg:block shrink-0" />
             </div>
 
             {/* Desktop Right Actions */}

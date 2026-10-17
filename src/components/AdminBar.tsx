@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
-import { ShieldCheck, ShoppingBag, Settings2, Share2, LogOut, Check, ExternalLink } from 'lucide-react';
+import { ShieldCheck, ShoppingBag, Settings2, Share2, LogOut, Check, ExternalLink, Sparkles } from 'lucide-react';
+import { BranchSelector } from './BranchSelector';
 
 export const AdminBar: React.FC = () => {
   const {
@@ -9,6 +10,9 @@ export const AdminBar: React.FC = () => {
     setIsOrdersDashboardOpen,
     setIsCustomizerOpen,
     logoutAdmin,
+    currentTenant,
+    tenantId,
+    isSuperAdmin,
   } = useStore();
 
   const [copied, setCopied] = useState(false);
@@ -23,6 +27,9 @@ export const AdminBar: React.FC = () => {
     // Generate clean URL without ?admin=true
     const url = new URL(window.location.href);
     url.searchParams.delete('admin');
+    if (tenantId && tenantId !== 'kfc-chakwal') {
+      url.searchParams.set('restaurant', tenantId);
+    }
     navigator.clipboard.writeText(url.toString());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -32,14 +39,18 @@ export const AdminBar: React.FC = () => {
     <div className="bg-gradient-to-r from-[#1f1608] via-[#241a0b] to-[#1a1106] border-b border-amber-900/50 text-white text-xs px-4 py-2 sticky top-0 z-50 shadow-md">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
         
-        {/* Left: Admin Identifier */}
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center">
-            <ShieldCheck className="w-3.5 h-3.5" />
+        {/* Left: Admin Identifier & Branch Selector */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center">
+              <ShieldCheck className="w-3.5 h-3.5" />
+            </div>
+            <span className="font-kfc font-black text-amber-300 uppercase tracking-wider text-sm truncate max-w-[180px] sm:max-w-[260px]">
+              {currentTenant?.name || 'KFC Chakwal'} · Portal
+            </span>
           </div>
-          <span className="font-kfc font-black text-amber-300 uppercase tracking-wider text-sm">
-            KFC Chakwal · Store Manager Portal
-          </span>
+
+          <BranchSelector variant="admin" />
         </div>
 
         {/* Middle: Actions */}

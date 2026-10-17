@@ -3,7 +3,7 @@ import { useStore } from '../context/StoreContext';
 import { MapPin, Phone, Clock, ShieldCheck, Bike, FileText, Smartphone } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { settings, themeMode, openPolicyModal, setCurrentView } = useStore();
+  const { settings, themeMode, openPolicyModal, setCurrentView, setIsAdminLoginModalOpen } = useStore();
 
   const isDark = themeMode === 'dark';
   const logoUrl = settings.headerFooter?.logoUrl;
@@ -230,8 +230,9 @@ export const Footer: React.FC = () => {
               Independent Chakwal express food delivery · Flat Rs {settings.deliveryFee} · Hot & Fresh.
             </p>
             <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">|</span>
-            <button type="button" onClick={() => { setCurrentView("reviews"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="font-semibold text-zinc-500 hover:text-[#e4002b] hover:underline">Customer Reviews</button>
-            <span className="text-zinc-500">Customer Store</span>
+            <button type="button" onClick={() => { setCurrentView("reviews"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="font-semibold text-zinc-500 hover:text-[#e4002b] hover:underline cursor-pointer">Customer Reviews</button>
+            <span className="text-zinc-300 hidden sm:inline">|</span>
+            <button type="button" onClick={() => setIsAdminLoginModalOpen(true)} className="font-semibold text-zinc-500 hover:text-[#e4002b] hover:underline cursor-pointer">Admin / Staff Login</button>
             <span className="text-zinc-300 hidden sm:inline">|</span>
             <span className="font-semibold text-zinc-500">App Developer: Hussain · +92 333-5907574</span>
           </div>

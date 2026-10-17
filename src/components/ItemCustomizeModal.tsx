@@ -140,22 +140,28 @@ export const ItemCustomizeModal: React.FC = () => {
                       key={d.name}
                       type="button"
                       onClick={() => setDrink(d.name)}
-                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                      className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
                         isSelected
-                          ? "border-[#e4002b] bg-red-50 text-zinc-950 font-bold shadow-xs"
-                          : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300"
+                          ? "border-2 border-[#e4002b] bg-red-500/10 dark:bg-red-950/60 shadow-md ring-2 ring-[#e4002b]/40 font-black"
+                          : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300"
                       }`}
                     >
                       <img
                         src={d.image}
                         alt={d.name}
-                        className="w-9 h-9 rounded-lg object-cover shrink-0 border border-zinc-200 shadow-2xs"
+                        className="w-10 h-10 rounded-xl object-cover shrink-0 border border-zinc-200 dark:border-zinc-700 shadow-2xs"
                       />
                       <div className="truncate flex-1 min-w-0">
-                        <span className="truncate block font-bold text-xs">{d.name}</span>
+                        <span className={`truncate block text-xs ${isSelected ? 'text-[#e4002b] dark:text-red-400 font-black' : 'font-bold text-zinc-900 dark:text-white'}`}>{d.name}</span>
                         <span className="text-[10px] text-zinc-500 font-medium">Chilled Can (345ml)</span>
                       </div>
-                      {isSelected && <Check className="w-4 h-4 text-[#e4002b] shrink-0" />}
+                      {isSelected ? (
+                        <div className="w-5 h-5 rounded-full bg-[#e4002b] text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </div>
+                      ) : (
+                        <div className="w-5 h-5 rounded-full border border-zinc-300 dark:border-zinc-700 shrink-0" />
+                      )}
                     </button>
                   );
                 })}
@@ -182,23 +188,21 @@ export const ItemCustomizeModal: React.FC = () => {
                       key={addon.id}
                       type="button"
                       onClick={() => toggleAddon(addon)}
-                      className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer text-left ${
+                      className={`w-full p-3 rounded-2xl border flex items-center justify-between transition-all cursor-pointer text-left ${
                         isChecked
-                          ? isDark 
-                            ? 'border-[#e4002b] bg-[#e4002b]/15 text-white' 
-                            : 'border-[#e4002b] bg-red-50 text-zinc-900 font-bold'
-                          : isDark ? 'border-[#2e2e36] bg-[#1c1c20] text-zinc-300 hover:border-zinc-700' : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
+                          ? 'border-2 border-[#e4002b] bg-red-500/10 dark:bg-red-950/60 shadow-md ring-2 ring-[#e4002b]/40 font-black'
+                          : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 font-medium'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
+                          className={`w-5 h-5 rounded-lg flex items-center justify-center border shrink-0 transition-colors ${
                             isChecked
-                              ? 'bg-[#e4002b] border-[#e4002b]'
+                              ? 'bg-[#e4002b] border-[#e4002b] text-white shadow-xs'
                               : isDark ? 'border-zinc-600 bg-transparent' : 'border-zinc-400 bg-white'
                           }`}
                         >
-                          {isChecked && <Check className="w-3 h-3 text-white" />}
+                          {isChecked && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
                         </div>
                         {addon.image && (
                           <img
@@ -210,9 +214,9 @@ export const ItemCustomizeModal: React.FC = () => {
                             }}
                           />
                         )}
-                        <span className="text-xs font-semibold">{addon.name}</span>
+                        <span className={`text-xs ${isChecked ? 'font-black text-[#e4002b] dark:text-red-400' : 'font-semibold'}`}>{addon.name}</span>
                       </div>
-                      <span className="text-xs font-bold text-[#e4002b] tabular-nums">
+                      <span className="text-xs font-black text-[#e4002b] tabular-nums">
                         +{formatPKR(addon.price)}
                       </span>
                     </button>

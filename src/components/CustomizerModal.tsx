@@ -301,126 +301,43 @@ export const CustomizerModal: React.FC = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="px-4 bg-[#141416] border-b border-[#26262d] flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setActiveTab('rates')}
-            className={`py-3 px-2.5 sm:px-3 text-xs font-bold uppercase transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'rates'
-                ? 'border-[#e4002b] text-white'
-                : 'border-transparent text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Percent className="w-3.5 h-3.5 text-[#e4002b]" />
-            <span>Rates (+{settings.markupPercentage}%)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('store')}
-            className={`py-3 px-2.5 sm:px-3 text-xs font-bold uppercase transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'store'
-                ? 'border-[#e4002b] text-white'
-                : 'border-transparent text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Store className="w-3.5 h-3.5 text-[#e4002b]" />
-            <span>Design & Fonts</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('sections')}
-            className={`py-3 px-2.5 sm:px-3 text-xs font-bold uppercase transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'sections'
-                ? 'border-[#e4002b] text-white'
-                : 'border-transparent text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Page Sections Builder</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('csv-import')}
-            className={`py-3 px-2.5 sm:px-3 text-xs font-bold uppercase transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'csv-import'
-                ? 'border-[#e4002b] text-white'
-                : 'border-transparent text-zinc-400 hover:text-white'
-            }`}
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Shopify CSV Bulk Import</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('menu')}
-            className={`py-3 px-2.5 sm:px-3 text-xs font-bold uppercase transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'menu'
-                ? 'border-[#e4002b] text-white'
-                : 'border-transparent text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#e4002b]" />
-            <span>Products & Prices ({menuItems.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('links')}
-            className={`py-3 px-2.5 sm:px-3 text-xs font-bold uppercase transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'links'
-                ? 'border-[#e4002b] text-white'
-                : 'border-transparent text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Link2 className="w-3.5 h-3.5 text-amber-400" />
-            <span>App Links & Domain</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('payments')}
-            className={`py-3 px-2.5 sm:px-3 text-xs font-bold uppercase transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'payments'
-                ? 'border-[#e4002b] text-white'
-                : 'border-transparent text-zinc-400 hover:text-white'
-            }`}
-          >
-            <CreditCard className="w-3.5 h-3.5 text-[#e4002b]" />
-            <span>Payment Options</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('reviews')}
-            className={`py-3 px-2.5 sm:px-3 text-xs font-bold uppercase transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'reviews'
-                ? 'border-[#e4002b] text-white'
-                : 'border-transparent text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-            <span>Reviews ({reviews.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('areas')}
-            className={`py-3 px-2.5 sm:px-3 text-xs font-bold uppercase transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'areas'
-                ? 'border-[#e4002b] text-white'
-                : 'border-transparent text-zinc-400 hover:text-white'
-            }`}
-          >
-            <MapPin className="w-3.5 h-3.5 text-[#e4002b]" />
-            <span>Chakwal Areas ({chakwalAreas.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('shopify')}
-            className={`py-3 px-2.5 sm:px-3 text-xs font-bold uppercase transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 shrink-0 ${
-              activeTab === 'shopify'
-                ? 'border-[#96bf48] text-white'
-                : 'border-transparent text-zinc-400 hover:text-white'
-            }`}
-          >
-            <div className="w-2.5 h-2.5 rounded-full bg-[#96bf48] animate-pulse"></div>
-            <span className="text-[#96bf48]">Shopify</span>
-          </button>
+        <div className="px-4 py-2.5 bg-[#141416] border-b border-[#26262d] flex items-center gap-2 overflow-x-auto no-scrollbar">
+          {[
+            { id: 'rates', label: `Rates (+${settings.markupPercentage}%)`, icon: Percent },
+            { id: 'store', label: 'Design & Fonts', icon: Store },
+            { id: 'sections', label: 'Page Sections Builder', icon: Layers },
+            { id: 'csv-import', label: 'Shopify CSV Bulk Import', icon: FileSpreadsheet },
+            { id: 'menu', label: `Products & Prices (${menuItems.length})`, icon: Sparkles },
+            { id: 'links', label: 'App Links & Domain', icon: Link2 },
+            { id: 'payments', label: 'Payment Options', icon: CreditCard },
+            { id: 'reviews', label: `Reviews (${reviews.length})`, icon: Star },
+            { id: 'areas', label: `Chakwal Areas (${chakwalAreas.length})`, icon: MapPin },
+            { id: 'shopify', label: 'Shopify Sync', icon: Store, isShopify: true },
+          ].map((tabItem) => {
+            const Icon = tabItem.icon;
+            const isSelected = activeTab === tabItem.id;
+            return (
+              <button
+                key={tabItem.id}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                data-selected={isSelected}
+                onClick={() => setActiveTab(tabItem.id as any)}
+                className={`py-2 px-3.5 text-xs font-black uppercase transition-all duration-150 cursor-pointer rounded-xl flex items-center gap-1.5 shrink-0 ${
+                  isSelected
+                    ? 'bg-[#e4002b] text-white border-2 border-[#e4002b] shadow-md shadow-red-950/40 ring-2 ring-red-400/50 scale-[1.02]'
+                    : 'bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700/80 border border-zinc-700 font-bold'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-zinc-400'}`} />
+                <span>{tabItem.label}</span>
+                {isSelected && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab Contents */}

@@ -88,20 +88,20 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
             type="button"
             data-category-nav-id="all"
             onClick={() => onSelectCategory('all')}
-            className={`min-h-[40px] whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all duration-150 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95 ${selectedCategoryId === 'all' ? 'buy-button' : ''} ${
+            className={`min-h-[42px] whitespace-nowrap px-4 py-2 rounded-xl text-xs font-black uppercase transition-all duration-150 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95 ${
               selectedCategoryId === 'all'
-                ? 'bg-[#e4002b] text-white shadow-md shadow-red-950/40'
+                ? 'bg-[#e4002b] text-white border-2 border-[#e4002b] shadow-lg shadow-red-900/30 ring-2 ring-red-400/50 scale-[1.03]'
                 : isDark 
                   ? 'bg-[#1c1c22] text-zinc-300 hover:text-white hover:bg-[#25252c] border border-[#2d2d35]'
-                  : 'bg-zinc-100 text-zinc-700 hover:text-zinc-900 hover:bg-zinc-200 border border-zinc-300'
+                  : 'bg-zinc-100 text-zinc-700 hover:text-zinc-950 hover:bg-zinc-200 border border-zinc-300'
             }`}
           >
             <UtensilsCrossed className="w-3.5 h-3.5" />
             <span>All Items</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-black ${
               selectedCategoryId === 'all' 
-                ? 'bg-white/20 text-white' 
-                : isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-zinc-200 text-zinc-600'
+                ? 'bg-white text-[#e4002b] shadow-xs' 
+                : isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-zinc-200 text-zinc-700'
             }`}>
               {getCategoryCount('all')}
             </span>
@@ -111,7 +111,6 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
           {categories.map((cat) => {
             const count = getCategoryCount(cat.id);
             const isSelected = selectedCategoryId === cat.id;
-            const isFeaturedShortcut = false;
 
             return (
               <button
@@ -119,19 +118,19 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
                 type="button"
                 data-category-nav-id={cat.id}
                 onClick={() => onSelectCategory(cat.id)}
-                className={`min-h-[40px] whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all duration-150 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95 ${(isSelected || isFeaturedShortcut) ? 'buy-button' : ''} ${
-                  isSelected || isFeaturedShortcut
-                    ? 'bg-[#e4002b] text-white shadow-md shadow-red-950/20'
+                className={`min-h-[42px] whitespace-nowrap px-4 py-2 rounded-xl text-xs font-black uppercase transition-all duration-150 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95 ${
+                  isSelected
+                    ? 'bg-[#e4002b] text-white border-2 border-[#e4002b] shadow-lg shadow-red-900/30 ring-2 ring-red-400/50 scale-[1.03]'
                     : isDark 
                       ? 'bg-[#1c1c22] text-zinc-300 hover:text-white hover:bg-[#25252c] border border-[#2d2d35]'
-                      : 'bg-zinc-100 text-zinc-700 hover:text-zinc-900 hover:bg-zinc-200 border border-zinc-300'
+                      : 'bg-zinc-100 text-zinc-700 hover:text-zinc-950 hover:bg-zinc-200 border border-zinc-300'
                 }`}
               >
                 <span>{cat.name}</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-                  isSelected || isFeaturedShortcut
-                    ? 'bg-white/20 text-white' 
-                    : isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-zinc-200 text-zinc-600'
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-black ${
+                  isSelected
+                    ? 'bg-white text-[#e4002b] shadow-xs' 
+                    : isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-zinc-200 text-zinc-700'
                 }`}>
                   {count}
                 </span>

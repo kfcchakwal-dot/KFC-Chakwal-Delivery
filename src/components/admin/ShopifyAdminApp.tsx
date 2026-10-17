@@ -68,7 +68,9 @@ import {
   DownloadCloud,
   Save,
   Loader2,
-  Compass
+  Compass,
+  Building2,
+  ShieldAlert,
 } from 'lucide-react';
 import { DiscountsManager } from './DiscountsManager';
 import { PageSectionsBuilder } from '../PageSectionsBuilder';
@@ -85,6 +87,12 @@ import { InventoryOperations } from './InventoryOperations';
 import { SectionColorManager } from './SectionColorManager';
 import { AnnouncementPushManager } from './AnnouncementPushManager';
 import { PagesAndNavigationManager } from './PagesAndNavigationManager';
+import { BranchesManager } from './BranchesManager';
+import { SubscriptionBillingManager } from './SubscriptionBillingManager';
+import { SuperAdminDashboard } from './SuperAdminDashboard';
+import { FeatureGateCard } from '../FeatureGateCard';
+import { SubscriptionSuspendedBannerModal } from '../SubscriptionSuspendedBannerModal';
+import { BranchSelector } from '../BranchSelector';
 import { CategoryId, MenuItem, MenuItemAddon, StorePolicy, DeliveryMethod, DailyDealConfig, Category, ProductVariant, Order } from '../../types';
 import { KFC_CATEGORIES } from '../../data/kfcMenu';
 import { auth, db } from '../../lib/firebase';
@@ -95,6 +103,9 @@ type SellerTab =
   | 'orders'
   | 'pos'
   | 'operations'
+  | 'branches'
+  | 'subscription'
+  | 'super-admin'
   | 'pages-menu'
   | 'section-colors'
   | 'abandoned'
@@ -112,6 +123,7 @@ type SellerTab =
   | 'reviews'
   | 'links'
   | 'settings';
+
 
 const KFC_IMAGE_PRESETS = [
   { label: 'Krunch Burger', url: '/src/assets/images/kfc_krunch_burger_1791015834419.jpg' },
@@ -224,6 +236,7 @@ export const ShopifyAdminApp: React.FC = () => {
     updateCustomerRecord,
     serverSyncStatus,
     syncStoreToServer,
+    pushAllSettingsToCloud,
     isAdmin,
     loginAdmin,
     logoutAdmin,
@@ -242,6 +255,15 @@ export const ShopifyAdminApp: React.FC = () => {
     createReviewRequest,
     categories,
     addCategory,
+    branches,
+    activeBranch,
+    setActiveBranch,
+    currentTenant,
+    tenantId,
+    isSuperAdmin,
+    subscriptionEvaluation,
+    checkFeatureAllowed,
+    checkLimitExceeded,
   } = useStore();
 
   const [loginError, setLoginError] = useState('');
@@ -256,7 +278,7 @@ export const ShopifyAdminApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SellerTab>(() => {
     try {
       const saved = localStorage.getItem('kfc-admin-active-tab') as SellerTab | null;
-      const allowed: SellerTab[] = ['dashboard','orders','pos','operations','pages-menu','abandoned','products','daily-deals','customers','vip-club','announcements','marketing','meta','delivery-methods','discounts','online-store','section-colors','reviews','policies','links','settings'];
+      const allowed: SellerTab[] = ['dashboard','orders','pos','operations','branches','subscription','super-admin','pages-menu','abandoned','products','daily-deals','customers','vip-club','announcements','marketing','meta','delivery-methods','discounts','online-store','section-colors','reviews','policies','links','settings'];
       return saved && allowed.includes(saved) ? saved : 'dashboard';
     } catch { return 'dashboard'; }
   });
@@ -269,8 +291,29 @@ export const ShopifyAdminApp: React.FC = () => {
   const [bulkCategoryTarget, setBulkCategoryTarget] = useState<string>('');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isImportingProducts, setIsImportingProducts] = useState(false);
-  const [productActionFeedback, setProductActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isApplyingBulkProductAction, setIsApplyingBulkProductAction] = useState(false);
+  const [isPushingSettings, setIsPushingSettings] = useState(false);
+  const [pushNotice, setPushNotice] = useState<string | null>(null);
+
+  const handlePushAllSettings = async () => {
+    setIsPushingSettings(true);
+    setPushNotice(null);
+    try {
+      const ok = await pushAllSettingsToCloud();
+      if (ok) {
+        setPushNotice('تمام سیٹنگز کامیابی سے کلاؤڈ اور تمام آلات (Devices) پر پش کر دی گئی ہیں! ✓');
+        setTimeout(() => setPushNotice(null), 6000);
+      } else {
+        setPushNotice('ترتیبات پش نہیں ہو سکیں۔ دوبارہ کوشش کریں۔');
+        setTimeout(() => setPushNotice(null), 5000);
+      }
+    } catch (e: any) {
+      setPushNotice('خرابی: ' + (e?.message || 'Push failed'));
+      setTimeout(() => setPushNotice(null), 5000);
+    } finally {
+      setIsPushingSettings(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'caches' in window) {
@@ -1083,6 +1126,12 @@ export const ShopifyAdminApp: React.FC = () => {
     e.preventDefault();
     if (!newProdName.trim()) return;
 
+    if (checkLimitExceeded('maxProducts', menuItems.length)) {
+      alert(`Product limit reached! Your plan allows up to ${currentTenant?.limits?.maxProducts || 200} products. Please upgrade your subscription plan.`);
+      setActiveTab('subscription');
+      return;
+    }
+
     const newItem: MenuItem = {
       id: `kfc-${Date.now()}`,
       name: newProdName.trim(),
@@ -1422,6 +1471,9 @@ export const ShopifyAdminApp: React.FC = () => {
                 { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrders > 0 ? pendingOrders : undefined },
                 { id: 'pos', label: 'Restaurant POS & Billing', icon: Receipt },
                 { id: 'operations', label: 'Vendors, Purchases & Shifts', icon: Boxes },
+                { id: 'branches', label: 'Companies & Branches', icon: Building2, badge: branches.length > 1 ? branches.length : undefined },
+                { id: 'subscription', label: 'Subscription & Invoices', icon: CreditCard, badge: subscriptionEvaluation.isExpired ? 'Due' : undefined },
+                ...(isSuperAdmin ? [{ id: 'super-admin' as SellerTab, label: 'Super Admin (SaaS)', icon: ShieldAlert, badge: 'Platform' }] : []),
                 { id: 'abandoned', label: 'Abandoned Checkouts (Manual)', icon: AlertCircle, badge: abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length > 0 ? abandonedCheckouts.filter(a => a.recoveryStatus === 'pending').length : undefined },
                 { id: 'products', label: 'Menu Editor & Products', icon: UtensilsCrossed },
                 { id: 'daily-deals', label: 'Daily 5 Deals (4% OFF)', icon: Flame },
@@ -1451,18 +1503,20 @@ export const ShopifyAdminApp: React.FC = () => {
                       setActiveTab(item.id as SellerTab);
                       setIsSidebarOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-[#e4002b] text-white shadow-md'
-                        : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                        ? 'bg-[#e4002b] text-white shadow-lg shadow-red-950/20 font-black border-l-4 border-white ring-2 ring-red-400/40'
+                        : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 font-bold border-l-4 border-transparent'
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <Icon className="w-4 h-4" />
+                      <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
                       <span>{item.label}</span>
                     </div>
                     {item.badge && (
-                      <span className="bg-white text-[#e4002b] text-[10px] font-black px-1.5 py-0.5 rounded-full shadow">
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs ${
+                        isActive ? 'bg-white text-[#e4002b]' : 'bg-red-50 text-[#e4002b] border border-red-200'
+                      }`}>
                         {item.badge}
                       </span>
                     )}
@@ -1480,6 +1534,7 @@ export const ShopifyAdminApp: React.FC = () => {
 
         {/* Content Area */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
+          <SubscriptionSuspendedBannerModal onOpenBillingTab={() => setActiveTab('subscription')} />
           
           {/* ========================================================================= */}
           {/* TAB 1: DASHBOARD (Shopify-Style Powerful Date-Wise Sales Analytics) */}
@@ -1630,10 +1685,10 @@ export const ShopifyAdminApp: React.FC = () => {
                         key={p.id}
                         type="button"
                         onClick={() => setSalesDateRange(p.id as any)}
-                        className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
                           isSelected
-                            ? 'bg-[#e4002b] text-white shadow-sm'
-                            : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+                            ? 'bg-[#e4002b] text-white border-2 border-[#e4002b] shadow-md shadow-red-900/30 ring-2 ring-red-400/40 scale-105'
+                            : 'bg-white border border-zinc-300 hover:bg-zinc-100 text-zinc-700 font-bold'
                         }`}
                       >
                         {p.label}
@@ -1901,15 +1956,15 @@ export const ShopifyAdminApp: React.FC = () => {
                     <button
                       key={st.id}
                       onClick={() => setOrderStatusFilter(st.id as any)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                      className={`px-3.5 py-2 rounded-xl text-xs font-black border transition flex items-center gap-1.5 cursor-pointer ${
                         orderStatusFilter === st.id
-                          ? 'bg-[#e4002b] text-white border-[#e4002b] shadow-xs'
-                          : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                          ? 'bg-[#e4002b] text-white border-2 border-[#e4002b] shadow-md shadow-red-900/30 ring-2 ring-red-400/40 scale-105'
+                          : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold'
                       }`}
                     >
                       <span>{st.label}</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                        orderStatusFilter === st.id ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-600'
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                        orderStatusFilter === st.id ? 'bg-white text-[#e4002b] shadow-xs' : 'bg-zinc-100 text-zinc-600'
                       }`}>
                         {st.count}
                       </span>
@@ -3657,10 +3712,40 @@ export const ShopifyAdminApp: React.FC = () => {
           {/* TAB: RESTAURANT POS */}
           {/* ========================================================================= */}
           {activeTab === 'pos' && (
-            <RestaurantPOS onOrderCreated={() => { void fetchOrders(); }} />
+            checkFeatureAllowed('pos') ? (
+              <RestaurantPOS onOrderCreated={() => { void fetchOrders(); }} />
+            ) : (
+              <FeatureGateCard
+                featureName="Restaurant POS & Billing"
+                requiredPlan="Professional"
+                description="Point of Sale billing, custom order items, live cashier drawer, and receipt thermal printing."
+                benefits={[
+                  'Quick cashier billing with custom add-on items',
+                  'Instant thermal receipt and kitchen order ticket printing',
+                  'Cash shifts and daily drawer reconciliation',
+                ]}
+                onUpgradeClick={() => setActiveTab('subscription')}
+              />
+            )
           )}
 
-          {activeTab === 'operations' && <InventoryOperations />}
+          {activeTab === 'operations' && (
+            checkFeatureAllowed('inventory') ? (
+              <InventoryOperations />
+            ) : (
+              <FeatureGateCard
+                featureName="Inventory, Purchases & Vendors"
+                requiredPlan="Professional"
+                description="Track inventory levels, purchase orders from suppliers, stock audits, and expense tracking."
+                benefits={[
+                  'Track ingredient stocks and low-stock alerts',
+                  'Vendor management and purchase invoicing',
+                  'Cashier shifts and expense logs',
+                ]}
+                onUpgradeClick={() => setActiveTab('subscription')}
+              />
+            )
+          )}
 
           {/* ========================================================================= */}
           {/* TAB: PAGES & NAVIGATION MENUS */}
@@ -4519,6 +4604,42 @@ export const ShopifyAdminApp: React.FC = () => {
                 </div>
                 <SectionSaveButton onSave={() => updateSettings(settings)} label="Save Contact & Social Info" />
               </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: COMPANIES & STORE BRANCHES */}
+          {/* ========================================================================= */}
+          {activeTab === 'branches' && (
+            <div className="space-y-6">
+              <BranchesManager />
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: SUBSCRIPTION & INVOICES (MANUAL PAYMENT WORKFLOW) */}
+          {/* ========================================================================= */}
+          {activeTab === 'subscription' && (
+            <div className="space-y-6">
+              <SubscriptionBillingManager />
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB: SUPER ADMIN SAAS PLATFORM CONSOLE */}
+          {/* ========================================================================= */}
+          {activeTab === 'super-admin' && (
+            <div className="space-y-6">
+              {isSuperAdmin ? (
+                <SuperAdminDashboard />
+              ) : (
+                <div className="bg-red-50 border border-red-200 text-red-800 p-8 rounded-2xl text-center">
+                  <h3 className="text-base font-black uppercase">Unauthorized Access</h3>
+                  <p className="text-xs text-red-600 mt-1">
+                    Only authorized Platform Super Admin accounts can access the multi-tenant SaaS management portal.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

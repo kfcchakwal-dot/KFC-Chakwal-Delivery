@@ -154,17 +154,27 @@ export const ShopifyThemeEditor: React.FC<{ onClose: () => void }> = ({ onClose 
             <div className="border-b border-zinc-100">
               <button
                 type="button"
+                aria-expanded={activeSection === 'announcement'}
                 onClick={() => setActiveSection(activeSection === 'announcement' ? '' : 'announcement')}
-                className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50 transition cursor-pointer"
+                className={`w-full p-4 flex items-center justify-between text-left transition cursor-pointer ${
+                  activeSection === 'announcement'
+                    ? 'bg-red-50/80 border-l-4 border-[#e4002b] text-[#e4002b] shadow-xs'
+                    : 'hover:bg-zinc-50 border-l-4 border-transparent text-zinc-900'
+                }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="p-1.5 bg-red-50 text-[#e4002b] rounded-lg">📢</span>
+                  <span className={`p-1.5 rounded-lg ${activeSection === 'announcement' ? 'bg-[#e4002b] text-white shadow-xs' : 'bg-red-50 text-[#e4002b]'}`}>📢</span>
                   <div>
-                    <h4 className="font-bold text-xs text-zinc-900">Announcement Bar</h4>
-                    <p className="text-[10px] text-zinc-400">Top red notification bar</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-xs ${activeSection === 'announcement' ? 'font-black text-[#e4002b]' : 'font-bold text-zinc-900'}`}>Announcement Bar</h4>
+                      {activeSection === 'announcement' && (
+                        <span className="text-[9px] bg-[#e4002b] text-white font-black px-1.5 py-0.2 rounded-full">Selected</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-500">Top red notification bar</p>
                   </div>
                 </div>
-                {activeSection === 'announcement' ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
+                {activeSection === 'announcement' ? <ChevronDown className="w-4 h-4 text-[#e4002b]" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
               </button>
 
               {activeSection === 'announcement' && (
@@ -196,17 +206,27 @@ export const ShopifyThemeEditor: React.FC<{ onClose: () => void }> = ({ onClose 
             <div className="border-b border-zinc-100">
               <button
                 type="button"
+                aria-expanded={activeSection === 'header'}
                 onClick={() => setActiveSection(activeSection === 'header' ? '' : 'header')}
-                className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50 transition cursor-pointer"
+                className={`w-full p-4 flex items-center justify-between text-left transition cursor-pointer ${
+                  activeSection === 'header'
+                    ? 'bg-red-50/80 border-l-4 border-[#e4002b] text-[#e4002b] shadow-xs'
+                    : 'hover:bg-zinc-50 border-l-4 border-transparent text-zinc-900'
+                }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="p-1.5 bg-red-50 text-[#e4002b] rounded-lg">🏷️</span>
+                  <span className={`p-1.5 rounded-lg ${activeSection === 'header' ? 'bg-[#e4002b] text-white shadow-xs' : 'bg-red-50 text-[#e4002b]'}`}>🏷️</span>
                   <div>
-                    <h4 className="font-bold text-xs text-zinc-900">Header & Brand Logo</h4>
-                    <p className="text-[10px] text-zinc-400">Store title, logo image upload</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-xs ${activeSection === 'header' ? 'font-black text-[#e4002b]' : 'font-bold text-zinc-900'}`}>Header & Brand Logo</h4>
+                      {activeSection === 'header' && (
+                        <span className="text-[9px] bg-[#e4002b] text-white font-black px-1.5 py-0.2 rounded-full">Selected</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-500">Store title, logo image upload</p>
                   </div>
                 </div>
-                {activeSection === 'header' ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
+                {activeSection === 'header' ? <ChevronDown className="w-4 h-4 text-[#e4002b]" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
               </button>
 
               {activeSection === 'header' && (
@@ -257,17 +277,27 @@ export const ShopifyThemeEditor: React.FC<{ onClose: () => void }> = ({ onClose 
             <div className="border-b border-zinc-100">
               <button
                 type="button"
+                aria-expanded={activeSection === 'hero'}
                 onClick={() => setActiveSection(activeSection === 'hero' ? '' : 'hero')}
-                className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50 transition cursor-pointer"
+                className={`w-full p-4 flex items-center justify-between text-left transition cursor-pointer ${
+                  activeSection === 'hero'
+                    ? 'bg-red-50/80 border-l-4 border-[#e4002b] text-[#e4002b] shadow-xs'
+                    : 'hover:bg-zinc-50 border-l-4 border-transparent text-zinc-900'
+                }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="p-1.5 bg-red-50 text-[#e4002b] rounded-lg">🔥</span>
+                  <span className={`p-1.5 rounded-lg ${activeSection === 'hero' ? 'bg-[#e4002b] text-white shadow-xs' : 'bg-red-50 text-[#e4002b]'}`}>🔥</span>
                   <div>
-                    <h4 className="font-bold text-xs text-zinc-900">Hero Section</h4>
-                    <p className="text-[10px] text-zinc-400">Headlines, CTA, hero banner upload</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-xs ${activeSection === 'hero' ? 'font-black text-[#e4002b]' : 'font-bold text-zinc-900'}`}>Hero Section</h4>
+                      {activeSection === 'hero' && (
+                        <span className="text-[9px] bg-[#e4002b] text-white font-black px-1.5 py-0.2 rounded-full">Selected</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-500">Headlines, CTA, hero banner upload</p>
                   </div>
                 </div>
-                {activeSection === 'hero' ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
+                {activeSection === 'hero' ? <ChevronDown className="w-4 h-4 text-[#e4002b]" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
               </button>
 
               {activeSection === 'hero' && (
@@ -373,17 +403,27 @@ export const ShopifyThemeEditor: React.FC<{ onClose: () => void }> = ({ onClose 
             <div className="border-b border-zinc-100">
               <button
                 type="button"
+                aria-expanded={activeSection === 'deals'}
                 onClick={() => setActiveSection(activeSection === 'deals' ? '' : 'deals')}
-                className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50 transition cursor-pointer"
+                className={`w-full p-4 flex items-center justify-between text-left transition cursor-pointer ${
+                  activeSection === 'deals'
+                    ? 'bg-amber-50/80 border-l-4 border-amber-500 text-amber-900 shadow-xs'
+                    : 'hover:bg-zinc-50 border-l-4 border-transparent text-zinc-900'
+                }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="p-1.5 bg-amber-50 text-amber-600 rounded-lg">⚡</span>
+                  <span className={`p-1.5 rounded-lg ${activeSection === 'deals' ? 'bg-amber-500 text-white shadow-xs' : 'bg-amber-50 text-amber-600'}`}>⚡</span>
                   <div>
-                    <h4 className="font-bold text-xs text-zinc-900">Daily 5 Deals (4% OFF)</h4>
-                    <p className="text-[10px] text-zinc-400">Meal box automated discounts</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-xs ${activeSection === 'deals' ? 'font-black text-amber-900' : 'font-bold text-zinc-900'}`}>Daily 5 Deals (4% OFF)</h4>
+                      {activeSection === 'deals' && (
+                        <span className="text-[9px] bg-amber-500 text-white font-black px-1.5 py-0.2 rounded-full">Selected</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-500">Meal box automated discounts</p>
                   </div>
                 </div>
-                {activeSection === 'deals' ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
+                {activeSection === 'deals' ? <ChevronDown className="w-4 h-4 text-amber-600" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
               </button>
 
               {activeSection === 'deals' && (
@@ -437,17 +477,27 @@ export const ShopifyThemeEditor: React.FC<{ onClose: () => void }> = ({ onClose 
             <div className="border-b border-zinc-100">
               <button
                 type="button"
+                aria-expanded={activeSection === 'delivery'}
                 onClick={() => setActiveSection(activeSection === 'delivery' ? '' : 'delivery')}
-                className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50 transition cursor-pointer"
+                className={`w-full p-4 flex items-center justify-between text-left transition cursor-pointer ${
+                  activeSection === 'delivery'
+                    ? 'bg-blue-50/80 border-l-4 border-blue-500 text-blue-900 shadow-xs'
+                    : 'hover:bg-zinc-50 border-l-4 border-transparent text-zinc-900'
+                }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">🚚</span>
+                  <span className={`p-1.5 rounded-lg ${activeSection === 'delivery' ? 'bg-blue-500 text-white shadow-xs' : 'bg-blue-50 text-blue-600'}`}>🚚</span>
                   <div>
-                    <h4 className="font-bold text-xs text-zinc-900">Delivery Guarantee Strip</h4>
-                    <p className="text-[10px] text-zinc-400">Timings, Kallar Kahar notice</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-xs ${activeSection === 'delivery' ? 'font-black text-blue-900' : 'font-bold text-zinc-900'}`}>Delivery Guarantee Strip</h4>
+                      {activeSection === 'delivery' && (
+                        <span className="text-[9px] bg-blue-500 text-white font-black px-1.5 py-0.2 rounded-full">Selected</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-500">Timings, Kallar Kahar notice</p>
                   </div>
                 </div>
-                {activeSection === 'delivery' ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
+                {activeSection === 'delivery' ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
               </button>
 
               {activeSection === 'delivery' && (
@@ -483,17 +533,27 @@ export const ShopifyThemeEditor: React.FC<{ onClose: () => void }> = ({ onClose 
             <div className="border-b border-zinc-100">
               <button
                 type="button"
+                aria-expanded={activeSection === 'typography'}
                 onClick={() => setActiveSection(activeSection === 'typography' ? '' : 'typography')}
-                className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50 transition cursor-pointer"
+                className={`w-full p-4 flex items-center justify-between text-left transition cursor-pointer ${
+                  activeSection === 'typography'
+                    ? 'bg-purple-50/80 border-l-4 border-purple-500 text-purple-900 shadow-xs'
+                    : 'hover:bg-zinc-50 border-l-4 border-transparent text-zinc-900'
+                }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="p-1.5 bg-zinc-100 text-zinc-700 rounded-lg">🔤</span>
+                  <span className={`p-1.5 rounded-lg ${activeSection === 'typography' ? 'bg-purple-500 text-white shadow-xs' : 'bg-purple-50 text-purple-600'}`}>🔤</span>
                   <div>
-                    <h4 className="font-bold text-xs text-zinc-900">Typography & Fonts</h4>
-                    <p className="text-[10px] text-zinc-400">Heading & body font styles</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-xs ${activeSection === 'typography' ? 'font-black text-purple-900' : 'font-bold text-zinc-900'}`}>Typography & Fonts</h4>
+                      {activeSection === 'typography' && (
+                        <span className="text-[9px] bg-purple-500 text-white font-black px-1.5 py-0.2 rounded-full">Selected</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-500">Heading & body font styles</p>
                   </div>
                 </div>
-                {activeSection === 'typography' ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
+                {activeSection === 'typography' ? <ChevronDown className="w-4 h-4 text-purple-600" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
               </button>
 
               {activeSection === 'typography' && (
@@ -531,17 +591,27 @@ export const ShopifyThemeEditor: React.FC<{ onClose: () => void }> = ({ onClose 
             <div className="border-b border-zinc-100">
               <button
                 type="button"
+                aria-expanded={activeSection === 'footer'}
                 onClick={() => setActiveSection(activeSection === 'footer' ? '' : 'footer')}
-                className="w-full p-4 flex items-center justify-between text-left hover:bg-zinc-50 transition cursor-pointer"
+                className={`w-full p-4 flex items-center justify-between text-left transition cursor-pointer ${
+                  activeSection === 'footer'
+                    ? 'bg-emerald-50/80 border-l-4 border-emerald-500 text-emerald-900 shadow-xs'
+                    : 'hover:bg-zinc-50 border-l-4 border-transparent text-zinc-900'
+                }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">📞</span>
+                  <span className={`p-1.5 rounded-lg ${activeSection === 'footer' ? 'bg-emerald-500 text-white shadow-xs' : 'bg-emerald-50 text-emerald-600'}`}>📞</span>
                   <div>
-                    <h4 className="font-bold text-xs text-zinc-900">Footer & Contact Details</h4>
-                    <p className="text-[10px] text-zinc-400">WhatsApp, Socials, About text</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-xs ${activeSection === 'footer' ? 'font-black text-emerald-900' : 'font-bold text-zinc-900'}`}>Footer & Contact Details</h4>
+                      {activeSection === 'footer' && (
+                        <span className="text-[9px] bg-emerald-500 text-white font-black px-1.5 py-0.2 rounded-full">Selected</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-500">WhatsApp, Socials, About text</p>
                   </div>
                 </div>
-                {activeSection === 'footer' ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
+                {activeSection === 'footer' ? <ChevronDown className="w-4 h-4 text-emerald-600" /> : <ChevronRight className="w-4 h-4 text-zinc-400" />}
               </button>
 
               {activeSection === 'footer' && (

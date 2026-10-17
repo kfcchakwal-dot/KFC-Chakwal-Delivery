@@ -11,6 +11,12 @@ service cloud.firestore {
          get(/databases/$(database)/documents/adminUsers/$(request.auth.uid)).data.active != false)
       );
     }
+    function superAdmin() {
+      return signedIn() && (
+        request.auth.token.superAdmin == true ||
+        request.auth.token.email == 'kfcchakwal@gmail.com'
+      );
+    }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
     function configuredSignupBonus() {
       let settingsPath = /databases/$(database)/documents/storeSettings/global;
@@ -146,6 +152,31 @@ service cloud.firestore {
     match /vendors/{id} { allow read, write: if admin(); }
     match /purchases/{id} { allow read, write: if admin(); }
     match /cashShifts/{id} { allow read, write: if admin(); }
+
+    // Multi-Restaurant SaaS Collections
+    match /tenants/{id} {
+      allow read: if true;
+      allow create, delete: if superAdmin();
+      allow update: if superAdmin() || admin();
+    }
+    match /subscriptionPlans/{id} {
+      allow read: if true;
+      allow write: if superAdmin();
+    }
+    match /platformSettings/{id} {
+      allow read: if true;
+      allow write: if superAdmin();
+    }
+    match /subscriptionPayments/{id} {
+      allow read: if superAdmin() || admin();
+      allow create: if admin();
+      allow update, delete: if superAdmin();
+    }
+    match /subscriptionAuditLogs/{id} {
+      allow read: if superAdmin();
+      allow create: if superAdmin() || admin();
+      allow update, delete: if false;
+    }
 
     match /test/{id} { allow read: if true; allow write: if admin(); }
   }

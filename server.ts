@@ -200,7 +200,14 @@ const sanitizeSettings = (settings: any) => {
 app.get('/api/store-data', async (req, res) => {
   try {
     if (firestoreDb) {
-      const docRef = await firestoreDb.collection('storeSettings').doc('global').get();
+      const requestedTenant = String(req.query.restaurant || req.query.tenant || req.headers['x-restaurant-id'] || 'kfc-chakwal').trim();
+      const targetDocId = requestedTenant === 'kfc-chakwal' ? 'global' : requestedTenant;
+      
+      let docRef = await firestoreDb.collection('storeSettings').doc(targetDocId).get();
+      if (!docRef.exists && targetDocId !== 'global') {
+        docRef = await firestoreDb.collection('storeSettings').doc('global').get();
+      }
+
       if (docRef.exists) {
         const data: any = docRef.data() || {};
         const auth = await getOptionalCustomerAuth(req);
@@ -232,6 +239,7 @@ app.get('/api/store-data', async (req, res) => {
 app.post('/api/store-data', verifyAdminAuth, async (req, res) => {
   try {
     const payload = req.body || {};
+    const tenantParam = String(req.query.restaurant || req.query.tenant || req.headers['x-restaurant-id'] || payload.restaurantId || payload.tenantId || 'kfc-chakwal').trim();
     const timestamp = new Date().toISOString();
     const updated = {
       ...payload,
@@ -240,11 +248,10 @@ app.post('/api/store-data', verifyAdminAuth, async (req, res) => {
 
     if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
     
-    // 1. Save to primary storeSettings/global (read by admin and server)
-    await firestoreDb.collection('storeSettings').doc('global').set(updated, { merge: true });
+    // 1. Save to primary storeSettings/{tenantParam}
+    await firestoreDb.collection('storeSettings').doc(tenantParam).set(updated, { merge: true });
 
-    // 2. CRITICAL REAL-TIME SYNC: Also keep storePublic/global strictly in sync!
-    // Customer app and other admin browser tabs listen to storePublic/global via onSnapshot.
+    // 2. CRITICAL REAL-TIME SYNC: Also keep storePublic/{tenantParam} strictly in sync!
     const publicData: any = { ...updated, updatedAt: timestamp };
     if (publicData.settings) {
       publicData.settings = sanitizeSettings(publicData.settings);
@@ -252,14 +259,24 @@ app.post('/api/store-data', verifyAdminAuth, async (req, res) => {
     if (publicData.metaCommerce) {
       publicData.metaCommerce = sanitizeSettings(publicData.metaCommerce);
     }
-    await firestoreDb.collection('storePublic').doc('global').set(publicData, { merge: true });
+    await firestoreDb.collection('storePublic').doc(tenantParam).set(publicData, { merge: true });
 
-    // 3. Keep products collection in sync for individual document queries
+    // 3. Backward compatibility for legacy KFC Chakwal clients
+    if (tenantParam === 'kfc-chakwal') {
+      await firestoreDb.collection('storeSettings').doc('global').set(updated, { merge: true });
+      await firestoreDb.collection('storePublic').doc('global').set(publicData, { merge: true });
+    }
+
+    // 4. Keep products collection in sync for individual document queries
     if (Array.isArray(payload.menuItems)) {
       const batch = firestoreDb.batch();
       for (const product of payload.menuItems) {
         if (!product?.id || !product?.name) continue;
-        batch.set(firestoreDb.collection('products').doc(String(product.id)), { ...product, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        batch.set(firestoreDb.collection('products').doc(String(product.id)), {
+          ...product,
+          restaurantId: tenantParam,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
       }
       await batch.commit();
     }
@@ -741,7 +758,47 @@ app.post('/api/orders', async (req, res) => {
       return res.status(400).json({ error: 'Online payment gateway is not configured. Cash on Delivery is currently available.' });
     }
 
-    const settingsSnap = await firestoreDb.collection('storeSettings').doc('global').get();
+    const orderTenantId = String(input.restaurantId || input.tenantId || req.headers['x-restaurant-id'] || 'kfc-chakwal').trim();
+    if (firestoreDb && orderTenantId) {
+      try {
+        const tenantDoc = await firestoreDb.collection('tenants').doc(orderTenantId).get();
+        if (tenantDoc.exists) {
+          const tenantData: any = tenantDoc.data() || {};
+          const tenantStatus = tenantData.status;
+          const now = new Date();
+          const dueDate = tenantData.dueDate ? new Date(tenantData.dueDate) : null;
+          const graceDays = Number(tenantData.gracePeriodDays ?? 3);
+
+          if (tenantStatus === 'suspended' || tenantStatus === 'cancelled') {
+            return res.status(403).json({ error: 'This restaurant account is currently suspended. Online ordering is paused.' });
+          }
+
+          if (dueDate && !isNaN(dueDate.getTime())) {
+            const graceCutoff = new Date(dueDate.getTime() + graceDays * 24 * 60 * 60 * 1000);
+            if (now > graceCutoff && tenantStatus !== 'active' && tenantStatus !== 'trial') {
+              await firestoreDb.collection('tenants').doc(orderTenantId).set({
+                status: 'suspended',
+                suspensionReason: 'Subscription expired and grace period ended',
+                updatedAt: now.toISOString(),
+              }, { merge: true });
+              return res.status(403).json({ error: 'This restaurant subscription has expired and grace period has ended. Online ordering is temporarily paused.' });
+            }
+          }
+
+          if (tenantData.features && tenantData.features.onlineOrdering === false) {
+            return res.status(403).json({ error: 'Online ordering is disabled for this restaurant.' });
+          }
+        }
+      } catch (tenantErr) {
+        console.warn('Tenant validation check warning:', tenantErr);
+      }
+    }
+
+    const targetDocId = orderTenantId === 'kfc-chakwal' ? 'global' : orderTenantId;
+    let settingsSnap = await firestoreDb.collection('storeSettings').doc(targetDocId).get();
+    if (!settingsSnap.exists && targetDocId !== 'global') {
+      settingsSnap = await firestoreDb.collection('storeSettings').doc('global').get();
+    }
     const storeSettings: any = settingsSnap.exists ? settingsSnap.data() : {};
     const productsRef = firestoreDb.collection('products');
     const customerRef = firestoreDb.collection('customers').doc(customerAuth.uid);
@@ -886,6 +943,8 @@ app.post('/api/orders', async (req, res) => {
     const nowIso = new Date().toISOString();
     const order = {
       id: orderId,
+      restaurantId: orderTenantId,
+      branchId: input.branchId || undefined,
       date: nowIso,
       orderType: 'delivery',
       items,
@@ -1411,6 +1470,118 @@ app.post('/api/marketing/send-whatsapp', verifyAdminAuth, async (req, res) => {
     res.json({ configured: true, success: true, metaResponse: data });
   } catch (err: any) {
     res.status(500).json({ configured: true, success: false, error: err.message });
+  }
+});
+
+// =========================================================================
+// MULTI-RESTAURANT SAAS & SUBSCRIPTION EXPIRY ENDPOINTS
+// =========================================================================
+
+// GET /api/saas/tenants (Public Tenant Directory)
+app.get('/api/saas/tenants', async (_req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const snap = await firestoreDb.collection('tenants').limit(50).get();
+    const tenants = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        name: data.name,
+        slug: data.slug,
+        tagline: data.tagline,
+        city: data.city,
+        address: data.address,
+        phone: data.ownerPhone || data.phone,
+        status: data.status,
+        planId: data.planId,
+        features: data.features,
+      };
+    });
+    res.json(tenants);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to list tenants' });
+  }
+});
+
+// GET /api/saas/tenants/:id (Tenant Details)
+app.get('/api/saas/tenants/:id', async (req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    const tenantId = req.params.id;
+    const doc = await firestoreDb.collection('tenants').doc(tenantId).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Tenant not found' });
+    res.json({ id: doc.id, ...doc.data() });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch tenant' });
+  }
+});
+
+// POST /api/saas/check-expiry (Automated/Manual Expiry Check across all tenants)
+app.post('/api/saas/check-expiry', async (req, res) => {
+  try {
+    if (!firestoreDb) return res.status(503).json({ error: 'Firestore is unavailable' });
+    
+    const now = new Date();
+    const snap = await firestoreDb.collection('tenants').get();
+    const updates: any[] = [];
+
+    for (const doc of snap.docs) {
+      const tenant = doc.data() as any;
+      const status = tenant.status;
+      const dueDate = tenant.dueDate ? new Date(tenant.dueDate) : null;
+      const graceDays = Number(tenant.gracePeriodDays ?? 3);
+
+      if (!dueDate || isNaN(dueDate.getTime())) continue;
+
+      let newStatus = status;
+      let reason = '';
+
+      const graceCutoff = new Date(dueDate.getTime() + graceDays * 24 * 60 * 60 * 1000);
+
+      if (now > graceCutoff) {
+        if (status !== 'suspended' && status !== 'cancelled') {
+          newStatus = 'suspended';
+          reason = `Auto-suspended: Due date (${tenant.dueDate}) and ${graceDays}-day grace period passed`;
+        }
+      } else if (now > dueDate) {
+        if (status === 'active' || status === 'trial') {
+          newStatus = graceDays > 0 ? 'grace_period' : 'suspended';
+          reason = `Auto-updated: Due date reached. ${graceDays > 0 ? 'Grace period started' : 'Direct suspension applied'}`;
+        }
+      }
+
+      if (newStatus !== status) {
+        await firestoreDb.collection('tenants').doc(doc.id).set({
+          status: newStatus,
+          updatedAt: now.toISOString(),
+          lastStatusChange: {
+            from: status,
+            to: newStatus,
+            at: now.toISOString(),
+            reason,
+          },
+        }, { merge: true });
+
+        // Add audit log
+        await firestoreDb.collection('subscriptionAuditLogs').add({
+          restaurantId: doc.id,
+          restaurantName: tenant.name,
+          action: 'status_change',
+          previousStatus: status,
+          newStatus,
+          performedBy: 'system_expiry_worker',
+          reason,
+          createdAt: now.toISOString(),
+        });
+
+        updates.push({ id: doc.id, name: tenant.name, from: status, to: newStatus, reason });
+      }
+    }
+
+    res.json({ success: true, evaluatedCount: snap.docs.length, updatedCount: updates.length, updates });
+  } catch (err: any) {
+    console.error('Subscription check error:', err);
+    res.status(500).json({ error: 'Failed to run subscription expiry evaluation' });
   }
 });
 

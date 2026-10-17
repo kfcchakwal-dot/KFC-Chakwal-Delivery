@@ -12,7 +12,17 @@
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overscroll-behavior-y: contain;
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    background-color: var(--store-background, #f8f9fa);
+    color: var(--store-text, #18181b);
   }
+}
+
+:root {
+  --brand-primary: #e4002b;
+  --brand-secondary: #c30025;
+  --store-background: #f8f9fa;
+  --store-surface: #ffffff;
+  --store-text: #18181b;
 }
 
 .font-kfc {
@@ -33,7 +43,7 @@
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #e4002b;
+  background: var(--brand-primary, #e4002b);
 }
 
 /* Hide scrollbar utility for clean mobile horizontal sliders */
@@ -45,7 +55,7 @@
   scrollbar-width: none;
 }
 
-/* Android Safe Area Utilities */
+/* Safe Area Utilities */
 .safe-pb {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
@@ -53,118 +63,65 @@
   padding-top: max(0.5rem, env(safe-area-inset-top));
 }
 
+/* =========================================================================
+   EXPLICIT HIGH-CONTRAST SELECTED & ACTIVE STYLING FOR ALL TABS & OPTIONS
+   Guarantees that any selected option or tab stands out unmistakably!
+   ========================================================================= */
 
-/* Admin-configurable brand accent color. These selectors override the
-   app's legacy KFC-red utility classes without changing other theme colors. */
-[class~="bg-[#e4002b]"] {
+/* Any element marked as aria-current="page", aria-pressed="true", aria-selected="true", or data-selected="true" */
+[aria-current="page"],
+button[aria-pressed="true"],
+[aria-selected="true"],
+[data-selected="true"],
+.tab-selected,
+.option-selected {
   background-color: var(--brand-primary, #e4002b) !important;
-}
-[class~="text-[#e4002b]"] {
-  color: var(--brand-primary, #e4002b) !important;
-}
-[class~="border-[#e4002b]"] {
   border-color: var(--brand-primary, #e4002b) !important;
-}
-[class~="bg-[#c30025]"] {
-  background-color: var(--brand-secondary, #c30025) !important;
-}
-[class~="hover:bg-[#c30025]"]:hover {
-  background-color: var(--brand-secondary, #c30025) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 14px -2px rgba(228, 0, 43, 0.45) !important;
 }
 
-/* Storefront-only theme controls; admin portal keeps its own high-contrast palette. */
-[data-store-theme="light"] .bg-white {
-  background-color: var(--store-surface, #ffffff) !important;
-}
-[data-store-theme="light"] .bg-zinc-50 {
-  background-color: var(--store-surface, #f8f9fa) !important;
-}
-[data-store-theme="light"] .text-zinc-900 {
-  color: var(--store-text, #1a1a1f) !important;
-}
-
-
-/* KFC Pakistan-inspired light grey surfaces; only purchase buttons use the red CTA. */
-:root {
-  color-scheme: light;
-  --brand-primary: #e4002b;
-  --brand-secondary: #c30025;
-  --store-canvas: #f3f4f6;
-  --store-surface: #ffffff;
-  --store-text: #18181b;
-}
-html, body, #root { background: var(--store-canvas) !important; color: var(--store-text); }
-body { color-scheme: light !important; }
-[data-store-theme="light"] { background-color: var(--store-canvas) !important; color: var(--store-text) !important; }
-[data-store-theme="light"] .bg-white { background-color: #fff !important; }
-[data-store-theme="light"] .bg-zinc-50,
-[data-store-theme="light"] .bg-gray-50,
-[data-store-theme="light"] .bg-slate-50 { background-color: #f3f4f6 !important; }
-[class*="bg-black"], [class*="bg-zinc-9"], [class*="bg-zinc-8"],
-[class*="bg-gray-9"], [class*="bg-gray-8"], [class*="bg-slate-9"],
-[class*="bg-slate-8"], [class*="bg-neutral-9"], [class*="bg-neutral-8"],
-[class*="bg-[#121"], [class*="bg-[#151"], [class*="bg-[#161"],
-[class*="bg-[#171"], [class*="bg-[#181"], [class*="bg-[#1a"],
-[class*="bg-[#1b"], [class*="bg-[#1c"], [class*="bg-[#202"],
-[class*="bg-[#252"], [class*="bg-[#272"], [class*="bg-[#2b"],
-[class*="bg-[#2c"], [class*="bg-[#2e"] {
-  background-color: #f3f4f6 !important; color: #18181b !important; border-color: #e5e7eb !important;
-}
-[class*="bg-zinc-"], [class*="bg-gray-"], [class*="bg-slate-"], [class*="bg-neutral-"],
-[class*="bg-indigo-"], [class*="bg-emerald-"], [class*="bg-amber-"], [class*="bg-blue-"],
-[class*="bg-green-"], [class*="bg-purple-"], [class*="bg-violet-"], [class*="bg-orange-"],
-[class*="bg-teal-"], [class*="bg-cyan-"], [class*="bg-sky-"] { background-color: #f3f4f6 !important; }
-input, textarea, select { background-color: #fff !important; color: #18181b !important; border-color: #d1d5db; }
-[class~="text-white"] { color: #18181b !important; }
-/* Default controls are neutral grey. Purchase actions opt into .buy-button. */
-button, button[class], button[class]:hover, button[class]:focus-visible {
-  background-color: #e5e7eb !important; color: #27272a !important; border-color: #d1d5db !important;
-}
-button *, button[class] *, button[class] svg { color: inherit !important; }
-button:hover, button[class]:hover, button:focus-visible, button[class]:focus-visible {
-  background-color: #dfe2e6 !important; color: #18181b !important;
-}
-.buy-button, button.buy-button, button.buy-button:hover, button.buy-button:focus-visible {
-  background-color: #e4002b !important; color: #fff !important; border-color: #e4002b !important;
-}
-.buy-button *, button.buy-button *, .buy-button svg, button.buy-button svg { color: #fff !important; }
-.buy-button:hover, button.buy-button:hover, .buy-button:focus-visible, button.buy-button:focus-visible {
-  background-color: #c30025 !important; border-color: #c30025 !important;
-}
-.fixed[class*="bg-black"] { background-color: rgba(243, 244, 246, 0.96) !important; }
-
-/* Enforce the CTA rule even where legacy Tailwind classes request red. */
-button[class*="bg-[#e4002b]"]:not(.buy-button),
-button[class*="bg-[#c30025]"]:not(.buy-button) {
-  background-color: #e5e7eb !important;
-  color: #27272a !important;
-  border-color: #d1d5db !important;
-}
-button[class*="bg-[#e4002b]"]:not(.buy-button) *,
-button[class*="bg-[#c30025]"]:not(.buy-button) * { color: #27272a !important; }
-.buy-button [class~="text-white"], button.buy-button [class~="text-white"] { color: #fff !important; }
-
-button.buy-button[class~="text-white"],
-button.buy-button[class~="text-white"]:hover,
-button.buy-button[class~="text-white"]:focus-visible {
+[aria-current="page"] *,
+button[aria-pressed="true"] *,
+[aria-selected="true"] *,
+[data-selected="true"] *,
+.tab-selected *,
+.option-selected * {
   color: #ffffff !important;
 }
 
-
-/* Clear selected state for admin navigation, tabs, and toggle controls. */
-[aria-current="page"], button[aria-pressed="true"] {
-  outline-offset: 2px;
-}
-
-
-/* Make selected admin tabs/buttons unmistakable and consistent across sections. */
-button[aria-pressed="true"],
-button[aria-current="page"] {
-  background-color: #e4002b !important;
-  border-color: #e4002b !important;
-  color: #fff !important;
-}
+[aria-current="page"] svg,
 button[aria-pressed="true"] svg,
-button[aria-current="page"] svg {
-  color: #fff !important;
+[aria-selected="true"] svg,
+[data-selected="true"] svg,
+.tab-selected svg,
+.option-selected svg {
+  color: #ffffff !important;
+  stroke: currentColor;
+}
+
+/* Badges inside selected tabs */
+[aria-current="page"] .selected-badge,
+button[aria-pressed="true"] .selected-badge,
+[aria-selected="true"] .selected-badge,
+[data-selected="true"] .selected-badge {
+  background-color: #ffffff !important;
+  color: var(--brand-primary, #e4002b) !important;
+  font-weight: 900 !important;
+}
+
+/* Inactive tabs distinct contrast */
+button[aria-pressed="false"]:not([data-selected="true"]):hover,
+button[aria-selected="false"]:not([data-selected="true"]):hover {
+  border-color: var(--brand-primary, #e4002b);
+}
+
+/* Buy buttons and primary CTAs */
+.buy-button {
+  background-color: var(--brand-primary, #e4002b) !important;
+  color: #ffffff !important;
+}
+.buy-button:hover {
+  background-color: var(--brand-secondary, #c30025) !important;
 }

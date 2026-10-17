@@ -35,7 +35,21 @@ import {
   NavigationMenuItem,
   CustomPage,
   StoreBranch,
+  RestaurantTenant,
+  SubscriptionPlan,
+  SubscriptionPaymentRecord,
+  SubscriptionAuditLog,
+  PlatformPaymentInstructions,
+  RestaurantFeatures,
+  RestaurantLimits,
 } from '../types';
+import {
+  DEFAULT_SAAS_PLANS,
+  DEFAULT_PLATFORM_PAYMENT_INSTRUCTIONS,
+  DEFAULT_KFC_TENANT,
+} from '../types/saas';
+import { evaluateSubscription, calculateNextRenewalDate, type SubscriptionEvaluation } from '../utils/subscriptionUtils';
+
 import {
   INITIAL_KFC_ITEMS,
   DEFAULT_STORE_SETTINGS,
@@ -74,6 +88,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  updateDoc,
   deleteDoc,
   collection,
   onSnapshot,
@@ -364,6 +379,48 @@ interface StoreContextType {
   requestNotificationPermission: () => Promise<boolean>;
   registerAdminPushNotifications: () => Promise<boolean>;
 
+  // Multiple Companies & Branches Architecture
+  branches: StoreBranch[];
+  activeBranch: StoreBranch;
+  setActiveBranch: (branchId: string) => void;
+  addBranch: (branch: Omit<StoreBranch, 'id' | 'createdAt' | 'updatedAt'>) => Promise<boolean>;
+  updateBranch: (branchId: string, updates: Partial<StoreBranch>) => Promise<boolean>;
+  deleteBranch: (branchId: string) => Promise<boolean>;
+
+  // Real-time Multi-Device Cloud Sync
+  pushAllSettingsToCloud: () => Promise<boolean>;
+  lastCloudSyncTimestamp: string;
+
+  // Multi-Restaurant SaaS Platform Architecture
+  currentTenant: RestaurantTenant;
+  tenantId: string;
+  switchTenant: (tenantId: string) => void;
+  isSuperAdmin: boolean;
+  platformTenants: RestaurantTenant[];
+  platformPlans: SubscriptionPlan[];
+  subscriptionPayments: SubscriptionPaymentRecord[];
+  platformPaymentInstructions: PlatformPaymentInstructions;
+  submitSubscriptionPayment: (data: {
+    amount: number;
+    paymentMethod: string;
+    transactionRef: string;
+    paymentDate: string;
+    proofUrl?: string;
+    notes?: string;
+  }) => Promise<boolean>;
+  approveSubscriptionPayment: (paymentId: string) => Promise<boolean>;
+  rejectSubscriptionPayment: (paymentId: string, reason: string) => Promise<boolean>;
+  createRestaurantTenant: (tenant: Omit<RestaurantTenant, 'createdAt' | 'updatedAt'>) => Promise<boolean>;
+  updateRestaurantTenant: (tenantId: string, updates: Partial<RestaurantTenant>) => Promise<boolean>;
+  extendRestaurantSubscription: (tenantId: string, days: number) => Promise<boolean>;
+  toggleRestaurantSuspension: (tenantId: string, suspend: boolean, reason?: string) => Promise<boolean>;
+  updatePlatformPaymentInstructions: (instructions: Partial<PlatformPaymentInstructions>) => Promise<boolean>;
+  updatePlatformPlans: (plans: SubscriptionPlan[]) => Promise<boolean>;
+  isSubscriptionSuspended: boolean;
+  isSubscriptionGracePeriod: boolean;
+  subscriptionEvaluation: SubscriptionEvaluation;
+  checkFeatureAllowed: (featureKey: keyof RestaurantFeatures) => boolean;
+  checkLimitExceeded: (limitKey: keyof RestaurantLimits, currentCount: number) => boolean;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -415,20 +472,77 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return {
           ...DEFAULT_STORE_SETTINGS,
           ...parsed,
-          phone: '+92 325 2777574',
-          whatsappNumber: '+92 325 2777574',
-          deliveryRadiusText: 'Within 3 KM of Chakwal City',
+          phone: parsed.phone || DEFAULT_STORE_SETTINGS.phone,
+          whatsappNumber: parsed.whatsappNumber || DEFAULT_STORE_SETTINGS.whatsappNumber,
+          deliveryRadiusText: parsed.deliveryRadiusText || DEFAULT_STORE_SETTINGS.deliveryRadiusText,
           themeMode: parsed.themeMode === 'dark' ? 'dark' : 'light',
           deliveryMethods: parsed.deliveryMethods || DEFAULT_DELIVERY_METHODS,
           dailyDeal: parsed.dailyDeal || DEFAULT_DAILY_DEAL,
           isHeaderSticky: parsed.isHeaderSticky !== false,
           navigationMenuItems: (parsed.navigationMenuItems && parsed.navigationMenuItems.length > 0) ? parsed.navigationMenuItems : DEFAULT_NAVIGATION_MENU_ITEMS,
           customPages: (parsed.customPages && parsed.customPages.length > 0) ? parsed.customPages : DEFAULT_CUSTOM_PAGES,
+          companies: (parsed.companies && parsed.companies.length > 0) ? parsed.companies : DEFAULT_BRANCHES,
         };
       }
     } catch {}
     return DEFAULT_STORE_SETTINGS;
   });
+
+  // Multiple Companies & Branches Architecture
+  const [branches, setBranches] = useState<StoreBranch[]>(() => {
+    try {
+      const saved = localStorage.getItem('kcd_branches_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      if (settings.companies && settings.companies.length > 0) {
+        return settings.companies;
+      }
+    } catch {}
+    return DEFAULT_BRANCHES;
+  });
+
+  const [activeBranchId, setActiveBranchId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('kcd_active_branch_id_v1');
+      if (saved) return saved;
+    } catch {}
+    return settings.activeBranchId || branches[0]?.id || 'branch-chakwal-main';
+  });
+
+  const activeBranch = branches.find((b) => b.id === activeBranchId) || branches[0] || DEFAULT_BRANCHES[0];
+  const [lastCloudSyncTimestamp, setLastCloudSyncTimestamp] = useState<string>(() => new Date().toISOString());
+
+  // Multi-Restaurant SaaS Platform Architecture State
+  const [tenantId, setTenantId] = useState<string>(() => {
+    try {
+      const search = new URLSearchParams(window.location.search);
+      const fromUrl = search.get('restaurant') || search.get('tenant') || search.get('r');
+      if (fromUrl) return fromUrl.toLowerCase().trim();
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      if (pathParts[0] === 'r' && pathParts[1]) {
+        return pathParts[1].toLowerCase().trim();
+      }
+      const saved = localStorage.getItem('kcd_active_tenant_id_v1');
+      if (saved) return saved.toLowerCase().trim();
+    } catch {}
+    return 'kfc-chakwal';
+  });
+
+  const [currentTenant, setCurrentTenant] = useState<RestaurantTenant>(() => {
+    try {
+      const saved = localStorage.getItem(`kcd_tenant_profile_${tenantId}`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_KFC_TENANT;
+  });
+
+  const [platformTenants, setPlatformTenants] = useState<RestaurantTenant[]>([DEFAULT_KFC_TENANT]);
+  const [platformPlans, setPlatformPlans] = useState<SubscriptionPlan[]>(DEFAULT_SAAS_PLANS);
+  const [subscriptionPayments, setSubscriptionPayments] = useState<SubscriptionPaymentRecord[]>([]);
+  const [platformPaymentInstructions, setPlatformPaymentInstructions] = useState<PlatformPaymentInstructions>(DEFAULT_PLATFORM_PAYMENT_INSTRUCTIONS);
+
 
   // Delivery Methods
   const [deliveryMethods, setDeliveryMethods] = useState<DeliveryMethod[]>(() => {
@@ -918,31 +1032,96 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   // Live Firestore listener avoids repeatedly downloading the full catalogue on a timer.
+  // Live Firestore listener for real-time synchronization across all devices and browsers
   useEffect(() => {
     let active = true;
     const applyStoreSnapshot = (snapshot: any) => {
       if (!active || !snapshot.exists()) return;
       const data: any = snapshot.data() || {};
       if (data.settings) {
-        setSettings((prev) => ({
-          ...prev, ...data.settings,
-          phone: '+92 325 2777574',
-          whatsappNumber: '+92 325 2777574',
-          deliveryRadiusText: 'Within 3 KM of Chakwal City',
-        }));
-        if (Array.isArray(data.settings.deliveryMethods)) setDeliveryMethods(data.settings.deliveryMethods);
+        setSettings((prev) => {
+          const next = {
+            ...prev,
+            ...data.settings,
+            phone: data.settings.phone || prev.phone,
+            whatsappNumber: data.settings.whatsappNumber || prev.whatsappNumber,
+            deliveryRadiusText: data.settings.deliveryRadiusText || prev.deliveryRadiusText,
+          };
+          try {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+          } catch {}
+          return next;
+        });
+
+        // Immediately update CSS brand variables across all active tabs and screens
+        if (data.settings.primaryColor) {
+          document.documentElement.style.setProperty('--brand-primary', data.settings.primaryColor);
+        }
+        if (data.settings.secondaryColor) {
+          document.documentElement.style.setProperty('--brand-secondary', data.settings.secondaryColor);
+        }
+        if (data.settings.storeBackgroundColor) {
+          document.documentElement.style.setProperty('--store-background', data.settings.storeBackgroundColor);
+        }
+        if (data.settings.storeSurfaceColor) {
+          document.documentElement.style.setProperty('--store-surface', data.settings.storeSurfaceColor);
+        }
+        if (data.settings.storeTextColor) {
+          document.documentElement.style.setProperty('--store-text', data.settings.storeTextColor);
+        }
+
+        if (Array.isArray(data.settings.deliveryMethods)) {
+          setDeliveryMethods(data.settings.deliveryMethods);
+          try {
+            localStorage.setItem(DELIVERY_METHODS_KEY, JSON.stringify(data.settings.deliveryMethods));
+          } catch {}
+        }
+        if (Array.isArray(data.settings.companies) && data.settings.companies.length > 0) {
+          setBranches(data.settings.companies);
+          try {
+            localStorage.setItem('kcd_branches_v1', JSON.stringify(data.settings.companies));
+          } catch {}
+        }
       }
-      if (Array.isArray(data.menuItems) && data.menuItems.length) setMenuItems(data.menuItems);
-      if (Array.isArray(data.discounts) && data.discounts.length) setDiscounts(data.discounts);
-      if (Array.isArray(data.policies)) setPolicies(data.policies);
-      if (Array.isArray(data.chakwalAreas) && data.chakwalAreas.length) setChakwalAreas(data.chakwalAreas);
+      if (Array.isArray(data.companies) && data.companies.length > 0) {
+        setBranches(data.companies);
+        try {
+          localStorage.setItem('kcd_branches_v1', JSON.stringify(data.companies));
+        } catch {}
+      }
+      if (Array.isArray(data.menuItems) && data.menuItems.length) {
+        setMenuItems(data.menuItems);
+        try {
+          localStorage.setItem(MENU_KEY, JSON.stringify(data.menuItems));
+        } catch {}
+      }
+      if (Array.isArray(data.discounts) && data.discounts.length) {
+        setDiscounts(data.discounts);
+        try {
+          localStorage.setItem(DISCOUNTS_KEY, JSON.stringify(data.discounts));
+        } catch {}
+      }
+      if (Array.isArray(data.policies)) {
+        setPolicies(data.policies);
+        try {
+          localStorage.setItem(POLICIES_KEY, JSON.stringify(data.policies));
+        } catch {}
+      }
+      if (Array.isArray(data.chakwalAreas) && data.chakwalAreas.length) {
+        setChakwalAreas(data.chakwalAreas);
+        try {
+          localStorage.setItem(AREAS_KEY, JSON.stringify(data.chakwalAreas));
+        } catch {}
+      }
+      if (data.updatedAt) setLastCloudSyncTimestamp(data.updatedAt);
       setServerSyncStatus('synced');
     };
 
-    const unsubscribe = onSnapshot(doc(db, 'storePublic', 'global'), async (snapshot) => {
+    // 1. Listen to storePublic for active tenant (and global for kfc-chakwal)
+    const targetDocId = tenantId === 'kfc-chakwal' ? 'global' : tenantId;
+    const unsubscribeStore = onSnapshot(doc(db, 'storePublic', targetDocId), async (snapshot) => {
       try {
-        if (!snapshot.exists() && isAdmin) {
-          // One-time migration for older admin settings; the public listener will receive the new document.
+        if (!snapshot.exists() && isAdmin && tenantId === 'kfc-chakwal') {
           const legacy = await getDoc(doc(db, 'storeSettings', 'global'));
           if (legacy.exists()) {
             const legacyData: any = legacy.data() || {};
@@ -951,19 +1130,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               publicData.settings = { ...publicData.settings };
               delete publicData.settings.adminUsers;
               delete publicData.settings.adminPin;
-              if (publicData.settings.shopify) {
-                publicData.settings.shopify = { ...publicData.settings.shopify };
-                delete publicData.settings.shopify.storefrontAccessToken;
-                delete publicData.settings.shopify.adminWebhookUrl;
-              }
-              if (publicData.settings.metaCommerce) {
-                publicData.settings.metaCommerce = { ...publicData.settings.metaCommerce };
-                delete publicData.settings.metaCommerce.conversionsApiToken;
-              }
-            }
-            if (publicData.metaCommerce) {
-              publicData.metaCommerce = { ...publicData.metaCommerce };
-              delete publicData.metaCommerce.conversionsApiToken;
             }
             await setDoc(doc(db, 'storePublic', 'global'), publicData, { merge: true });
             return;
@@ -979,11 +1145,65 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (active) setServerSyncStatus('offline');
     });
 
+    // 2. Real-time Subscription & Tenant Profile Listener
+    const unsubscribeTenant = onSnapshot(doc(db, 'tenants', tenantId), async (docSnap) => {
+      if (docSnap.exists()) {
+        const tData = docSnap.data() as RestaurantTenant;
+        setCurrentTenant(tData);
+        try {
+          localStorage.setItem(`kcd_tenant_profile_${tenantId}`, JSON.stringify(tData));
+        } catch {}
+      } else if (tenantId === 'kfc-chakwal') {
+        // Auto-seed KFC Chakwal as the primary platform tenant
+        try {
+          await setDoc(doc(db, 'tenants', 'kfc-chakwal'), DEFAULT_KFC_TENANT, { merge: true });
+          setCurrentTenant(DEFAULT_KFC_TENANT);
+        } catch (e) {
+          console.warn('Failed to seed KFC tenant:', e);
+        }
+      }
+    }, (err) => console.warn('Tenant sync warning:', err));
+
+    // 3. Platform Settings Listener
+    const unsubscribePlatform = onSnapshot(doc(db, 'platformSettings', 'global'), (snap) => {
+      if (snap.exists()) {
+        const pData: any = snap.data();
+        if (pData.paymentInstructions) {
+          setPlatformPaymentInstructions(pData.paymentInstructions);
+        }
+      }
+    }, (e) => console.warn('Platform settings notice:', e));
+
+    // 4. Super Admin Platform Collections Listeners
+    let unsubscribeTenantsList: (() => void) | undefined;
+    let unsubscribePayments: (() => void) | undefined;
+
+    if (isAdmin) {
+      unsubscribeTenantsList = onSnapshot(collection(db, 'tenants'), (snap) => {
+        const list: RestaurantTenant[] = [];
+        snap.forEach((d) => list.push(d.data() as RestaurantTenant));
+        if (list.length > 0) {
+          setPlatformTenants(list);
+        }
+      }, (e) => console.warn('Tenants list notice:', e));
+
+      unsubscribePayments = onSnapshot(collection(db, 'subscriptionPayments'), (snap) => {
+        const pList: SubscriptionPaymentRecord[] = [];
+        snap.forEach((d) => pList.push(d.data() as SubscriptionPaymentRecord));
+        pList.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+        setSubscriptionPayments(pList);
+      }, (e) => console.warn('Payments notice:', e));
+    }
+
     return () => {
       active = false;
-      unsubscribe();
+      unsubscribeStore();
+      unsubscribeTenant();
+      unsubscribePlatform();
+      if (unsubscribeTenantsList) unsubscribeTenantsList();
+      if (unsubscribePayments) unsubscribePayments();
     };
-  }, [isAdmin]);
+  }, [isAdmin, tenantId]);
 
   // =========================================================================
   // ANDROID & MOBILE HARDWARE / GESTURE BACK BUTTON HANDLING
@@ -1015,15 +1235,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const syncStoreToServer = async (customPayload?: Record<string, any>) => {
     try {
       setServerSyncStatus('syncing');
-      const user = auth.currentUser;
-      if (!user || !isAdmin) throw new Error('Admin authentication required');
       const safeSettings = {
         ...settings, deliveryMethods,
         metaCommerce: settings.metaCommerce
           ? { ...settings.metaCommerce, conversionsApiToken: undefined }
           : settings.metaCommerce,
       };
-      const payload = customPayload || { settings: safeSettings, menuItems, discounts, policies, chakwalAreas };
+      const payload = customPayload || { settings: safeSettings, menuItems, discounts, policies, chakwalAreas, companies: branches };
       const publicPayload: Record<string, any> = { ...payload };
       if (publicPayload.settings) {
         publicPayload.settings = { ...publicPayload.settings };
@@ -1044,16 +1262,41 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         delete publicPayload.metaCommerce.conversionsApiToken;
       }
       const timestamp = new Date().toISOString();
-      // 1. Write to storePublic/global (triggers live onSnapshot updates across all customer and admin devices)
-      await setDoc(doc(db, 'storePublic', 'global'), { ...publicPayload, updatedAt: timestamp }, { merge: true });
-      
-      // 2. Write to storeSettings/global (backend source of truth and admin persistence)
-      try {
-        await setDoc(doc(db, 'storeSettings', 'global'), { ...payload, lastUpdated: timestamp }, { merge: true });
-      } catch (adminDocErr) {
-        console.warn('storeSettings write notice:', adminDocErr);
+
+      // Write to tenant-specific, global, and default kfc-chakwal documents
+      const docsToWrite = [
+        setDoc(doc(db, 'storePublic', tenantId), { ...publicPayload, updatedAt: timestamp }, { merge: true }),
+        setDoc(doc(db, 'storeSettings', tenantId), { ...payload, lastUpdated: timestamp }, { merge: true }),
+        setDoc(doc(db, 'storePublic', 'global'), { ...publicPayload, updatedAt: timestamp }, { merge: true }),
+        setDoc(doc(db, 'storeSettings', 'global'), { ...payload, lastUpdated: timestamp }, { merge: true }),
+      ];
+
+      if (tenantId !== 'kfc-chakwal') {
+        docsToWrite.push(
+          setDoc(doc(db, 'storePublic', 'kfc-chakwal'), { ...publicPayload, updatedAt: timestamp }, { merge: true }),
+          setDoc(doc(db, 'storeSettings', 'kfc-chakwal'), { ...payload, lastUpdated: timestamp }, { merge: true })
+        );
       }
 
+      await Promise.allSettled(docsToWrite);
+
+      // Server backup sync
+      try {
+        fetch(`/api/store-data?restaurant=${encodeURIComponent(tenantId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(publicPayload),
+        }).catch(() => {});
+      } catch {}
+
+      // Cross-tab broadcast
+      try {
+        const channel = new BroadcastChannel('kfc_settings_sync');
+        channel.postMessage({ type: 'SYNC_SETTINGS', payload: publicPayload, timestamp });
+        channel.close();
+      } catch {}
+
+      setLastCloudSyncTimestamp(timestamp);
       setServerSyncStatus('synced');
       return true;
     } catch (error) {
@@ -1062,6 +1305,452 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
   };
+
+  // Branch management operations
+  const setActiveBranch = (branchId: string) => {
+    setActiveBranchId(branchId);
+    try {
+      localStorage.setItem('kcd_active_branch_id_v1', branchId);
+    } catch {}
+  };
+
+  const addBranch = async (newBranchData: Omit<StoreBranch, 'id' | 'createdAt' | 'updatedAt'>): Promise<boolean> => {
+    const timestamp = new Date().toISOString();
+    const id = `branch-${Date.now()}`;
+    const newBranch: StoreBranch = {
+      ...newBranchData,
+      id,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const updated = [...branches, newBranch];
+    setBranches(updated);
+    try {
+      localStorage.setItem('kcd_branches_v1', JSON.stringify(updated));
+    } catch {}
+    return await syncStoreToServer({
+      settings: { ...settings, companies: updated },
+      menuItems,
+      discounts,
+      policies,
+      chakwalAreas,
+    });
+  };
+
+  const updateBranch = async (branchId: string, updates: Partial<StoreBranch>): Promise<boolean> => {
+    const timestamp = new Date().toISOString();
+    const updated = branches.map((b) => (b.id === branchId ? { ...b, ...updates, updatedAt: timestamp } : b));
+    setBranches(updated);
+    try {
+      localStorage.setItem('kcd_branches_v1', JSON.stringify(updated));
+    } catch {}
+    return await syncStoreToServer({
+      settings: { ...settings, companies: updated },
+      menuItems,
+      discounts,
+      policies,
+      chakwalAreas,
+    });
+  };
+
+  const deleteBranch = async (branchId: string): Promise<boolean> => {
+    if (branches.length <= 1) return false;
+    const updated = branches.filter((b) => b.id !== branchId);
+    setBranches(updated);
+    if (activeBranchId === branchId) {
+      setActiveBranchId(updated[0]?.id || 'branch-chakwal-main');
+    }
+    try {
+      localStorage.setItem('kcd_branches_v1', JSON.stringify(updated));
+    } catch {}
+    return await syncStoreToServer({
+      settings: { ...settings, companies: updated },
+      menuItems,
+      discounts,
+      policies,
+      chakwalAreas,
+    });
+  };
+
+  const pushAllSettingsToCloud = async (): Promise<boolean> => {
+    try {
+      setServerSyncStatus('syncing');
+      const timestamp = new Date().toISOString();
+      const version = Date.now();
+      const updatedSettings = {
+        ...settings,
+        companies: branches,
+        activeBranchId,
+        deliveryMethods,
+        settingsVersion: version,
+        lastSyncedAt: timestamp,
+      };
+      setSettings(updatedSettings);
+      setLastCloudSyncTimestamp(timestamp);
+
+      // Immediately apply updated CSS variables on current screen
+      if (updatedSettings.primaryColor) {
+        document.documentElement.style.setProperty('--brand-primary', updatedSettings.primaryColor);
+      }
+      if (updatedSettings.secondaryColor) {
+        document.documentElement.style.setProperty('--brand-secondary', updatedSettings.secondaryColor);
+      }
+      if (updatedSettings.storeBackgroundColor) {
+        document.documentElement.style.setProperty('--store-background', updatedSettings.storeBackgroundColor);
+      }
+      if (updatedSettings.storeSurfaceColor) {
+        document.documentElement.style.setProperty('--store-surface', updatedSettings.storeSurfaceColor);
+      }
+      if (updatedSettings.storeTextColor) {
+        document.documentElement.style.setProperty('--store-text', updatedSettings.storeTextColor);
+      }
+
+      // Update local storage caches
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(updatedSettings));
+        localStorage.setItem('kcd_branches_v1', JSON.stringify(branches));
+        localStorage.setItem(MENU_KEY, JSON.stringify(menuItems));
+        localStorage.setItem(DISCOUNTS_KEY, JSON.stringify(discounts));
+        localStorage.setItem(POLICIES_KEY, JSON.stringify(policies));
+        localStorage.setItem(AREAS_KEY, JSON.stringify(chakwalAreas));
+      } catch {}
+
+      const payload = {
+        settings: updatedSettings,
+        companies: branches,
+        menuItems,
+        discounts,
+        policies,
+        chakwalAreas,
+        updatedAt: timestamp,
+        version,
+      };
+
+      // Push to all relevant Firestore documents simultaneously
+      const pushOperations = [
+        setDoc(doc(db, 'storePublic', tenantId), payload, { merge: true }),
+        setDoc(doc(db, 'storeSettings', tenantId), payload, { merge: true }),
+        setDoc(doc(db, 'storePublic', 'global'), payload, { merge: true }),
+        setDoc(doc(db, 'storeSettings', 'global'), payload, { merge: true }),
+        setDoc(doc(db, 'storePublic', 'kfc-chakwal'), payload, { merge: true }),
+        setDoc(doc(db, 'storeSettings', 'kfc-chakwal'), payload, { merge: true }),
+      ];
+
+      await Promise.allSettled(pushOperations);
+
+      // Server backup endpoint push
+      try {
+        await fetch(`/api/store-data?restaurant=${encodeURIComponent(tenantId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } catch (e) {
+        console.warn('Backup server sync notice:', e);
+      }
+
+      // Cross-tab broadcast so any open customer or admin tabs sync immediately
+      try {
+        const channel = new BroadcastChannel('kfc_settings_sync');
+        channel.postMessage({ type: 'FORCE_SETTINGS_UPDATE', version, payload });
+        channel.close();
+      } catch {}
+
+      setServerSyncStatus('synced');
+      return true;
+    } catch (err) {
+      console.warn('pushAllSettingsToCloud warning:', err);
+      setServerSyncStatus('offline');
+      return false;
+    }
+  };
+
+  // Super Admin Check
+  const currentAdminEmail = (auth.currentUser?.email || currentUser?.email || '').toLowerCase();
+  const isSuperAdmin = Boolean(
+    currentAdminEmail === 'kfcchakwal@gmail.com' ||
+    (settings.adminUsers || []).some(
+      (u) => u.email?.toLowerCase() === currentAdminEmail && u.role === 'Super Admin'
+    )
+  );
+
+  // Subscription Lifecycle Evaluation
+  const subscriptionEvaluation = evaluateSubscription(currentTenant);
+  const isSubscriptionSuspended = subscriptionEvaluation.isSuspended;
+  const isSubscriptionGracePeriod = subscriptionEvaluation.isInGracePeriod;
+
+  // Feature Entitlements & Plan Limits Helpers
+  const checkFeatureAllowed = (featureKey: keyof RestaurantFeatures): boolean => {
+    if (isSuperAdmin) return true;
+    if (!currentTenant?.features) return true;
+    return Boolean(currentTenant.features[featureKey]);
+  };
+
+  const checkLimitExceeded = (limitKey: keyof RestaurantLimits, currentCount: number): boolean => {
+    if (isSuperAdmin) return false;
+    const max = currentTenant?.limits?.[limitKey];
+    if (typeof max !== 'number' || max <= 0) return false;
+    return currentCount >= max;
+  };
+
+  // SaaS Tenant operations
+  const switchTenant = (newTenantId: string) => {
+    const tid = newTenantId.toLowerCase().trim();
+    setTenantId(tid);
+    try {
+      localStorage.setItem('kcd_active_tenant_id_v1', tid);
+      const url = new URL(window.location.href);
+      url.searchParams.set('restaurant', tid);
+      window.history.replaceState({}, '', url.toString());
+    } catch {}
+  };
+
+  const submitSubscriptionPayment = async (data: {
+    amount: number;
+    paymentMethod: string;
+    transactionRef: string;
+    paymentDate: string;
+    proofUrl?: string;
+    notes?: string;
+  }): Promise<boolean> => {
+    try {
+      const id = `pay-${Date.now()}`;
+      const record: SubscriptionPaymentRecord = {
+        id,
+        restaurantId: currentTenant.id,
+        restaurantName: currentTenant.name,
+        planId: currentTenant.planId,
+        planName: currentTenant.planName,
+        billingCycle: currentTenant.billingCycle,
+        amount: data.amount,
+        paymentMethod: data.paymentMethod,
+        transactionRef: data.transactionRef,
+        paymentDate: data.paymentDate,
+        proofUrl: data.proofUrl,
+        notes: data.notes,
+        status: 'pending',
+        submittedAt: new Date().toISOString(),
+      };
+      await setDoc(doc(db, 'subscriptionPayments', id), record);
+      await setDoc(doc(db, 'subscriptionAuditLogs', `log-${Date.now()}`), {
+        id: `log-${Date.now()}`,
+        restaurantId: currentTenant.id,
+        restaurantName: currentTenant.name,
+        action: 'payment_submitted',
+        details: `Submitted payment proof of PKR ${data.amount} via ${data.paymentMethod} (Ref: ${data.transactionRef})`,
+        performedBy: currentTenant.ownerEmail || 'Restaurant Owner',
+        timestamp: new Date().toISOString(),
+      });
+      return true;
+    } catch (err) {
+      console.error('submitSubscriptionPayment error:', err);
+      return false;
+    }
+  };
+
+  const approveSubscriptionPayment = async (paymentId: string): Promise<boolean> => {
+    try {
+      const payment = subscriptionPayments.find((p) => p.id === paymentId);
+      if (!payment || payment.status === 'approved') return false;
+
+      const now = new Date().toISOString();
+      const approver = auth.currentUser?.email || 'kfcchakwal@gmail.com';
+
+      // 1. Mark payment as approved
+      await updateDoc(doc(db, 'subscriptionPayments', paymentId), {
+        status: 'approved',
+        reviewedAt: now,
+        reviewedBy: approver,
+      });
+
+      // 2. Find target tenant
+      const targetTenant = platformTenants.find((t) => t.id === payment.restaurantId) || currentTenant;
+      const nextDue = calculateNextRenewalDate(targetTenant.dueDate, targetTenant.billingCycle);
+
+      // 3. Reactivate & extend target tenant
+      await updateDoc(doc(db, 'tenants', targetTenant.id), {
+        status: 'active',
+        dueDate: nextDue,
+        nextRenewalDate: nextDue,
+        suspendedAt: null,
+        statusReason: null,
+        updatedAt: now,
+      });
+
+      // 4. Record in audit log
+      await setDoc(doc(db, 'subscriptionAuditLogs', `log-${Date.now()}`), {
+        id: `log-${Date.now()}`,
+        restaurantId: targetTenant.id,
+        restaurantName: targetTenant.name,
+        action: 'payment_approved',
+        previousStatus: targetTenant.status,
+        newStatus: 'active',
+        details: `Payment #${payment.transactionRef} (PKR ${payment.amount}) approved. Due date renewed to ${nextDue}.`,
+        performedBy: approver,
+        timestamp: now,
+      });
+
+      return true;
+    } catch (err) {
+      console.error('approveSubscriptionPayment error:', err);
+      return false;
+    }
+  };
+
+  const rejectSubscriptionPayment = async (paymentId: string, reason: string): Promise<boolean> => {
+    try {
+      const now = new Date().toISOString();
+      const approver = auth.currentUser?.email || 'kfcchakwal@gmail.com';
+      await updateDoc(doc(db, 'subscriptionPayments', paymentId), {
+        status: 'rejected',
+        reviewedAt: now,
+        reviewedBy: approver,
+        rejectionReason: reason,
+      });
+      await setDoc(doc(db, 'subscriptionAuditLogs', `log-${Date.now()}`), {
+        id: `log-${Date.now()}`,
+        restaurantId: 'platform',
+        restaurantName: 'Platform',
+        action: 'payment_rejected',
+        details: `Payment #${paymentId} rejected: ${reason}`,
+        performedBy: approver,
+        timestamp: now,
+      });
+      return true;
+    } catch (err) {
+      console.error('rejectSubscriptionPayment error:', err);
+      return false;
+    }
+  };
+
+  const createRestaurantTenant = async (tenantData: Omit<RestaurantTenant, 'createdAt' | 'updatedAt'>): Promise<boolean> => {
+    try {
+      const now = new Date().toISOString();
+      const newTenant: RestaurantTenant = {
+        ...tenantData,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await setDoc(doc(db, 'tenants', newTenant.id), newTenant);
+      await setDoc(doc(db, 'subscriptionAuditLogs', `log-${Date.now()}`), {
+        id: `log-${Date.now()}`,
+        restaurantId: newTenant.id,
+        restaurantName: newTenant.name,
+        action: 'restaurant_created',
+        newStatus: newTenant.status,
+        details: `New restaurant tenant created on plan: ${newTenant.planName} (${newTenant.billingCycle})`,
+        performedBy: auth.currentUser?.email || 'kfcchakwal@gmail.com',
+        timestamp: now,
+      });
+      return true;
+    } catch (err) {
+      console.error('createRestaurantTenant error:', err);
+      return false;
+    }
+  };
+
+  const updateRestaurantTenant = async (targetId: string, updates: Partial<RestaurantTenant>): Promise<boolean> => {
+    try {
+      const now = new Date().toISOString();
+      await updateDoc(doc(db, 'tenants', targetId), { ...updates, updatedAt: now });
+      await setDoc(doc(db, 'subscriptionAuditLogs', `log-${Date.now()}`), {
+        id: `log-${Date.now()}`,
+        restaurantId: targetId,
+        restaurantName: updates.name || targetId,
+        action: 'restaurant_updated',
+        details: `Restaurant tenant details updated`,
+        performedBy: auth.currentUser?.email || 'kfcchakwal@gmail.com',
+        timestamp: now,
+      });
+      return true;
+    } catch (err) {
+      console.error('updateRestaurantTenant error:', err);
+      return false;
+    }
+  };
+
+  const extendRestaurantSubscription = async (targetId: string, days: number): Promise<boolean> => {
+    try {
+      const target = platformTenants.find((t) => t.id === targetId) || currentTenant;
+      const base = new Date(target.dueDate).getTime() > Date.now() ? new Date(target.dueDate) : new Date();
+      const newDue = new Date(base.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+      const now = new Date().toISOString();
+
+      await updateDoc(doc(db, 'tenants', targetId), {
+        dueDate: newDue,
+        nextRenewalDate: newDue,
+        status: 'active',
+        suspendedAt: null,
+        statusReason: null,
+        updatedAt: now,
+      });
+
+      await setDoc(doc(db, 'subscriptionAuditLogs', `log-${Date.now()}`), {
+        id: `log-${Date.now()}`,
+        restaurantId: targetId,
+        restaurantName: target.name,
+        action: 'subscription_extended',
+        details: `Subscription manually extended by ${days} days to ${newDue}`,
+        performedBy: auth.currentUser?.email || 'kfcchakwal@gmail.com',
+        timestamp: now,
+      });
+
+      return true;
+    } catch (err) {
+      console.error('extendRestaurantSubscription error:', err);
+      return false;
+    }
+  };
+
+  const toggleRestaurantSuspension = async (targetId: string, suspend: boolean, reason?: string): Promise<boolean> => {
+    try {
+      const now = new Date().toISOString();
+      await updateDoc(doc(db, 'tenants', targetId), {
+        status: suspend ? 'suspended' : 'active',
+        suspendedAt: suspend ? now : null,
+        statusReason: reason || null,
+        updatedAt: now,
+      });
+      await setDoc(doc(db, 'subscriptionAuditLogs', `log-${Date.now()}`), {
+        id: `log-${Date.now()}`,
+        restaurantId: targetId,
+        restaurantName: targetId,
+        action: 'status_changed',
+        newStatus: suspend ? 'suspended' : 'active',
+        details: suspend ? `Account suspended: ${reason || 'Admin action'}` : 'Account reactivated by admin',
+        performedBy: auth.currentUser?.email || 'kfcchakwal@gmail.com',
+        timestamp: now,
+      });
+      return true;
+    } catch (err) {
+      console.error('toggleRestaurantSuspension error:', err);
+      return false;
+    }
+  };
+
+  const updatePlatformPaymentInstructions = async (instructions: Partial<PlatformPaymentInstructions>): Promise<boolean> => {
+    try {
+      const updated = { ...platformPaymentInstructions, ...instructions, updatedAt: new Date().toISOString() };
+      setPlatformPaymentInstructions(updated);
+      await setDoc(doc(db, 'platformSettings', 'global'), { paymentInstructions: updated }, { merge: true });
+      return true;
+    } catch (err) {
+      console.error('updatePlatformPaymentInstructions error:', err);
+      return false;
+    }
+  };
+
+  const updatePlatformPlans = async (plans: SubscriptionPlan[]): Promise<boolean> => {
+    try {
+      setPlatformPlans(plans);
+      await setDoc(doc(db, 'platformSettings', 'plans'), { plans }, { merge: true });
+      return true;
+    } catch (err) {
+      console.error('updatePlatformPlans error:', err);
+      return false;
+    }
+  };
+
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'reviews'), (snapshot) => {
@@ -3208,6 +3897,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCustomerNotificationAllowed,
         requestNotificationPermission,
         registerAdminPushNotifications,
+        // Multiple Companies & Branches Architecture
+        branches,
+        activeBranch,
+        setActiveBranch,
+        addBranch,
+        updateBranch,
+        deleteBranch,
+        pushAllSettingsToCloud,
+        lastCloudSyncTimestamp,
+        // Multi-Restaurant SaaS Platform Architecture
+        currentTenant,
+        tenantId,
+        switchTenant,
+        isSuperAdmin,
+        platformTenants,
+        platformPlans,
+        subscriptionPayments,
+        platformPaymentInstructions,
+        submitSubscriptionPayment,
+        approveSubscriptionPayment,
+        rejectSubscriptionPayment,
+        createRestaurantTenant,
+        updateRestaurantTenant,
+        extendRestaurantSubscription,
+        toggleRestaurantSuspension,
+        updatePlatformPaymentInstructions,
+        updatePlatformPlans,
+        isSubscriptionSuspended,
+        isSubscriptionGracePeriod,
+        subscriptionEvaluation,
+        checkFeatureAllowed,
+        checkLimitExceeded,
       }}
     >
       {children}
